@@ -1,0 +1,12 @@
+services:
+  next:
+    image: node:22-slim
+    working_dir: /app/region-scan-dashboard
+    entrypoint: yarn dev
+    environment:
+      - NEXT_TELEMETRY_DISABLED=1
+    volumes:
+      - "./next:/app"
+    ports:
+      - "${NEXT_PORT}:3000"
+    user: "1000"
