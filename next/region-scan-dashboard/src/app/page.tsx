@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Grid2 as Grid, MenuItem, TextField } from "@mui/material";
 import { GridFilterModel } from "@mui/x-data-grid";
 import {
@@ -12,12 +12,16 @@ import {
 import { parseTsv } from "@/lib/ts/util";
 import { RegionResult } from "@/lib/ts/types";
 import { RegionResultCols } from "@/util/columnConfigs";
+import { BrushFilter } from "@/components/MiamiPlot";
 
 export default function Home() {
   const [regionData, setRegionData] = useState<RegionResult[]>([]);
   const [regionDisplayData, setRegionDisplayData] = useState<RegionResult[]>(
     []
   );
+
+  const [brushFilter, setBrushFilter] = useState<BrushFilter>();
+
   const [filterModel, setFilterModel] = useState<GridFilterModel>();
 
   const [upperVariable, setUpperVariale] = useState<keyof RegionResult | "">(
@@ -29,6 +33,28 @@ export default function Home() {
 
   const [upperThresh, setUpperThresh] = useState<number>(10e-5);
   const [lowerThresh, setLowerThresh] = useState<number>(10e-5);
+
+  useEffect(() => {
+    // we filter the positions here so it's updated in the chart
+    // but the pvals are filtered in the viz, since we don't want to remove
+    // the whole model from the dataset, since one var might pass and the other might not
+    if (brushFilter && upperVariable && lowerVariable) {
+      const { x0Lim, x1Lim } = brushFilter;
+
+      const newDisplayData = regionDisplayData.filter((d) => {
+        const x0Pass =
+          d.chr > +x0Lim.chr ||
+          (d.chr === +x0Lim.chr && d.start_bp >= x0Lim.pos);
+
+        const x1Pass =
+          d.chr < +x1Lim.chr || (d.chr === +x1Lim.chr && d.end_bp <= x1Lim.pos);
+
+        return x0Pass && x1Pass;
+      });
+
+      setRegionDisplayData(newDisplayData);
+    }
+  }, [brushFilter, upperVariable, lowerVariable]);
 
   return (
     <Grid container direction="column" spacing={2}>
@@ -44,16 +70,15 @@ export default function Home() {
                   const parsed = await parseTsv<RegionResult>(file);
                   results = [
                     ...results,
-                    ...parsed.map(
-                      (val) =>
-                        Object.fromEntries(
-                          Object.entries(val).map(([k, v]) => [
-                            k.replaceAll(".", "_"),
-                            v,
-                          ])
-                        ) as RegionResult
+                    ...parsed.map((val) =>
+                      Object.fromEntries(
+                        Object.entries(val).map(([k, v]) => [
+                          k.replaceAll(".", "_"),
+                          +v,
+                        ])
+                      )
                     ),
-                  ];
+                  ] as RegionResult[];
                 }
 
                 results = results.map((r, i) => {
@@ -63,6 +88,7 @@ export default function Home() {
 
                 setRegionData(results);
                 setRegionDisplayData(results);
+                setBrushFilter(undefined);
               }}
             />
           </Grid>
@@ -138,7 +164,9 @@ export default function Home() {
             <MiamiPlot
               bottomCol={lowerVariable}
               bottomThresh={lowerThresh}
-              data={regionData}
+              data={regionDisplayData}
+              filter={brushFilter}
+              filterCb={(f) => setBrushFilter(f)}
               topCol={upperVariable}
               topThresh={upperThresh}
             />

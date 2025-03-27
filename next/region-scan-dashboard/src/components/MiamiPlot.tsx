@@ -4,9 +4,12 @@ import React, { useLayoutEffect } from "react";
 import "d3-transition"; // must be imported before selection
 import { cumsum, extent, range, sum } from "d3-array";
 import { axisBottom, axisLeft } from "d3-axis";
+import { brush, D3BrushEvent } from "d3-brush";
+import { schemeDark2 } from "d3-scale-chromatic";
+import { format } from "d3-format";
 import { line } from "d3-shape";
 import { ScaleLinear, scaleLinear, scaleThreshold } from "d3-scale";
-import { BaseType, select, Selection } from "d3-selection";
+import { BaseType, select, selectAll, Selection } from "d3-selection";
 import { Box } from "@mui/material";
 import { RegionResult } from "@/lib/ts/types";
 import { chromLengths } from "@/util/chromLengths";
@@ -15,14 +18,19 @@ interface MiamiPlotProps {
   bottomCol: keyof RegionResult;
   bottomThresh: number;
   data: RegionResult[];
+  filterCb: (filter: BrushFilter) => void;
+  filter?: BrushFilter;
   topThresh: number;
   topCol: keyof RegionResult;
 }
 
+const TOP_COLOR = schemeDark2[0];
+const BOTTOM_COLOR = schemeDark2[1];
+
 const className = "miami-plot";
 
 const drawDottedLine = (
-  svg: Selection<SVGElement, number, BaseType, unknown>,
+  container: Selection<SVGGElement, number, SVGElement, number>,
   cls: string,
   y: number,
   x1: number,
@@ -31,7 +39,7 @@ const drawDottedLine = (
   //We'll have 10px intervals for a 5px line segment and 5px gap
   const lineCount = Math.round((x2 - x1) / 10);
 
-  svg
+  container
     .selectAll(`g.${cls}`)
     .data([y])
     .join("g")
@@ -51,10 +59,40 @@ const drawDottedLine = (
     .attr("stroke", "grey");
 };
 
+const showTooltip = (data: RegionResult, e: MouseEvent) => {
+  select(".tooltip")
+    .style("left", `${e.pageX + 15}px`)
+    .style("top", `${e.pageY - 15}px`)
+    .style("visibility", "visible")
+    .select<HTMLUListElement>("ul")
+    .selectAll<HTMLLIElement, string>("li")
+    .data<string>(
+      [`Chromosome: ${data.chr}`, `Start pos: ${format(",")(data.start_bp)}`],
+      (d) => d
+    )
+    .join("li")
+    .text((d) => d);
+};
+
+export interface BrushFilter {
+  x0Lim: {
+    chr: string;
+    pos: number;
+  };
+  x1Lim: {
+    chr: string;
+    pos: number;
+  };
+  upperRange: [number, number];
+  lowerRange: [number, number];
+}
+
 const buildChart = (
   bottomCol: keyof RegionResult,
   bottomThresh: number,
   data: RegionResult[],
+  filter: BrushFilter | undefined,
+  filterCb: (filter: BrushFilter) => void,
   height: number,
   selector: string,
   topCol: keyof RegionResult,
@@ -110,6 +148,13 @@ const buildChart = (
       {}
     );
 
+  const transformedData = data.map((d) => {
+    const _d = { ...d };
+    _d[topCol] = -1 * Math.log10(_d[topCol]);
+    _d[bottomCol] = Math.log10(_d[bottomCol]);
+    return _d;
+  });
+
   const xScale = scaleThreshold()
     .range(
       [marginLeft].concat(
@@ -124,15 +169,6 @@ const buildChart = (
         .map(([k, _]) => +k)
     );
 
-  const transformedData = data
-    .filter((d) => !!d[topCol] && !!d[bottomCol])
-    .map((d) => {
-      const _d = { ...d };
-      _d[topCol] = -1 * Math.log10(_d[topCol]);
-      _d[bottomCol] = Math.log10(_d[bottomCol]);
-      return _d;
-    });
-
   const yScale = scaleLinear()
     .range([marginTop, height - marginBottom])
     .domain(
@@ -142,19 +178,29 @@ const buildChart = (
       ]).reverse() as [number, number]
     );
 
-  const svg = select(
-    select(selector)
-      .selectAll<SVGElement, number>("svg")
-      .data([1])
-      .join("svg")
-      .attr("viewBox", [0, 0, width, height])
-      .attr("width", width)
-      .attr("height", height)
-      .attr("style", "max-width: 100%; height: auto;")
-      .node()
-  ) as Selection<SVGElement, number, BaseType, unknown>;
+  const svg = select(selector)
+    .selectAll<SVGElement, number>("svg")
+    .data([1], () => transformedData.length)
+    .join("svg")
+    .attr("viewBox", [0, 0, width, height])
+    .attr("width", width)
+    .attr("height", height)
+    .attr("style", "max-width: 100%; height: auto;") as Selection<
+    SVGElement,
+    number,
+    BaseType,
+    unknown
+  >;
 
-  const xAxis = svg
+  const container: Selection<SVGGElement, number, SVGElement, number> = svg
+    .selectAll<SVGGElement, number>("g.container")
+    .data([1])
+    .join("g")
+    .attr("class", "container");
+
+  const xAxis = axisBottom(xScale).tickFormat(() => "");
+
+  const xAxisSelection = container
     .selectAll<SVGGElement, number>("g.x-axis")
     .data([1], () => allChrScale.range().toString())
     .join("g")
@@ -162,7 +208,8 @@ const buildChart = (
     .attr("transform", `translate(0,${height - marginBottom})`)
     .transition()
     .duration(500)
-    .call(axisBottom(xScale).tickFormat(() => ""));
+    .call(xAxis)
+    .selection();
 
   const midpoints = Object.entries(chrCumSumScale)
     .sort((a, b) => (+a > +b ? 1 : -1))
@@ -171,8 +218,7 @@ const buildChart = (
       midpoint: (scale.range()[0] + scale.range()[1]) / 2,
     }));
 
-  xAxis
-    .selection()
+  xAxisSelection
     .selectAll<SVGGElement, { chr: string; midpoint: number }>("g.tick-rr")
     .data<{ chr: string; midpoint: number }>(midpoints, (d) => d.midpoint)
     .join("g")
@@ -185,7 +231,9 @@ const buildChart = (
     .attr("fill", "black")
     .text((d) => `Chr ${d.chr}`);
 
-  const yAxis = svg
+  const yAxis = axisLeft(yScale).tickFormat((t) => Math.abs(+t).toString());
+
+  container
     .selectAll<SVGGElement, number>("g.y-axis")
     .data([1], () => yScale.range().toString())
     .join("g")
@@ -193,14 +241,15 @@ const buildChart = (
     .attr("transform", `translate(${marginLeft},0)`)
     .transition()
     .duration(500)
-    .call(axisLeft(yScale).tickFormat((t) => Math.abs(+t).toString()));
+    .call(yAxis)
+    .selection();
 
   // Add y axis labels
 
   const upperMidPoint = (yScale.range()[0] + yScale(0)) / 2;
   const lowerMidPoint = (yScale.range()[1] + yScale(0)) / 2;
 
-  svg
+  container
     .selectAll("g.y-upper-label")
     .data([1])
     .join("g")
@@ -217,7 +266,7 @@ const buildChart = (
     .attr("font-size", 12)
     .attr("text-anchor", "middle");
 
-  svg
+  container
     .selectAll("g.y-lower-label")
     .data([1])
     .join("g")
@@ -234,36 +283,128 @@ const buildChart = (
     .attr("transform", "rotate(90)")
     .attr("text-anchor", "middle");
 
-  const circleContainer = svg
+  const circleContainer = container
     .selectAll<SVGGElement, number>("g.circles")
     .data([1], () => allChrScale.range().toString())
     .join("g")
     .attr("class", "circles");
 
-  circleContainer
+  const upperData = transformedData.filter((d) => {
+    const exists = !!d[topCol];
+    let brushPass = true;
+    if (filter) {
+      brushPass =
+        d[topCol] >= filter.upperRange[0] && d[topCol] <= filter.upperRange[1];
+      debugger;
+    }
+    return exists && brushPass;
+  });
+
+  const lowerData = transformedData.filter((d) => {
+    const exists = !!d[bottomCol];
+    let brushPass = true;
+    if (filter) {
+      brushPass =
+        d[bottomCol] <= filter.lowerRange[0] &&
+        d[bottomCol] >= filter.lowerRange[1];
+    }
+    return exists && brushPass;
+  });
+
+  //the above is what's used to get the extent for the yAxis....
+
+  const upperCircles = circleContainer
     .selectAll("circle.upper")
-    .data(transformedData, (_, i) => `${i}-${topCol}`)
+    .data(upperData, (_, i) => `${i}-${topCol}`)
     .join("circle")
     .attr("class", "upper")
     .attr("r", 1)
-    .attr("fill", "red")
+    .attr("fill", TOP_COLOR)
     .attr("opacity", 0.5)
     .attr("cx", (d) => chrCumSumScale[d.chr.toString()](d.end_bp))
-    .attr("cy", (d) => yScale(d[topCol]));
+    .attr("cy", (d) => yScale(d[topCol]))
+    .on("mouseover", (e: MouseEvent, d: RegionResult) => showTooltip(d, e))
+    .on("mouseout", () => selectAll(".tooltip").style("visibility", "hidden"));
 
-  circleContainer
+  const lowerCircles = circleContainer
     .selectAll("circle.lower")
-    .data(transformedData, (_, i) => `${i}-${topCol}`)
+    .data(lowerData, (_, i) => `${i}-${topCol}`)
     .join("circle")
     .attr("class", "lower")
     .attr("r", 1)
-    .attr("fill", "blue")
+    .attr("fill", BOTTOM_COLOR)
     .attr("opacity", 0.5)
-    .attr("cx", (d) => allChrScale(d.end_bp))
-    .attr("cy", (d) => yScale(d[bottomCol]));
+    .attr("cx", (d) => chrCumSumScale[d.chr.toString()](d.end_bp))
+    .attr("cy", (d) => yScale(d[bottomCol]))
+    .on("mouseover", (e: MouseEvent, d: RegionResult) => showTooltip(d, e))
+    .on("mouseout", () => selectAll(".tooltip").style("visibility", "hidden"));
+
+  circleContainer.call(
+    brush<number>().on("start brush end", (event: D3BrushEvent<number>) => {
+      if (event.selection) {
+        const [[x0, y0], [x1, y1]] = event.selection as [
+          [number, number],
+          [number, number]
+        ];
+
+        if (event.type === "end") {
+          const bp0 = allChrScale.invert(x0);
+          const bp1 = allChrScale.invert(x1);
+          let chr0: string = chrs[0],
+            chr1: string = chrs[0];
+
+          cumsums.forEach((c, i) => {
+            if (bp0 > c) {
+              chr0 = chrs[i + 1];
+            }
+            if (bp1 > c) {
+              chr1 = chrs[i + 1];
+            }
+          });
+
+          const pos0 = chrCumSumScale[chr0].invert(x0);
+          const pos1 = chrCumSumScale[chr1].invert(x1);
+
+          //if both are positive, we have upper only, if both are negative, we have lower only
+          const highPoint = yScale.invert(y0); // as -logp
+          const lowPoint = yScale.invert(y1); // as logp
+
+          const upperRange = [0, 0] as [number, number];
+          const lowerRange = [0, 0] as [number, number];
+
+          if (highPoint > 0) {
+            upperRange[1] = highPoint;
+          } else {
+            lowerRange[0] = highPoint;
+          }
+
+          if (lowPoint < 0) {
+            lowerRange[1] = lowPoint;
+          } else {
+            upperRange[0] = lowPoint;
+          }
+
+          const filter: BrushFilter = {
+            x0Lim: {
+              chr: chr0,
+              pos: pos0,
+            },
+            x1Lim: {
+              chr: chr1,
+              pos: pos1,
+            },
+            upperRange,
+            lowerRange,
+          };
+
+          filterCb(filter);
+        }
+      }
+    })
+  );
 
   drawDottedLine(
-    svg,
+    container,
     "top-thresh",
     yScale(-Math.log10(topThresh)),
     marginLeft,
@@ -271,18 +412,39 @@ const buildChart = (
   );
 
   drawDottedLine(
-    svg,
+    container,
     "bottom-thresh",
     yScale(Math.log10(bottomThresh)),
     marginLeft,
     width
   );
+
+  //append tooltip
+  select("body")
+    .select("div.tooltip")
+    .data([1])
+    .join("div")
+    .attr("class", "tooltip")
+    .style("z-index", 999)
+    .style("position", "absolute")
+    .style("background-color", "black")
+    .style("font-size", "10px")
+    .style("color", "white")
+    .style("border-radius", "5px")
+    .style("visibility", "hidden")
+    .style("padding", "2px")
+    .append("ul")
+    .style("list-style", "none")
+    .style("padding", "2px")
+    .style("margin", "2px");
 };
 
 const MiamiPlot: React.FC<MiamiPlotProps> = ({
   bottomCol,
   bottomThresh,
   data,
+  filter,
+  filterCb,
   topCol,
   topThresh,
 }) => {
@@ -291,13 +453,15 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
       bottomCol,
       bottomThresh,
       data,
+      filter,
+      filterCb,
       400,
       `.${className}`,
       topCol,
       topThresh,
       850
     );
-  }, [data, bottomCol, topCol, topThresh, bottomThresh]);
+  }, [bottomCol, bottomThresh, data, filter, filterCb, topCol, topThresh]);
 
   return <Box className={className} />;
 };
