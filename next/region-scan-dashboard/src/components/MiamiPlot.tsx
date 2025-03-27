@@ -74,6 +74,8 @@ const showTooltip = (data: RegionResult, e: MouseEvent) => {
     .text((d) => d);
 };
 
+const circleWidthScale = scaleLinear().range([1, 5]).domain([80000, 1]);
+
 export interface BrushFilter {
   x0Lim: {
     chr: string;
@@ -100,7 +102,7 @@ const buildChart = (
   width: number
 ) => {
   const marginBottom = 25;
-  const yLabelMargin = 20;
+  const yLabelMargin = 28;
   const yAxisMargin = 20;
   const marginLeft = yLabelMargin + yAxisMargin;
   const marginTop = 25;
@@ -155,26 +157,60 @@ const buildChart = (
     return _d;
   });
 
-  const xScale = scaleThreshold()
-    .range(
-      [marginLeft].concat(
-        Object.entries(chrCumSumScale)
-          .sort((a, b) => (+a[0] > +b[0] ? 1 : -1))
-          .map(([_, v]) => v.range()[1])
-      )
-    )
-    .domain(
-      Object.entries(chrCumSumScale)
-        .sort((a, b) => (+a[0] > +b[0] ? 1 : -1))
-        .map(([k, _]) => +k)
-    );
+  const upperData = transformedData.filter((d) => {
+    const exists = !!d[topCol];
+    let brushPass = true;
+    if (filter) {
+      brushPass =
+        d[topCol] >= filter.upperRange[0] && d[topCol] <= filter.upperRange[1];
+    }
+    return exists && brushPass;
+  });
+
+  const lowerData = transformedData.filter((d) => {
+    const exists = !!d[bottomCol];
+    let brushPass = true;
+    if (filter) {
+      brushPass =
+        d[bottomCol] <= filter.lowerRange[0] &&
+        d[bottomCol] >= filter.lowerRange[1];
+    }
+    return exists && brushPass;
+  });
+
+  //todo: this ought to be linear for the region if only one chromosome is visible
+
+  const xScale =
+    chrs.length > 1
+      ? scaleThreshold()
+          .range(
+            [marginLeft].concat(
+              Object.entries(chrCumSumScale)
+                .sort((a, b) => (+a[0] > +b[0] ? 1 : -1))
+                .map(([_, v]) => v.range()[1])
+            )
+          )
+          .domain(
+            Object.entries(chrCumSumScale)
+              .sort((a, b) => (+a[0] > +b[0] ? 1 : -1))
+              .map(([k, _]) => +k)
+          )
+      : scaleLinear()
+          .range([marginLeft, width])
+          .domain(
+            extent(
+              upperData
+                .map((d) => d.start_bp)
+                .concat(lowerData.map((d) => d.start_bp))
+            ) as [number, number]
+          );
 
   const yScale = scaleLinear()
     .range([marginTop, height - marginBottom])
     .domain(
       extent([
-        ...transformedData.map((d) => d[bottomCol]),
-        ...transformedData.map((d) => d[topCol]),
+        ...upperData.map((d) => d[topCol]),
+        ...lowerData.map((d) => d[bottomCol]),
       ]).reverse() as [number, number]
     );
 
@@ -198,11 +234,13 @@ const buildChart = (
     .join("g")
     .attr("class", "container");
 
-  const xAxis = axisBottom(xScale).tickFormat(() => "");
+  const xAxis = axisBottom(xScale).tickFormat((t) =>
+    chrs.length > 1 ? "" : format(",")(t)
+  );
 
   const xAxisSelection = container
     .selectAll<SVGGElement, number>("g.x-axis")
-    .data([1], () => allChrScale.range().toString())
+    .data([1], () => xScale.range().toString())
     .join("g")
     .attr("class", "x-axis")
     .attr("transform", `translate(0,${height - marginBottom})`)
@@ -217,8 +255,7 @@ const buildChart = (
       chr,
       midpoint: (scale.range()[0] + scale.range()[1]) / 2,
     }));
-
-  xAxisSelection
+  const upperCircles = xAxisSelection
     .selectAll<SVGGElement, { chr: string; midpoint: number }>("g.tick-rr")
     .data<{ chr: string; midpoint: number }>(midpoints, (d) => d.midpoint)
     .join("g")
@@ -229,7 +266,7 @@ const buildChart = (
     .join("text")
     .attr("class", "label-rr")
     .attr("fill", "black")
-    .text((d) => `Chr ${d.chr}`);
+    .text((d) => (chrs.length > 1 ? `Chr ${d.chr}` : ""));
 
   const yAxis = axisLeft(yScale).tickFormat((t) => Math.abs(+t).toString());
 
@@ -289,118 +326,108 @@ const buildChart = (
     .join("g")
     .attr("class", "circles");
 
-  const upperData = transformedData.filter((d) => {
-    const exists = !!d[topCol];
-    let brushPass = true;
-    if (filter) {
-      brushPass =
-        d[topCol] >= filter.upperRange[0] && d[topCol] <= filter.upperRange[1];
-      debugger;
-    }
-    return exists && brushPass;
-  });
-
-  const lowerData = transformedData.filter((d) => {
-    const exists = !!d[bottomCol];
-    let brushPass = true;
-    if (filter) {
-      brushPass =
-        d[bottomCol] <= filter.lowerRange[0] &&
-        d[bottomCol] >= filter.lowerRange[1];
-    }
-    return exists && brushPass;
-  });
-
-  //the above is what's used to get the extent for the yAxis....
-
-  const upperCircles = circleContainer
+  circleContainer
     .selectAll("circle.upper")
     .data(upperData, (_, i) => `${i}-${topCol}`)
     .join("circle")
     .attr("class", "upper")
-    .attr("r", 1)
+    .attr("r", circleWidthScale(transformedData.length))
     .attr("fill", TOP_COLOR)
     .attr("opacity", 0.5)
-    .attr("cx", (d) => chrCumSumScale[d.chr.toString()](d.end_bp))
+    .attr("cx", (d) =>
+      chrs.length > 1
+        ? chrCumSumScale[d.chr.toString()](d.end_bp)
+        : xScale(d.end_bp)
+    )
     .attr("cy", (d) => yScale(d[topCol]))
+    .selection()
     .on("mouseover", (e: MouseEvent, d: RegionResult) => showTooltip(d, e))
     .on("mouseout", () => selectAll(".tooltip").style("visibility", "hidden"));
 
-  const lowerCircles = circleContainer
+  circleContainer
     .selectAll("circle.lower")
     .data(lowerData, (_, i) => `${i}-${topCol}`)
     .join("circle")
     .attr("class", "lower")
-    .attr("r", 1)
+    .attr("r", circleWidthScale(transformedData.length))
     .attr("fill", BOTTOM_COLOR)
     .attr("opacity", 0.5)
-    .attr("cx", (d) => chrCumSumScale[d.chr.toString()](d.end_bp))
+    .attr("cx", (d) =>
+      chrs.length > 1
+        ? chrCumSumScale[d.chr.toString()](d.end_bp)
+        : xScale(d.end_bp)
+    )
     .attr("cy", (d) => yScale(d[bottomCol]))
     .on("mouseover", (e: MouseEvent, d: RegionResult) => showTooltip(d, e))
     .on("mouseout", () => selectAll(".tooltip").style("visibility", "hidden"));
 
   circleContainer.call(
-    brush<number>().on("start brush end", (event: D3BrushEvent<number>) => {
-      if (event.selection) {
-        const [[x0, y0], [x1, y1]] = event.selection as [
-          [number, number],
-          [number, number]
-        ];
+    brush<number>().on(
+      "start brush end",
+      function (event: D3BrushEvent<number>) {
+        if (event.selection) {
+          const [[x0, y0], [x1, y1]] = event.selection as [
+            [number, number],
+            [number, number]
+          ];
 
-        if (event.type === "end") {
-          const bp0 = allChrScale.invert(x0);
-          const bp1 = allChrScale.invert(x1);
-          let chr0: string = chrs[0],
-            chr1: string = chrs[0];
+          if (event.type === "end") {
+            const bp0 = allChrScale.invert(x0);
+            const bp1 = allChrScale.invert(x1);
+            let chr0: string = chrs[0],
+              chr1: string = chrs[0];
 
-          cumsums.forEach((c, i) => {
-            if (bp0 > c) {
-              chr0 = chrs[i + 1];
+            cumsums.forEach((c, i) => {
+              if (bp0 > c) {
+                chr0 = chrs[i + 1];
+              }
+              if (bp1 > c) {
+                chr1 = chrs[i + 1];
+              }
+            });
+
+            const pos0 = chrCumSumScale[chr0].invert(x0);
+            const pos1 = chrCumSumScale[chr1].invert(x1);
+
+            //if both are positive, we have upper only, if both are negative, we have lower only
+            const highPoint = yScale.invert(y0); // as -logp
+            const lowPoint = yScale.invert(y1); // as logp
+
+            const upperRange = [0, 0] as [number, number];
+            const lowerRange = [0, 0] as [number, number];
+
+            if (highPoint > 0) {
+              upperRange[1] = highPoint;
+            } else {
+              lowerRange[0] = highPoint;
             }
-            if (bp1 > c) {
-              chr1 = chrs[i + 1];
+
+            if (lowPoint < 0) {
+              lowerRange[1] = lowPoint;
+            } else {
+              upperRange[0] = lowPoint;
             }
-          });
 
-          const pos0 = chrCumSumScale[chr0].invert(x0);
-          const pos1 = chrCumSumScale[chr1].invert(x1);
+            const filter: BrushFilter = {
+              x0Lim: {
+                chr: chr0,
+                pos: pos0,
+              },
+              x1Lim: {
+                chr: chr1,
+                pos: pos1,
+              },
+              upperRange,
+              lowerRange,
+            };
 
-          //if both are positive, we have upper only, if both are negative, we have lower only
-          const highPoint = yScale.invert(y0); // as -logp
-          const lowPoint = yScale.invert(y1); // as logp
+            filterCb(filter);
 
-          const upperRange = [0, 0] as [number, number];
-          const lowerRange = [0, 0] as [number, number];
-
-          if (highPoint > 0) {
-            upperRange[1] = highPoint;
-          } else {
-            lowerRange[0] = highPoint;
+            event.target.clear(select(this));
           }
-
-          if (lowPoint < 0) {
-            lowerRange[1] = lowPoint;
-          } else {
-            upperRange[0] = lowPoint;
-          }
-
-          const filter: BrushFilter = {
-            x0Lim: {
-              chr: chr0,
-              pos: pos0,
-            },
-            x1Lim: {
-              chr: chr1,
-              pos: pos1,
-            },
-            upperRange,
-            lowerRange,
-          };
-
-          filterCb(filter);
         }
       }
-    })
+    )
   );
 
   drawDottedLine(
