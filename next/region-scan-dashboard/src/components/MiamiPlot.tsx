@@ -79,6 +79,12 @@ export interface BrushFilter {
   lowerRange: [number, number];
 }
 
+const marginBottom = 25;
+const yLabelMargin = 28;
+const yAxisMargin = 20;
+const marginLeft = yLabelMargin + yAxisMargin;
+const marginTop = 25;
+
 const buildChart = (
   bottomCol: keyof RegionResult,
   bottomThresh: number,
@@ -91,11 +97,7 @@ const buildChart = (
   topThresh: number,
   width: number
 ) => {
-  const marginBottom = 25;
-  const yLabelMargin = 28;
-  const yAxisMargin = 20;
-  const marginLeft = yLabelMargin + yAxisMargin;
-  const marginTop = 25;
+  //TODO: once the features are done, convert to object
 
   // get unique chromosomes, convert to string, sort asc
   const chrs = data
@@ -167,8 +169,6 @@ const buildChart = (
     }
     return exists && brushPass;
   });
-
-  //todo: this ought to be linear for the region if only one chromosome is visible
 
   const xScale =
     chrs.length > 1

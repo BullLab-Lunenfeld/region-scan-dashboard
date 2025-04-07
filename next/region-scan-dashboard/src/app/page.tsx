@@ -8,6 +8,7 @@ import {
   MiamiPlot,
   NumberInput,
   PaginatedTable,
+  QQPlot,
   UploadButton,
 } from "@/components";
 import { parseTsv } from "@/lib/ts/util";
@@ -36,6 +37,8 @@ export default function Home() {
 
   const [upperThresh, setUpperThresh] = useState<number>(10e-5);
   const [lowerThresh, setLowerThresh] = useState<number>(10e-5);
+
+  const [qqDist, setQqDist] = useState<string>("normal");
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
@@ -85,10 +88,18 @@ export default function Home() {
                     ...results,
                     ...parsed.map((val) =>
                       Object.fromEntries(
-                        Object.entries(val).map(([k, v]) => [
-                          k.replaceAll(".", "_"),
-                          +v,
-                        ])
+                        Object.entries(val)
+                          .map(([k, v]) => [k.replaceAll(".", "_"), +v])
+                          .filter(([k, v]) => {
+                            //for now we'll filter out negative p values
+                            //but we may want to correct them later
+                            if (
+                              typeof k == "string" &&
+                              k.toLowerCase().endsWith("_p")
+                            ) {
+                              return !!+v && +v > 0;
+                            } else return true;
+                          })
                       )
                     ),
                   ] as RegionResult[];
@@ -172,18 +183,43 @@ export default function Home() {
               />
             )}
           </Grid>
+          <Grid>
+            {!!regionData.length && (
+              <NumberInput
+                value={lowerThresh}
+                onChange={(v: number) => !!v && setLowerThresh(v)}
+                label="Lower Threshold"
+              />
+            )}
+          </Grid>
+          <Grid>
+            {!!regionData.length && (
+              <TextField
+                label="QQ Distribution"
+                onChange={(e) => setQqDist(e.target.value)}
+                select
+                fullWidth
+                value={qqDist}
+              >
+                <MenuItem value="normal">Normal</MenuItem>
+                <MenuItem value="uniform">Uniform</MenuItem>
+              </TextField>
+            )}
+          </Grid>
           <Grid container alignItems="center" justifyContent="center">
-            <IconButton
-              onClick={() =>
-                setBrushFilterHistory(brushFilterHistory.slice(0, -1))
-              }
-              disabled={brushFilterHistory.length == 0}
-              size="large"
-              title="Undo Zoom"
-              color="primary"
-            >
-              <UndoSharp fontSize="large" />
-            </IconButton>
+            {!!upperVariable && !!lowerVariable && (
+              <IconButton
+                onClick={() =>
+                  setBrushFilterHistory(brushFilterHistory.slice(0, -1))
+                }
+                disabled={brushFilterHistory.length == 0}
+                size="large"
+                title="Undo Zoom"
+                color="primary"
+              >
+                <UndoSharp fontSize="large" />
+              </IconButton>
+            )}
           </Grid>
         </Grid>
         <Grid ref={chartContainerRef} size={{ xs: 8, lg: 10 }}>
@@ -205,6 +241,36 @@ export default function Home() {
               />
             )}
         </Grid>
+      </Grid>
+      <Grid container>
+        {!!regionDisplayData && (
+          <>
+            <Grid>
+              {!!upperVariable && (
+                <QQPlot
+                  distribution="normal"
+                  pvals={regionDisplayData.map((v) => v[upperVariable])}
+                  selector="upper-qq"
+                  variable={upperVariable}
+                  width={400}
+                />
+              )}
+            </Grid>
+            <Grid>
+              {!!lowerVariable && (
+                <QQPlot
+                  distribution="normal"
+                  pvals={regionDisplayData.map(
+                    (v) => v[lowerVariable as keyof RegionResult]
+                  )}
+                  selector="lower-qq"
+                  variable={lowerVariable}
+                  width={400}
+                />
+              )}
+            </Grid>
+          </>
+        )}
       </Grid>
       <Grid width="100%">
         {/* Ideally we don't need controlled filters at all, if we could just get the filtered data out of it... */}
