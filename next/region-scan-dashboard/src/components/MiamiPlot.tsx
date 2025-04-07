@@ -14,16 +14,6 @@ import { Box } from "@mui/material";
 import { RegionResult } from "@/lib/ts/types";
 import { chromLengths } from "@/util/chromLengths";
 
-interface MiamiPlotProps {
-  bottomCol: keyof RegionResult;
-  bottomThresh: number;
-  data: RegionResult[];
-  filterCb: (filter: BrushFilter) => void;
-  filter?: BrushFilter;
-  topThresh: number;
-  topCol: keyof RegionResult;
-}
-
 const TOP_COLOR = schemeDark2[0];
 const BOTTOM_COLOR = schemeDark2[1];
 
@@ -255,7 +245,8 @@ const buildChart = (
       chr,
       midpoint: (scale.range()[0] + scale.range()[1]) / 2,
     }));
-  const upperCircles = xAxisSelection
+
+  xAxisSelection
     .selectAll<SVGGElement, { chr: string; midpoint: number }>("g.tick-rr")
     .data<{ chr: string; midpoint: number }>(midpoints, (d) => d.midpoint)
     .join("g")
@@ -326,41 +317,7 @@ const buildChart = (
     .join("g")
     .attr("class", "circles");
 
-  circleContainer
-    .selectAll("circle.upper")
-    .data(upperData, (_, i) => `${i}-${topCol}`)
-    .join("circle")
-    .attr("class", "upper")
-    .attr("r", circleWidthScale(transformedData.length))
-    .attr("fill", TOP_COLOR)
-    .attr("opacity", 0.5)
-    .attr("cx", (d) =>
-      chrs.length > 1
-        ? chrCumSumScale[d.chr.toString()](d.end_bp)
-        : xScale(d.end_bp)
-    )
-    .attr("cy", (d) => yScale(d[topCol]))
-    .selection()
-    .on("mouseover", (e: MouseEvent, d: RegionResult) => showTooltip(d, e))
-    .on("mouseout", () => selectAll(".tooltip").style("visibility", "hidden"));
-
-  circleContainer
-    .selectAll("circle.lower")
-    .data(lowerData, (_, i) => `${i}-${topCol}`)
-    .join("circle")
-    .attr("class", "lower")
-    .attr("r", circleWidthScale(transformedData.length))
-    .attr("fill", BOTTOM_COLOR)
-    .attr("opacity", 0.5)
-    .attr("cx", (d) =>
-      chrs.length > 1
-        ? chrCumSumScale[d.chr.toString()](d.end_bp)
-        : xScale(d.end_bp)
-    )
-    .attr("cy", (d) => yScale(d[bottomCol]))
-    .on("mouseover", (e: MouseEvent, d: RegionResult) => showTooltip(d, e))
-    .on("mouseout", () => selectAll(".tooltip").style("visibility", "hidden"));
-
+  //this should come before the tooltip events to prevent the overlay from capturing the mouseenter events
   circleContainer.call(
     brush<number>().on(
       "start brush end",
@@ -386,8 +343,13 @@ const buildChart = (
               }
             });
 
-            const pos0 = chrCumSumScale[chr0].invert(x0);
-            const pos1 = chrCumSumScale[chr1].invert(x1);
+            const posScale =
+              chrs.length > 1
+                ? chrCumSumScale[chr0]
+                : (xScale as ScaleLinear<number, number, never>);
+
+            const pos0 = posScale.invert(x0);
+            const pos1 = posScale.invert(x1);
 
             //if both are positive, we have upper only, if both are negative, we have lower only
             const highPoint = yScale.invert(y0); // as -logp
@@ -430,6 +392,41 @@ const buildChart = (
     )
   );
 
+  circleContainer
+    .selectAll("circle.upper")
+    .data(upperData, (_, i) => `${i}-${topCol}`)
+    .join("circle")
+    .attr("class", "upper")
+    .attr("r", circleWidthScale(transformedData.length))
+    .attr("fill", TOP_COLOR)
+    .attr("opacity", 0.5)
+    .attr("cx", (d) =>
+      chrs.length > 1
+        ? chrCumSumScale[d.chr.toString()](d.end_bp)
+        : xScale(d.end_bp)
+    )
+    .attr("cy", (d) => yScale(d[topCol]))
+    .selection()
+    .on("mouseover", (e: MouseEvent, d: RegionResult) => showTooltip(d, e))
+    .on("mouseout", () => selectAll(".tooltip").style("visibility", "hidden"));
+
+  circleContainer
+    .selectAll("circle.lower")
+    .data(lowerData, (_, i) => `${i}-${topCol}`)
+    .join("circle")
+    .attr("class", "lower")
+    .attr("r", circleWidthScale(transformedData.length))
+    .attr("fill", BOTTOM_COLOR)
+    .attr("opacity", 0.5)
+    .attr("cx", (d) =>
+      chrs.length > 1
+        ? chrCumSumScale[d.chr.toString()](d.end_bp)
+        : xScale(d.end_bp)
+    )
+    .attr("cy", (d) => yScale(d[bottomCol]))
+    .on("mouseover", (e: MouseEvent, d: RegionResult) => showTooltip(d, e))
+    .on("mouseout", () => selectAll(".tooltip").style("visibility", "hidden"));
+
   drawDottedLine(
     container,
     "top-thresh",
@@ -466,6 +463,17 @@ const buildChart = (
     .style("margin", "2px");
 };
 
+interface MiamiPlotProps {
+  bottomCol: keyof RegionResult;
+  bottomThresh: number;
+  data: RegionResult[];
+  filterCb: (filter: BrushFilter) => void;
+  filter?: BrushFilter;
+  topThresh: number;
+  topCol: keyof RegionResult;
+  width: number;
+}
+
 const MiamiPlot: React.FC<MiamiPlotProps> = ({
   bottomCol,
   bottomThresh,
@@ -474,6 +482,7 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
   filterCb,
   topCol,
   topThresh,
+  width,
 }) => {
   useLayoutEffect(() => {
     buildChart(
@@ -482,13 +491,22 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
       data,
       filter,
       filterCb,
-      400,
+      0.5 * width,
       `.${className}`,
       topCol,
       topThresh,
-      850
+      width
     );
-  }, [bottomCol, bottomThresh, data, filter, filterCb, topCol, topThresh]);
+  }, [
+    bottomCol,
+    bottomThresh,
+    data,
+    filter,
+    filterCb,
+    topCol,
+    topThresh,
+    width,
+  ]);
 
   return <Box className={className} />;
 };

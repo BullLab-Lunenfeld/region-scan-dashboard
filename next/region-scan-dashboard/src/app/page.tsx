@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { Grid2 as Grid, MenuItem, TextField } from "@mui/material";
+import React, { useEffect, useRef, useState } from "react";
+import { Grid2 as Grid, IconButton, MenuItem, TextField } from "@mui/material";
+import { ArrowBack, UndoSharp } from "@mui/icons-material";
 import { GridFilterModel } from "@mui/x-data-grid";
 import {
   MiamiPlot,
@@ -20,7 +21,9 @@ export default function Home() {
     []
   );
 
-  const [brushFilter, setBrushFilter] = useState<BrushFilter>();
+  const [brushFilterHistory, setBrushFilterHistory] = useState<BrushFilter[]>(
+    []
+  );
 
   const [filterModel, setFilterModel] = useState<GridFilterModel>();
 
@@ -34,32 +37,42 @@ export default function Home() {
   const [upperThresh, setUpperThresh] = useState<number>(10e-5);
   const [lowerThresh, setLowerThresh] = useState<number>(10e-5);
 
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     // we filter the positions here so it's updated in the chart
     // but the pvals are filtered in the viz, since we don't want to remove
     // the whole model from the dataset, since one var might pass and the other might not
-    if (brushFilter && upperVariable && lowerVariable) {
-      const { x0Lim, x1Lim } = brushFilter;
+    if (upperVariable && lowerVariable) {
+      if (!!brushFilterHistory.length) {
+        const { x0Lim, x1Lim } =
+          brushFilterHistory[brushFilterHistory.length - 1];
 
-      const newDisplayData = regionDisplayData.filter((d) => {
-        const x0Pass =
-          d.chr > +x0Lim.chr ||
-          (d.chr === +x0Lim.chr && d.start_bp >= x0Lim.pos);
+        const newDisplayData = regionData.filter((d) => {
+          const x0Pass =
+            d.chr > +x0Lim.chr ||
+            (d.chr === +x0Lim.chr && d.start_bp >= x0Lim.pos);
 
-        const x1Pass =
-          d.chr < +x1Lim.chr || (d.chr === +x1Lim.chr && d.end_bp <= x1Lim.pos);
+          const x1Pass =
+            d.chr < +x1Lim.chr ||
+            (d.chr === +x1Lim.chr && d.end_bp <= x1Lim.pos);
 
-        return x0Pass && x1Pass;
-      });
+          return x0Pass && x1Pass;
+        });
 
-      setRegionDisplayData(newDisplayData);
+        if (newDisplayData.length) {
+          setRegionDisplayData(newDisplayData);
+        }
+      } else {
+        setRegionDisplayData(regionData);
+      }
     }
-  }, [brushFilter, upperVariable, lowerVariable]);
+  }, [brushFilterHistory, upperVariable, lowerVariable]);
 
   return (
     <Grid container direction="column" spacing={2}>
       <Grid container direction="row" spacing={2}>
-        <Grid size={2} direction="column" container spacing={2}>
+        <Grid size={{ xs: 4, lg: 2 }} direction="column" container spacing={2}>
           <Grid>
             <UploadButton
               fileType="region"
@@ -88,7 +101,7 @@ export default function Home() {
 
                 setRegionData(results);
                 setRegionDisplayData(results);
-                setBrushFilter(undefined);
+                setBrushFilterHistory([]);
               }}
             />
           </Grid>
@@ -129,6 +142,7 @@ export default function Home() {
                 label="Lower Variable"
                 select
               >
+                setBrushFilter
                 {Object.keys(regionData[0])
                   .filter((k) => k.endsWith("_p"))
                   .filter((k) => k !== upperVariable)
@@ -158,19 +172,38 @@ export default function Home() {
               />
             )}
           </Grid>
+          <Grid container alignItems="center" justifyContent="center">
+            <IconButton
+              onClick={() =>
+                setBrushFilterHistory(brushFilterHistory.slice(0, -1))
+              }
+              disabled={brushFilterHistory.length == 0}
+              size="large"
+              title="Undo Zoom"
+              color="primary"
+            >
+              <UndoSharp fontSize="large" />
+            </IconButton>
+          </Grid>
         </Grid>
-        <Grid size={10}>
-          {!!regionData.length && !!upperVariable && !!lowerVariable && (
-            <MiamiPlot
-              bottomCol={lowerVariable}
-              bottomThresh={lowerThresh}
-              data={regionDisplayData}
-              filter={brushFilter}
-              filterCb={(f) => setBrushFilter(f)}
-              topCol={upperVariable}
-              topThresh={upperThresh}
-            />
-          )}
+        <Grid ref={chartContainerRef} size={{ xs: 8, lg: 10 }}>
+          {!!regionData.length &&
+            !!upperVariable &&
+            !!lowerVariable &&
+            !!chartContainerRef.current && (
+              <MiamiPlot
+                bottomCol={lowerVariable}
+                bottomThresh={lowerThresh}
+                data={regionDisplayData}
+                filter={brushFilterHistory[brushFilterHistory.length - 1]}
+                filterCb={(f) =>
+                  setBrushFilterHistory(brushFilterHistory.concat(f))
+                }
+                topCol={upperVariable}
+                topThresh={upperThresh}
+                width={chartContainerRef.current.clientWidth}
+              />
+            )}
         </Grid>
       </Grid>
       <Grid width="100%">
