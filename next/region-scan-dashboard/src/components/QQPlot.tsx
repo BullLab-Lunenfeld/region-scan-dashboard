@@ -31,7 +31,9 @@ const getQuartiles = (data: number[], qcount: number = 25) => {
 
   const step = 100 / qcount;
 
-  return range(qcount).map((d) => quantile(data, d * 0.01 * step)) as number[];
+  return range(qcount - 1).map((d) =>
+    quantile(data, (d + 1) * 0.01 * step)
+  ) as number[];
 };
 
 const buildChart = (
@@ -105,7 +107,7 @@ const buildChart = (
     .attr("cx", (d) => xScale(d[0]))
     .attr("cy", (d) => yScale(d[1]));
 
-  const xAxis = container
+  container
     .selectAll<SVGGElement, number>("g.x-axis")
     .data([1], () => xScale.range().toString())
     .join("g")
@@ -118,7 +120,7 @@ const buildChart = (
 
   container
     .selectAll("g.y-label")
-    .data([1])
+    .data([variable])
     .join("g")
     .attr("class", "y-label")
     .transition()
@@ -126,7 +128,7 @@ const buildChart = (
     .attr("transform", `translate(5,${height / 2})`)
     .selection()
     .selectAll("text")
-    .data([1], () => variable)
+    .data([variable])
     .join("text")
     .text(variable)
     .attr("font-size", 12)
@@ -134,19 +136,16 @@ const buildChart = (
     .attr("text-anchor", "middle");
 
   container
-    .selectAll("g.x-label")
-    .data([1])
+    .selectAll<SVGGElement, string>("g.x-label")
+    .data([distribution], (d) => d)
     .join("g")
     .attr("class", "x-label")
-    .transition()
-    .duration(500)
     .attr("transform", `translate(${width / 2},${height})`)
     .selection()
-    .selectAll("text")
-    .data([1], () => distribution)
+    .selectAll<SVGGElement, string>("text")
+    .data([distribution], (d) => d)
     .join("text")
-    .text(distribution)
-    //.attr("transform", "rotate(90)")
+    .text((d) => d)
     .attr("font-size", 12)
     .attr("text-anchor", "middle");
 

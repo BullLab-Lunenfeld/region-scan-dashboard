@@ -185,15 +185,6 @@ export default function Home() {
           </Grid>
           <Grid>
             {!!regionData.length && (
-              <NumberInput
-                value={lowerThresh}
-                onChange={(v: number) => !!v && setLowerThresh(v)}
-                label="Lower Threshold"
-              />
-            )}
-          </Grid>
-          <Grid>
-            {!!regionData.length && (
               <TextField
                 label="QQ Distribution"
                 onChange={(e) => setQqDist(e.target.value)}
@@ -248,7 +239,7 @@ export default function Home() {
             <Grid>
               {!!upperVariable && (
                 <QQPlot
-                  distribution="normal"
+                  distribution={qqDist}
                   pvals={regionDisplayData.map((v) => v[upperVariable])}
                   selector="upper-qq"
                   variable={upperVariable}
@@ -259,7 +250,7 @@ export default function Home() {
             <Grid>
               {!!lowerVariable && (
                 <QQPlot
-                  distribution="normal"
+                  distribution={qqDist}
                   pvals={regionDisplayData.map(
                     (v) => v[lowerVariable as keyof RegionResult]
                   )}
