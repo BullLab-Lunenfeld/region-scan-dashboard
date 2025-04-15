@@ -49,7 +49,7 @@ const buildChart = (
 
   const pvalQuartiles = getQuartiles(
     filteredPvals,
-    min([25, filteredPvals.length])
+    min([250, filteredPvals.length])
   );
 
   let rv: () => number;
@@ -65,7 +65,7 @@ const buildChart = (
 
   const refDist = range(2000).map(() => rv());
 
-  const refQuartiles = getQuartiles(refDist, min([25, pvalQuartiles.length]));
+  const refQuartiles = getQuartiles(refDist, min([250, pvalQuartiles.length]));
   const chartData = zip(refQuartiles, pvalQuartiles) as number[][];
 
   const xScale = scaleLinear()

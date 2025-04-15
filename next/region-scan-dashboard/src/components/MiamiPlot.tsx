@@ -5,7 +5,6 @@ import "d3-transition"; // must be imported before selection
 import { cumsum, extent, range, sum } from "d3-array";
 import { axisBottom, axisLeft } from "d3-axis";
 import { brush, D3BrushEvent } from "d3-brush";
-import { schemeDark2 } from "d3-scale-chromatic";
 import { format } from "d3-format";
 import { line } from "d3-shape";
 import { ScaleLinear, scaleLinear, scaleThreshold } from "d3-scale";
@@ -13,9 +12,6 @@ import { BaseType, select, selectAll, Selection } from "d3-selection";
 import { Box } from "@mui/material";
 import { RegionResult } from "@/lib/ts/types";
 import { chromLengths } from "@/util/chromLengths";
-
-const TOP_COLOR = schemeDark2[0];
-const BOTTOM_COLOR = schemeDark2[1];
 
 const className = "miami-plot";
 
@@ -87,13 +83,16 @@ const marginTop = 25;
 
 const buildChart = (
   bottomCol: keyof RegionResult,
+  bottomColor: string,
   bottomThresh: number,
   data: RegionResult[],
   filter: BrushFilter | undefined,
   filterCb: (filter: BrushFilter) => void,
   height: number,
+  onCircleClick: (d: RegionResult) => void,
   selector: string,
   topCol: keyof RegionResult,
+  topColor: string,
   topThresh: number,
   width: number
 ) => {
@@ -398,7 +397,7 @@ const buildChart = (
     .join("circle")
     .attr("class", "upper")
     .attr("r", circleWidthScale(transformedData.length))
-    .attr("fill", TOP_COLOR)
+    .attr("fill", topColor)
     .attr("opacity", 0.5)
     .attr("cx", (d) =>
       chrs.length > 1
@@ -407,6 +406,7 @@ const buildChart = (
     )
     .attr("cy", (d) => yScale(d[topCol]))
     .selection()
+    .on("click", (_, d: RegionResult) => onCircleClick(d))
     .on("mouseover", (e: MouseEvent, d: RegionResult) => showTooltip(d, e))
     .on("mouseout", () => selectAll(".tooltip").style("visibility", "hidden"));
 
@@ -416,7 +416,7 @@ const buildChart = (
     .join("circle")
     .attr("class", "lower")
     .attr("r", circleWidthScale(transformedData.length))
-    .attr("fill", BOTTOM_COLOR)
+    .attr("fill", bottomColor)
     .attr("opacity", 0.5)
     .attr("cx", (d) =>
       chrs.length > 1
@@ -424,6 +424,7 @@ const buildChart = (
         : xScale(d.end_bp)
     )
     .attr("cy", (d) => yScale(d[bottomCol]))
+    .on("click", (_, d: RegionResult) => onCircleClick(d))
     .on("mouseover", (e: MouseEvent, d: RegionResult) => showTooltip(d, e))
     .on("mouseout", () => selectAll(".tooltip").style("visibility", "hidden"));
 
@@ -465,45 +466,56 @@ const buildChart = (
 
 interface MiamiPlotProps {
   bottomCol: keyof RegionResult;
+  bottomColor: string;
   bottomThresh: number;
   data: RegionResult[];
   filterCb: (filter: BrushFilter) => void;
   filter?: BrushFilter;
+  onCircleClick: (d: RegionResult) => void;
   topThresh: number;
   topCol: keyof RegionResult;
+  topColor: string;
   width: number;
 }
 
 const MiamiPlot: React.FC<MiamiPlotProps> = ({
   bottomCol,
+  bottomColor,
   bottomThresh,
   data,
   filter,
   filterCb,
+  onCircleClick,
   topCol,
+  topColor,
   topThresh,
   width,
 }) => {
   useLayoutEffect(() => {
     buildChart(
       bottomCol,
+      bottomColor,
       bottomThresh,
       data,
       filter,
       filterCb,
-      0.5 * width,
+      0.4 * width,
+      onCircleClick,
       `.${className}`,
       topCol,
+      topColor,
       topThresh,
       width
     );
   }, [
     bottomCol,
+    bottomColor,
     bottomThresh,
     data,
     filter,
     filterCb,
     topCol,
+    topColor,
     topThresh,
     width,
   ]);

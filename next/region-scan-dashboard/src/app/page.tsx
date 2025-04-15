@@ -2,19 +2,24 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { Grid2 as Grid, IconButton, MenuItem, TextField } from "@mui/material";
-import { ArrowBack, UndoSharp } from "@mui/icons-material";
+import { schemeDark2 } from "d3-scale-chromatic";
+import { UndoSharp } from "@mui/icons-material";
 import { GridFilterModel } from "@mui/x-data-grid";
 import {
   MiamiPlot,
   NumberInput,
   PaginatedTable,
   QQPlot,
+  RegionPlot,
   UploadButton,
 } from "@/components";
 import { parseTsv } from "@/lib/ts/util";
 import { RegionResult } from "@/lib/ts/types";
 import { RegionResultCols } from "@/util/columnConfigs";
 import { BrushFilter } from "@/components/MiamiPlot";
+
+const TOP_COLOR = schemeDark2[0];
+const BOTTOM_COLOR = schemeDark2[1];
 
 export default function Home() {
   const [regionData, setRegionData] = useState<RegionResult[]>([]);
@@ -28,7 +33,7 @@ export default function Home() {
 
   const [filterModel, setFilterModel] = useState<GridFilterModel>();
 
-  const [upperVariable, setUpperVariale] = useState<keyof RegionResult | "">(
+  const [upperVariable, setUpperVariable] = useState<keyof RegionResult | "">(
     ""
   );
   const [lowerVariable, setLowerVariable] = useState<keyof RegionResult | "">(
@@ -40,13 +45,39 @@ export default function Home() {
 
   const [qqDist, setQqDist] = useState<string>("normal");
 
+  const [regionDetailData, setRegionDetailData] = useState<RegionResult[]>([]);
+
   const chartContainerRef = useRef<HTMLDivElement>(null);
+
+  const _setRegionDetailData = (d: RegionResult) => {
+    //we need 100k basepairs in either direction from the (non-filtered) data
+    const chr = d.chr;
+    const start = d.start_bp - 100000;
+    const end = d.end_bp + 100000;
+
+    const regionDetailData = regionData.filter(
+      (d) => d.start_bp >= start && d.end_bp <= end && d.chr == chr
+    );
+
+    setRegionDetailData(regionDetailData);
+  };
+
+  useEffect(() => {
+    setRegionDetailData([]);
+  }, [upperVariable, lowerVariable]);
 
   useEffect(() => {
     // we filter the positions here so it's updated in the chart
     // but the pvals are filtered in the viz, since we don't want to remove
     // the whole model from the dataset, since one var might pass and the other might not
+    // though pos is shared on all models, these are not
+    // TODO: this will no longer work, we have to split them here
+    // b/c of qq plots
+    // issue is that this will break the table view, since it needs full models
+    // for those with 1 and not the other, can write NA?
     if (upperVariable && lowerVariable) {
+      setRegionDetailData([]);
+
       if (!!brushFilterHistory.length) {
         const { x0Lim, x1Lim } =
           brushFilterHistory[brushFilterHistory.length - 1];
@@ -113,6 +144,7 @@ export default function Home() {
                 setRegionData(results);
                 setRegionDisplayData(results);
                 setBrushFilterHistory([]);
+                setRegionDetailData([]);
               }}
             />
           </Grid>
@@ -121,7 +153,7 @@ export default function Home() {
               <TextField
                 fullWidth
                 onChange={(e) =>
-                  setUpperVariale(e.target.value as keyof RegionResult)
+                  setUpperVariable(e.target.value as keyof RegionResult)
                 }
                 label="Upper Variable"
                 select
@@ -133,7 +165,7 @@ export default function Home() {
                   .map((k) => (
                     <MenuItem
                       value={k}
-                      onChange={() => setUpperVariale(k as keyof RegionResult)}
+                      onChange={() => setUpperVariable(k as keyof RegionResult)}
                       key={k}
                     >
                       {k}
@@ -220,47 +252,65 @@ export default function Home() {
             !!chartContainerRef.current && (
               <MiamiPlot
                 bottomCol={lowerVariable}
+                bottomColor={BOTTOM_COLOR}
                 bottomThresh={lowerThresh}
                 data={regionDisplayData}
+                onCircleClick={_setRegionDetailData}
                 filter={brushFilterHistory[brushFilterHistory.length - 1]}
                 filterCb={(f) =>
                   setBrushFilterHistory(brushFilterHistory.concat(f))
                 }
                 topCol={upperVariable}
+                topColor={TOP_COLOR}
                 topThresh={upperThresh}
                 width={chartContainerRef.current.clientWidth}
               />
             )}
         </Grid>
       </Grid>
-      <Grid container>
-        {!!regionDisplayData && (
-          <>
-            <Grid>
-              {!!upperVariable && (
-                <QQPlot
-                  distribution={qqDist}
-                  pvals={regionDisplayData.map((v) => v[upperVariable])}
-                  selector="upper-qq"
-                  variable={upperVariable}
-                  width={400}
-                />
-              )}
-            </Grid>
-            <Grid>
-              {!!lowerVariable && (
-                <QQPlot
-                  distribution={qqDist}
-                  pvals={regionDisplayData.map(
-                    (v) => v[lowerVariable as keyof RegionResult]
-                  )}
-                  selector="lower-qq"
-                  variable={lowerVariable}
-                  width={400}
-                />
-              )}
-            </Grid>
-          </>
+      <Grid container direction="row">
+        <Grid container direction="column">
+          {!!regionDisplayData && (
+            <>
+              <Grid>
+                {!!upperVariable && (
+                  <QQPlot
+                    distribution={qqDist}
+                    pvals={regionDisplayData.map((v) => v[upperVariable])}
+                    selector="upper-qq"
+                    variable={upperVariable}
+                    width={400}
+                  />
+                )}
+              </Grid>
+              <Grid>
+                {!!lowerVariable && (
+                  <QQPlot
+                    distribution={qqDist}
+                    pvals={regionDisplayData.map(
+                      (v) => v[lowerVariable as keyof RegionResult]
+                    )}
+                    selector="lower-qq"
+                    variable={lowerVariable}
+                    width={400}
+                  />
+                )}
+              </Grid>
+            </>
+          )}
+        </Grid>
+        {!!regionDetailData.length && !!upperVariable && !!lowerVariable && (
+          <Grid>
+            <RegionPlot
+              data={regionDetailData}
+              selector="region-plot"
+              var1={upperVariable}
+              var1Color={TOP_COLOR}
+              var2={lowerVariable}
+              var2Color={BOTTOM_COLOR}
+              width={800}
+            />
+          </Grid>
         )}
       </Grid>
       <Grid width="100%">
