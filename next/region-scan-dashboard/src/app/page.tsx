@@ -43,8 +43,6 @@ export default function Home() {
   const [upperThresh, setUpperThresh] = useState<number>(10e-5);
   const [lowerThresh, setLowerThresh] = useState<number>(10e-5);
 
-  const [qqDist, setQqDist] = useState<string>("normal");
-
   const [regionDetailData, setRegionDetailData] = useState<RegionResult[]>([]);
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -67,14 +65,6 @@ export default function Home() {
   }, [upperVariable, lowerVariable]);
 
   useEffect(() => {
-    // we filter the positions here so it's updated in the chart
-    // but the pvals are filtered in the viz, since we don't want to remove
-    // the whole model from the dataset, since one var might pass and the other might not
-    // though pos is shared on all models, these are not
-    // TODO: this will no longer work, we have to split them here
-    // b/c of qq plots
-    // issue is that this will break the table view, since it needs full models
-    // for those with 1 and not the other, can write NA?
     if (upperVariable && lowerVariable) {
       setRegionDetailData([]);
 
@@ -215,20 +205,6 @@ export default function Home() {
               />
             )}
           </Grid>
-          <Grid>
-            {!!regionData.length && (
-              <TextField
-                label="QQ Distribution"
-                onChange={(e) => setQqDist(e.target.value)}
-                select
-                fullWidth
-                value={qqDist}
-              >
-                <MenuItem value="normal">Normal</MenuItem>
-                <MenuItem value="uniform">Uniform</MenuItem>
-              </TextField>
-            )}
-          </Grid>
           <Grid container alignItems="center" justifyContent="center">
             {!!upperVariable && !!lowerVariable && (
               <IconButton
@@ -275,7 +251,7 @@ export default function Home() {
               <Grid>
                 {!!upperVariable && (
                   <QQPlot
-                    distribution={qqDist}
+                    color={TOP_COLOR}
                     pvals={regionDisplayData.map((v) => v[upperVariable])}
                     selector="upper-qq"
                     variable={upperVariable}
@@ -286,7 +262,7 @@ export default function Home() {
               <Grid>
                 {!!lowerVariable && (
                   <QQPlot
-                    distribution={qqDist}
+                    color={BOTTOM_COLOR}
                     pvals={regionDisplayData.map(
                       (v) => v[lowerVariable as keyof RegionResult]
                     )}

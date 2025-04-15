@@ -3,21 +3,12 @@
 import React, { useLayoutEffect } from "react";
 import { Box } from "@mui/material";
 import { select, Selection, BaseType } from "d3-selection";
-import {
-  mean,
-  deviation,
-  quantile,
-  range,
-  zip,
-  extent,
-  min,
-  max,
-} from "d3-array";
-import { randomNormal, randomUniform } from "d3-random";
+import { quantile, range, zip, extent, min, max } from "d3-array";
+import { randomUniform } from "d3-random";
 import { scaleLinear } from "d3-scale";
 import { axisBottom, axisLeft } from "d3-axis";
 
-const marginBottom = 25;
+const marginBottom = 30;
 const yLabelMargin = 28;
 const yAxisMargin = 20;
 const marginLeft = yLabelMargin + yAxisMargin;
@@ -37,10 +28,10 @@ const getQuartiles = (data: number[], qcount: number = 25) => {
 };
 
 const buildChart = (
-  selector: string,
-  distribution: string,
-  variable: string,
+  color: string,
   pvals: number[],
+  selector: string,
+  variable: string,
   width: number
 ) => {
   const height = 0.5 * width;
@@ -52,16 +43,7 @@ const buildChart = (
     min([250, filteredPvals.length])
   );
 
-  let rv: () => number;
-
-  if (distribution === "normal") {
-    const mu = mean(filteredPvals);
-    const sig = deviation(filteredPvals);
-
-    rv = randomNormal(mu, sig);
-  } else {
-    rv = randomUniform(max(filteredPvals));
-  }
+  const rv = randomUniform(max(filteredPvals));
 
   const refDist = range(2000).map(() => rv());
 
@@ -102,7 +84,7 @@ const buildChart = (
     .join("circle")
     .attr("class", "upper")
     .attr("r", 3)
-    .attr("fill", "black")
+    .attr("fill", color)
     .attr("opacity", 0.5)
     .attr("cx", (d) => xScale(d[0]))
     .attr("cy", (d) => yScale(d[1]));
@@ -137,15 +119,15 @@ const buildChart = (
 
   container
     .selectAll<SVGGElement, string>("g.x-label")
-    .data([distribution], (d) => d)
+    .data([variable], (d) => d)
     .join("g")
     .attr("class", "x-label")
     .attr("transform", `translate(${width / 2},${height})`)
     .selection()
     .selectAll<SVGGElement, string>("text")
-    .data([distribution], (d) => d)
+    .data([1], (d) => d)
     .join("text")
-    .text((d) => d)
+    .text("Uniform dist")
     .attr("font-size", 12)
     .attr("text-anchor", "middle");
 
@@ -162,7 +144,7 @@ const buildChart = (
 };
 
 interface QQPlotProps {
-  distribution: string;
+  color: string;
   pvals: number[];
   selector: string;
   variable: string;
@@ -170,15 +152,15 @@ interface QQPlotProps {
 }
 
 const QQPlot: React.FC<QQPlotProps> = ({
-  distribution,
+  color,
   pvals,
   selector,
   variable,
   width,
 }) => {
   useLayoutEffect(() => {
-    buildChart(selector, distribution, variable, pvals, width);
-  }, [distribution, pvals, selector, variable, width]);
+    buildChart(color, pvals, selector, variable, width);
+  }, [color, pvals, selector, variable, width]);
 
   return <Box className={selector} />;
 };
