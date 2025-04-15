@@ -2,10 +2,11 @@ import React, { useLayoutEffect, useState } from "react";
 import { extent, groups, max } from "d3-array";
 import { axisBottom, axisLeft } from "d3-axis";
 import { schemeSet3 } from "d3-scale-chromatic";
-import { BaseType, select, Selection } from "d3-selection";
+import { BaseType, select, selectAll, Selection } from "d3-selection";
 import { scaleLinear, ScaleOrdinal, scaleOrdinal } from "d3-scale";
 import { Box } from "@mui/material";
 import { RegionResult } from "@/lib/ts/types";
+import { format } from "d3-format";
 
 interface RegionData {
   region: number;
@@ -101,6 +102,32 @@ class RegionChart {
     } else return 0.4;
   };
 
+  showTooltip = (
+    data: RegionData,
+    e: MouseEvent,
+    regionColorScale: ScaleOrdinal<string, string, never>
+  ) => {
+    select(".tooltip")
+      .style("left", `${e.pageX + 15}px`)
+      .style("top", `${e.pageY - 15}px`)
+      .style("visibility", "visible")
+      .select<HTMLUListElement>("ul")
+      .selectAll<HTMLLIElement, string>("li")
+      .data<string>(
+        [
+          `Variable: ${data.variable}`,
+          `Region: ${data.region}`,
+          `Start pos: ${format(",")(data.start)}`,
+          `End pos: ${format(",")(data.end)}`,
+          `Pval: ${data.pvalue}`,
+        ],
+        (d) => d
+      )
+      .join("li")
+      .style("font-size", "15px")
+      .text((d) => d);
+  };
+
   render = (data: RegionResult[]) => {
     // ensure miami plot variables are rendered first
     const variables = [this.var1, this.var2].concat(
@@ -159,7 +186,13 @@ class RegionChart {
       .attr("fill", (d) => this.getRectFill(d.variable, regionColorScale))
       .attr("opacity", (d) => this.getRectOpacity(d.variable))
       .attr("height", regionRectHeight)
-      .attr("width", (d) => xScale(d.end) - xScale(d.start));
+      .attr("width", (d) => xScale(d.end) - xScale(d.start))
+      .on("mouseover", (e: MouseEvent, d: RegionData) =>
+        this.showTooltip(d, e, regionColorScale)
+      )
+      .on("mouseout", () =>
+        selectAll(".tooltip").style("visibility", "hidden")
+      );
 
     this.container
       .selectAll("g.y-label")

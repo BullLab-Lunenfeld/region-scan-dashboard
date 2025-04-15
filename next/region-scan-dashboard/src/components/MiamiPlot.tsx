@@ -57,6 +57,7 @@ const showTooltip = (data: RegionResult, e: MouseEvent) => {
       (d) => d
     )
     .join("li")
+    .style("font-size", "15px")
     .text((d) => d);
 };
 
@@ -467,19 +468,21 @@ const buildChart = (
 
   //append tooltip
   select("body")
-    .select("div.tooltip")
+    .selectAll("div.tooltip")
     .data([1])
     .join("div")
     .attr("class", "tooltip")
     .style("z-index", 999)
     .style("position", "absolute")
     .style("background-color", "black")
-    .style("font-size", "10px")
+    .style("opacity", 0.85)
     .style("color", "white")
     .style("border-radius", "5px")
     .style("visibility", "hidden")
     .style("padding", "2px")
-    .append("ul")
+    .selectAll("ul")
+    .data([1])
+    .join("ul")
     .style("list-style", "none")
     .style("padding", "2px")
     .style("margin", "2px");
