@@ -253,7 +253,12 @@ export default function Home() {
             )}
         </Grid>
       </Grid>
-      <Grid container direction="row">
+      <Grid
+        container
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+      >
         <Grid container direction="column">
           {!!regionDisplayData && (
             <>
@@ -289,6 +294,7 @@ export default function Home() {
             <RegionPlot
               data={regionDetailData}
               selector="region-plot"
+              selectedDatum={selectedDatum}
               var1={upperVariable}
               var1Color={TOP_COLOR}
               var2={lowerVariable}
