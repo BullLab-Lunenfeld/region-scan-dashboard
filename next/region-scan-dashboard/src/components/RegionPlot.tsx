@@ -102,11 +102,7 @@ class RegionChart {
     } else return 0.4;
   };
 
-  showTooltip = (
-    data: RegionData,
-    e: MouseEvent,
-    regionColorScale: ScaleOrdinal<string, string, never>
-  ) => {
+  showTooltip = (data: RegionData, e: MouseEvent) => {
     select(".tooltip")
       .style("left", `${e.pageX + 15}px`)
       .style("top", `${e.pageY - 15}px`)
@@ -187,9 +183,7 @@ class RegionChart {
       .attr("opacity", (d) => this.getRectOpacity(d.variable))
       .attr("height", regionRectHeight)
       .attr("width", (d) => xScale(d.end) - xScale(d.start))
-      .on("mouseover", (e: MouseEvent, d: RegionData) =>
-        this.showTooltip(d, e, regionColorScale)
-      )
+      .on("mouseover", (e: MouseEvent, d: RegionData) => this.showTooltip(d, e))
       .on("mouseout", () =>
         selectAll(".tooltip").style("visibility", "hidden")
       );
