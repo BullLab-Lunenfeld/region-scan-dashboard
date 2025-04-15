@@ -90,6 +90,7 @@ const buildChart = (
   filterCb: (filter: BrushFilter) => void,
   height: number,
   onCircleClick: (d: RegionResult) => void,
+  selectedDatum: RegionResult | undefined,
   selector: string,
   topCol: keyof RegionResult,
   topColor: string,
@@ -404,6 +405,16 @@ const buildChart = (
         ? chrCumSumScale[d.chr.toString()](d.end_bp)
         : xScale(d.end_bp)
     )
+    .attr("stroke-width", 2)
+    .attr(
+      "stroke",
+      selectedDatum
+        ? (d) =>
+            d.chr === selectedDatum.chr && d.start_bp === selectedDatum.start_bp
+              ? "black"
+              : "none"
+        : "none"
+    )
     .attr("cy", (d) => yScale(d[topCol]))
     .selection()
     .on("click", (_, d: RegionResult) => onCircleClick(d))
@@ -417,6 +428,16 @@ const buildChart = (
     .attr("class", "lower")
     .attr("r", circleWidthScale(transformedData.length))
     .attr("fill", bottomColor)
+    .attr("stroke-width", 2)
+    .attr(
+      "stroke",
+      selectedDatum
+        ? (d) =>
+            d.chr === selectedDatum.chr && d.start_bp === selectedDatum.start_bp
+              ? "black"
+              : "none"
+        : "none"
+    )
     .attr("opacity", 0.5)
     .attr("cx", (d) =>
       chrs.length > 1
@@ -472,6 +493,7 @@ interface MiamiPlotProps {
   filterCb: (filter: BrushFilter) => void;
   filter?: BrushFilter;
   onCircleClick: (d: RegionResult) => void;
+  selectedDatum?: RegionResult;
   topThresh: number;
   topCol: keyof RegionResult;
   topColor: string;
@@ -486,6 +508,7 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
   filter,
   filterCb,
   onCircleClick,
+  selectedDatum,
   topCol,
   topColor,
   topThresh,
@@ -501,6 +524,7 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
       filterCb,
       0.4 * width,
       onCircleClick,
+      selectedDatum,
       `.${className}`,
       topCol,
       topColor,
@@ -514,6 +538,7 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
     data,
     filter,
     filterCb,
+    selectedDatum,
     topCol,
     topColor,
     topThresh,

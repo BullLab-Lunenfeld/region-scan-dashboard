@@ -22,28 +22,28 @@ const TOP_COLOR = schemeDark2[0];
 const BOTTOM_COLOR = schemeDark2[1];
 
 export default function Home() {
-  const [regionData, setRegionData] = useState<RegionResult[]>([]);
-  const [regionDisplayData, setRegionDisplayData] = useState<RegionResult[]>(
-    []
-  );
-
   const [brushFilterHistory, setBrushFilterHistory] = useState<BrushFilter[]>(
     []
   );
 
   const [filterModel, setFilterModel] = useState<GridFilterModel>();
-
-  const [upperVariable, setUpperVariable] = useState<keyof RegionResult | "">(
-    ""
-  );
+  const [lowerThresh, setLowerThresh] = useState<number>(10e-5);
   const [lowerVariable, setLowerVariable] = useState<keyof RegionResult | "">(
     ""
   );
 
-  const [upperThresh, setUpperThresh] = useState<number>(10e-5);
-  const [lowerThresh, setLowerThresh] = useState<number>(10e-5);
-
+  const [regionData, setRegionData] = useState<RegionResult[]>([]);
   const [regionDetailData, setRegionDetailData] = useState<RegionResult[]>([]);
+  const [regionDisplayData, setRegionDisplayData] = useState<RegionResult[]>(
+    []
+  );
+
+  const [selectedDatum, setSelectedDatum] = useState<RegionResult>();
+
+  const [upperThresh, setUpperThresh] = useState<number>(10e-5);
+  const [upperVariable, setUpperVariable] = useState<keyof RegionResult | "">(
+    ""
+  );
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
@@ -93,6 +93,13 @@ export default function Home() {
     }
   }, [brushFilterHistory, upperVariable, lowerVariable]);
 
+  const resetVisualizationVariables = () => {
+    setRegionDetailData([]);
+    setSelectedDatum(undefined);
+    setBrushFilterHistory([]);
+    setRegionDetailData([]);
+  };
+
   return (
     <Grid container direction="column" spacing={2}>
       <Grid container direction="row" spacing={2}>
@@ -102,7 +109,7 @@ export default function Home() {
               fileType="region"
               onUpload={async (files: File[]) => {
                 let results: RegionResult[] = [];
-
+                resetVisualizationVariables();
                 for (const file of files) {
                   const parsed = await parseTsv<RegionResult>(file);
                   results = [
@@ -133,8 +140,6 @@ export default function Home() {
 
                 setRegionData(results);
                 setRegionDisplayData(results);
-                setBrushFilterHistory([]);
-                setRegionDetailData([]);
               }}
             />
           </Grid>
@@ -231,11 +236,15 @@ export default function Home() {
                 bottomColor={BOTTOM_COLOR}
                 bottomThresh={lowerThresh}
                 data={regionDisplayData}
-                onCircleClick={_setRegionDetailData}
+                onCircleClick={(d) => {
+                  setSelectedDatum(d);
+                  _setRegionDetailData(d);
+                }}
                 filter={brushFilterHistory[brushFilterHistory.length - 1]}
                 filterCb={(f) =>
                   setBrushFilterHistory(brushFilterHistory.concat(f))
                 }
+                selectedDatum={selectedDatum}
                 topCol={upperVariable}
                 topColor={TOP_COLOR}
                 topThresh={upperThresh}
@@ -252,7 +261,7 @@ export default function Home() {
                 {!!upperVariable && (
                   <QQPlot
                     color={TOP_COLOR}
-                    pvals={regionDisplayData.map((v) => v[upperVariable])}
+                    pvals={regionData.map((v) => v[upperVariable])}
                     selector="upper-qq"
                     variable={upperVariable}
                     width={400}
@@ -263,7 +272,7 @@ export default function Home() {
                 {!!lowerVariable && (
                   <QQPlot
                     color={BOTTOM_COLOR}
-                    pvals={regionDisplayData.map(
+                    pvals={regionData.map(
                       (v) => v[lowerVariable as keyof RegionResult]
                     )}
                     selector="lower-qq"
