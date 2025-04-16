@@ -53,7 +53,7 @@ export default function Home() {
     const start = d.start_bp - 100000;
     const end = d.end_bp + 100000;
 
-    const regionDetailData = regionData.filter(
+    const regionDetailData = regionDisplayData.filter(
       (d) => d.start_bp >= start && d.end_bp <= end && d.chr == chr
     );
 

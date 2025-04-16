@@ -115,7 +115,7 @@ class RegionChart {
           `Region: ${data.region}`,
           `Start pos: ${format(",")(data.start)}`,
           `End pos: ${format(",")(data.end)}`,
-          `Pval: ${data.pvalue}`,
+          `Pval: ${format(".5")(data.pvalue)}`,
         ],
         (d) => d
       )
@@ -173,7 +173,10 @@ class RegionChart {
     //draw region rectangles
     this.container
       .selectAll<SVGRectElement, RegionData>("rect.region")
-      .data(regionData, (d) => d.pvalue)
+      .data(
+        regionData.filter((d) => this.activeVariables.includes(d.variable)),
+        (d) => d.pvalue
+      )
       .join("rect")
       .attr("class", "region")
       //x and y are upper-left corner
