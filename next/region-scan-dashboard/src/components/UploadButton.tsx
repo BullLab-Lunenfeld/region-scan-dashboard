@@ -2,7 +2,7 @@
 
 import React from "react";
 import { styled } from "@mui/material/styles";
-import Button from "@mui/material/Button";
+import Button, { ButtonProps } from "@mui/material/Button";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import { capitalize } from "@mui/material";
 import { FileType } from "@/lib/ts/types";
@@ -19,19 +19,51 @@ const VisuallyHiddenInput = styled("input")({
   width: 1,
 });
 
-interface UploadButtonProps {
-  fileType: FileType;
-  onUpload: (files: File[]) => void;
-}
-
-const UploadButton: React.FC<UploadButtonProps> = ({ fileType, onUpload }) => (
+const UploadButton: React.FC<ButtonProps> = ({ children, variant }) => (
   <Button
     component="label"
     role={undefined}
-    variant="contained"
+    variant={variant}
     tabIndex={-1}
     startIcon={<CloudUploadIcon />}
   >
+    {children}
+  </Button>
+);
+
+interface BaseUploadButtonProps {
+  fileType: FileType;
+  variant?: ButtonProps["variant"];
+}
+
+interface UploadButtonSingleProps extends BaseUploadButtonProps {
+  onUpload: (file: File) => void;
+}
+
+export const UploadButtonSingle: React.FC<UploadButtonSingleProps> = ({
+  fileType,
+  onUpload,
+  variant,
+}) => (
+  <UploadButton variant={variant}>
+    Upload {capitalize(fileType)} Files
+    <VisuallyHiddenInput
+      type="file"
+      onChange={({ target: { files } }) => files?.length && onUpload(files[0])}
+      multiple
+    />
+  </UploadButton>
+);
+
+interface UploadButtonMultiProps extends BaseUploadButtonProps {
+  onUpload: (files: File[]) => void;
+}
+
+export const UploadButtonMulti: React.FC<UploadButtonMultiProps> = ({
+  fileType,
+  onUpload,
+}) => (
+  <UploadButton>
     Upload {capitalize(fileType)} Files
     <VisuallyHiddenInput
       type="file"
@@ -40,7 +72,5 @@ const UploadButton: React.FC<UploadButtonProps> = ({ fileType, onUpload }) => (
       }
       multiple
     />
-  </Button>
+  </UploadButton>
 );
-
-export default UploadButton;

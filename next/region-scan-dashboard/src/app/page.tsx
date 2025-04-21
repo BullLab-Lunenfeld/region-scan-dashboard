@@ -11,7 +11,7 @@ import {
   PaginatedTable,
   QQPlot,
   RegionPlot,
-  UploadButton,
+  UploadButtonMulti,
 } from "@/components";
 import { parseTsv } from "@/lib/ts/util";
 import { RegionResult } from "@/lib/ts/types";
@@ -50,11 +50,11 @@ export default function Home() {
   const _setRegionDetailData = (d: RegionResult) => {
     //we need 100k basepairs in either direction from the (non-filtered) data
     const chr = d.chr;
-    const start = d.start_bp - 100000;
-    const end = d.end_bp + 100000;
+    const start = d.region - 10;
+    const end = d.region + 10;
 
     const regionDetailData = regionDisplayData.filter(
-      (d) => d.start_bp >= start && d.end_bp <= end && d.chr == chr
+      (d) => d.region >= start && d.region <= end && d.chr == chr
     );
 
     setRegionDetailData(regionDetailData);
@@ -105,7 +105,7 @@ export default function Home() {
       <Grid container direction="row" spacing={2}>
         <Grid size={{ xs: 4, lg: 2 }} direction="column" container spacing={2}>
           <Grid>
-            <UploadButton
+            <UploadButtonMulti
               fileType="region"
               onUpload={async (files: File[]) => {
                 let results: RegionResult[] = [];
