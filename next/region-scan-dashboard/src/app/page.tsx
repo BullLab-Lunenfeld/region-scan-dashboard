@@ -48,7 +48,6 @@ export default function Home() {
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
   const _setRegionDetailData = (d: RegionResult) => {
-    //we need 100k basepairs in either direction from the (non-filtered) data
     const chr = d.chr;
     const start = d.region - 10;
     const end = d.region + 10;

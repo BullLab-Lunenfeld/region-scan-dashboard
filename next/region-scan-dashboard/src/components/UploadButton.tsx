@@ -46,7 +46,7 @@ export const UploadButtonSingle: React.FC<UploadButtonSingleProps> = ({
   variant,
 }) => (
   <UploadButton variant={variant}>
-    Upload {capitalize(fileType)} Files
+    Upload {capitalize(fileType)} File
     <VisuallyHiddenInput
       type="file"
       onChange={({ target: { files } }) => files?.length && onUpload(files[0])}

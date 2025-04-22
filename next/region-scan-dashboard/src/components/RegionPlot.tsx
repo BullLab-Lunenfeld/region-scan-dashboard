@@ -1,14 +1,19 @@
 import React, { useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { extent, groups, max } from "d3-array";
+import { extent, groups, range, max, bin, group } from "d3-array";
 import { axisBottom, axisLeft } from "d3-axis";
 import { schemeSet3 } from "d3-scale-chromatic";
 import { format } from "d3-format";
 import { BaseType, select, selectAll, Selection } from "d3-selection";
 import { scaleLinear, ScaleOrdinal, scaleOrdinal } from "d3-scale";
 import { Box, Button, Grid2 as Grid } from "@mui/material";
-import { RegionResult, VariantResultRow } from "@/lib/ts/types";
+import {
+  EnsemblGeneResult,
+  RegionResult,
+  VariantResultRow,
+} from "@/lib/ts/types";
 import { UploadButtonSingle } from "@/components";
 import { parseTsv } from "@/lib/ts/util";
+import { fetchGenes } from "@/util/fetchGenes";
 
 interface RegionData {
   region: number;
@@ -18,6 +23,70 @@ interface RegionData {
   pvalue: number;
 }
 
+const showRegionTooltip = (data: RegionData, e: MouseEvent) => {
+  select(".tooltip")
+    .style("left", `${e.pageX + 15}px`)
+    .style("top", `${e.pageY - 15}px`)
+    .style("visibility", "visible")
+    .select<HTMLUListElement>("ul")
+    .selectAll<HTMLLIElement, string>("li")
+    .data<string>(
+      [
+        `Variable: ${data.variable}`,
+        `Region: ${data.region}`,
+        `Start pos: ${format(",")(data.start)}`,
+        `End pos: ${format(",")(data.end)}`,
+        `Pval: ${format(".5")(data.pvalue)}`,
+      ],
+      (d) => d
+    )
+    .join("li")
+    .style("font-size", "15px")
+    .text((d) => d);
+};
+
+const showVariantTooltip = (data: VariantResultRow, e: MouseEvent) => {
+  select(".tooltip")
+    .style("left", `${e.pageX + 15}px`)
+    .style("top", `${e.pageY - 15}px`)
+    .style("visibility", "visible")
+    .select<HTMLUListElement>("ul")
+    .selectAll<HTMLLIElement, string>("li")
+    .data<string>(
+      [
+        `Variant: ${data.variant}`,
+        `Region: ${data.region}`,
+        `Start pos: ${format(",")(data.start_bp)}`,
+        `sg pval: ${format(".5")(data.sg_pval)}`,
+      ],
+      (d) => d
+    )
+    .join("li")
+    .style("font-size", "15px")
+    .text((d) => d);
+};
+
+const showGeneTooltip = (data: EnsemblGeneResult, e: MouseEvent) => {
+  select(".tooltip")
+    .style("left", `${e.pageX + 15}px`)
+    .style("top", `${e.pageY - 15}px`)
+    .style("visibility", "visible")
+    .select<HTMLUListElement>("ul")
+    .selectAll<HTMLLIElement, string>("li")
+    .data<string>(
+      [
+        `Gene: ${data.external_name}`,
+        `ID: ${data.gene_id}`,
+        `Start pos: ${format(",")(data.start)}`,
+        `End pos: ${format(".5")(data.end)}`,
+      ],
+      (d) => d
+    )
+    .join("li")
+    .style("font-size", "15px")
+    .text((d) => d);
+};
+
 const regionRectHeight = 5;
 const marginBottom = 35;
 const yLabelMargin = 28;
@@ -25,6 +94,7 @@ const yAxisMargin = 20;
 const marginLeft = yLabelMargin + yAxisMargin;
 const marginTop = 25;
 const marginRight = 15;
+const geneHeight = 3;
 
 //need this as a class so that we can store the active variables
 class RegionChart {
@@ -102,50 +172,11 @@ class RegionChart {
     } else return 0.4;
   };
 
-  showRegionTooltip = (data: RegionData, e: MouseEvent) => {
-    select(".tooltip")
-      .style("left", `${e.pageX + 15}px`)
-      .style("top", `${e.pageY - 15}px`)
-      .style("visibility", "visible")
-      .select<HTMLUListElement>("ul")
-      .selectAll<HTMLLIElement, string>("li")
-      .data<string>(
-        [
-          `Variable: ${data.variable}`,
-          `Region: ${data.region}`,
-          `Start pos: ${format(",")(data.start)}`,
-          `End pos: ${format(",")(data.end)}`,
-          `Pval: ${format(".5")(data.pvalue)}`,
-        ],
-        (d) => d
-      )
-      .join("li")
-      .style("font-size", "15px")
-      .text((d) => d);
-  };
-
-  showVariantTooltip = (data: VariantResultRow, e: MouseEvent) => {
-    select(".tooltip")
-      .style("left", `${e.pageX + 15}px`)
-      .style("top", `${e.pageY - 15}px`)
-      .style("visibility", "visible")
-      .select<HTMLUListElement>("ul")
-      .selectAll<HTMLLIElement, string>("li")
-      .data<string>(
-        [
-          `Variant: ${data.variant}`,
-          `Region: ${data.region}`,
-          `Start pos: ${format(",")(data.start_bp)}`,
-          `sg pval: ${format(".5")(data.sg_pval)}`,
-        ],
-        (d) => d
-      )
-      .join("li")
-      .style("font-size", "15px")
-      .text((d) => d);
-  };
-
-  render = (data: RegionResult[], variants?: VariantResultRow[]) => {
+  render = (
+    data: RegionResult[],
+    variants: VariantResultRow[],
+    genes: EnsemblGeneResult[]
+  ) => {
     // ensure miami plot variables are rendered first
     const variables = [this.var1, this.var2].concat(
       Object.keys(data[0]).filter(
@@ -154,6 +185,35 @@ class RegionChart {
           k.toLowerCase().endsWith("_p")
       ) as (keyof RegionResult)[]
     );
+
+    const geneHeightMap = genes.reduce<Record<string, number>>(
+      (acc, curr) => ({
+        ...acc,
+        [curr.external_name]: 0,
+      }),
+      {}
+    );
+
+    if (genes.length) {
+      const sorted = genes.sort((a, b) => (a.start < b.start ? -1 : 1));
+      sorted.forEach((outer_g, i) => {
+        let overlaps = 0;
+        for (let inner_g of sorted.slice(i)) {
+          if (inner_g.start < outer_g.end) {
+            overlaps += 1;
+            geneHeightMap[inner_g.external_name] =
+              //make sure it has't already been assigned a position higher from a previous overlap
+              geneHeightMap[inner_g.external_name] < overlaps
+                ? overlaps
+                : geneHeightMap[inner_g.external_name];
+          }
+        }
+      });
+    }
+
+    const geneHeightCount = max(Object.values(geneHeightMap)) || (0 as number);
+
+    const geneSpace = geneHeightCount * (geneHeight + 12); //add padding and room for text
 
     const chr = data[0].chr;
     const regionData = groups(data, (d) => d.region).flatMap(
@@ -176,7 +236,8 @@ class RegionChart {
 
     const xScale = scaleLinear()
       .range([marginLeft, this.mainWidth - marginRight])
-      .domain(extent(regionData.flatMap((d) => [d.start, d.end])) as number[]);
+      .domain(extent(regionData.flatMap((d) => [d.start, d.end])) as number[])
+      .clamp(true);
 
     //updatabale, goes in render method, along with legend, or at least has its own
     const regionColorScale = scaleOrdinal<string, string>()
@@ -188,8 +249,8 @@ class RegionChart {
           .filter((k, i, a) => a.findIndex((d) => d === k) === i) as string[]
       );
 
-    const yScale = scaleLinear()
-      .range([marginTop, this.height - marginBottom])
+    const yScalePval = scaleLinear()
+      .range([marginTop, this.height - marginBottom - geneSpace])
       .domain([
         max(
           regionData
@@ -198,6 +259,14 @@ class RegionChart {
         ) as number,
         -0.05,
       ]);
+
+    const yScaleGene = scaleLinear()
+      .range([
+        this.height - geneSpace - marginBottom + 12, //padding
+        this.height - marginBottom,
+      ])
+      .domain([geneHeightCount, 0]);
+
     //draw region rectangles
     this.container
       .selectAll<SVGRectElement, RegionData>("rect.region")
@@ -209,38 +278,57 @@ class RegionChart {
       .attr("class", "region")
       //x and y are upper-left corner
       .attr("x", (d) => xScale(d.start))
-      .attr("y", (d) => yScale(d.pvalue))
+      .attr("y", (d) => yScalePval(d.pvalue))
       .attr("fill", (d) => this.getRectFill(d.variable, regionColorScale))
       .attr("opacity", (d) => this.getRectOpacity(d.variable))
       .attr("height", regionRectHeight)
       .attr("width", (d) => xScale(d.end) - xScale(d.start))
       .on("mouseover", (e: MouseEvent, d: RegionData) =>
-        this.showRegionTooltip(d, e)
+        showRegionTooltip(d, e)
       )
       .on("mouseout", () =>
         selectAll(".tooltip").style("visibility", "hidden")
       );
 
-    // add variants if available
-    console.log(variants);
-    if (variants) {
-      this.container
-        .selectAll<SVGCircleElement, VariantResultRow>("circle.variant")
-        .data(variants, (v) => v.sg_pval)
-        .join("circle")
-        .attr("class", "variant")
-        .attr("cx", (d) => xScale(d.start_bp))
-        .attr("cy", (d) => yScale(-Math.log10(d.sg_pval)))
-        .attr("fill", "violet")
-        .attr("opacity", 0.7)
-        .attr("r", 4)
-        .on("mouseover", (e: MouseEvent, d: VariantResultRow) =>
-          this.showVariantTooltip(d, e)
-        )
-        .on("mouseout", () =>
-          selectAll(".tooltip").style("visibility", "hidden")
-        );
-    }
+    // add variants
+    this.container
+      .selectAll<SVGCircleElement, VariantResultRow>("circle.variant")
+      .data(variants, (v) => v.sg_pval)
+      .join("circle")
+      .attr("class", "variant")
+      .attr("cx", (d) => xScale(d.start_bp))
+      .attr("cy", (d) => yScalePval(-Math.log10(d.sg_pval)))
+      .attr("fill", "violet")
+      .transition()
+      .duration(300)
+      .selection()
+      .attr("opacity", 0.7)
+      .attr("r", 4)
+      .on("mouseover", (e: MouseEvent, d: VariantResultRow) =>
+        showVariantTooltip(d, e)
+      )
+      .on("mouseout", () =>
+        selectAll(".tooltip").style("visibility", "hidden")
+      );
+
+    // add genes
+    this.container
+      .selectAll<SVGRectElement, EnsemblGeneResult>("rect.gene")
+      .data(genes)
+      .join("rect")
+      .attr("class", "gene")
+      //x and y are upper-left corner
+      .attr("x", (d) => xScale(d.start))
+      .attr("y", (d) => yScaleGene(geneHeightMap[d.external_name]))
+      .attr("fill", "blue")
+      .attr("height", geneHeight)
+      .attr("width", (d) => xScale(d.end) - xScale(d.start))
+      .on("mouseover", (e: MouseEvent, d: EnsemblGeneResult) =>
+        showGeneTooltip(d, e)
+      )
+      .on("mouseout", () =>
+        selectAll(".tooltip").style("visibility", "hidden")
+      );
 
     this.container
       .selectAll("g.y-label")
@@ -292,7 +380,7 @@ class RegionChart {
       .attr("transform", `translate(${marginLeft},0)`)
       .transition()
       .duration(500)
-      .call(axisLeft(yScale))
+      .call(axisLeft(yScalePval))
       .selection();
 
     const legendContainer = this.container
@@ -318,7 +406,7 @@ class RegionChart {
         } else {
           this.activeVariables = this.activeVariables.concat(d);
         }
-        this.render(data);
+        this.render(data, variants, genes);
       });
 
     legendContainer
@@ -354,7 +442,15 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 }) => {
   const [chart, setChart] = useState<RegionChart>();
 
+  const [variantsVisible, setVariantsVisible] = useState<boolean>(true);
+
   const [variants, setVariants] = useState<VariantResultRow[]>([]);
+
+  const [genes, setGenes] = useState<EnsemblGeneResult[]>([]);
+
+  const [uploadKey, setUploadKey] = useState<string>(
+    Math.random().toString(36).slice(2)
+  );
 
   const visibleRegions = useMemo(
     () =>
@@ -364,6 +460,8 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     [data]
   );
 
+  const chr = useMemo(() => data[0].chr, [data]);
+
   const posRange = useMemo(
     () => extent(data.map((d) => d.start_bp)) as [number, number],
     [data]
@@ -371,13 +469,18 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   useEffect(() => {
     if (chart) {
-      chart.render(data, variants);
+      const _variants = variantsVisible ? variants : [];
+      chart.render(data, _variants, genes);
     }
-  }, [variants]);
+    setUploadKey(Math.random().toString(36).slice(2));
+  }, [genes, variants, variantsVisible]);
 
   useLayoutEffect(() => {
     if (chart) {
       chart.remove();
+      setVariants([]);
+      setGenes([]);
+      setVariantsVisible(true);
     }
     if (selectedDatum) {
       const Chart = new RegionChart(
@@ -388,7 +491,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
         var2Color,
         width
       );
-      Chart.render(data);
+      Chart.render(data, variants, genes);
       setChart(Chart);
     }
   }, [selectedDatum]);
@@ -401,6 +504,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
       <Grid spacing={2} direction="column">
         <Grid>
           <UploadButtonSingle
+            key={uploadKey}
             fileType="variant"
             onUpload={async (file) => {
               const parsed = await parseTsv<VariantResultRow>(file);
@@ -420,13 +524,35 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
                     v.start_bp > posRange[0] &&
                     v.end_bp < posRange[1]
                 );
+              if (mapped.length === 0) {
+                alert("no variants found for this region");
+              }
               setVariants(mapped);
             }}
             variant="text"
           />
         </Grid>
         <Grid>
-          <Button>Show genes</Button>
+          {!!variants.length && (
+            <Button onClick={() => setVariantsVisible(!variantsVisible)}>
+              {variantsVisible ? "Hide " : " Show"} Variants
+            </Button>
+          )}
+        </Grid>
+        <Grid>
+          <Button
+            onClick={async () => {
+              const _genes = await fetchGenes(chr, posRange[0], posRange[1]);
+              if (_genes !== null) {
+                setGenes(_genes.filter((g) => g.biotype === "protein_coding"));
+              } else {
+                alert("there was an error fetching the genes for this region");
+                setGenes([]);
+              }
+            }}
+          >
+            Fetch genes
+          </Button>
         </Grid>
       </Grid>
     </Grid>

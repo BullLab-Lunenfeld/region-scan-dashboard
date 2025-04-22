@@ -1,5 +1,23 @@
 export type FileType = "region" | "bin" | "variant";
 
+export interface EnsemblGeneResult {
+  end: number;
+  start: number;
+  biotype: string;
+  id: string;
+  logic_name: string;
+  external_name: string;
+  assembly_name: string;
+  strand: number;
+  source: string;
+  gene_id: string;
+  canonical_transcript: string;
+  feature_type: string;
+  version: number;
+  description: string;
+  seq_region_name: string;
+}
+
 export interface RegionResultRaw {
   chr: number;
   end_bp: number;
@@ -27,6 +45,11 @@ export interface RegionResultRaw {
   Wald: number;
   Wald_df: number;
   Wald_p: number;
+}
+
+export interface RegionResult extends RegionResultRaw {
+  //needed for the table
+  id: number;
 }
 
 export interface VariantResultRow {
@@ -61,9 +84,4 @@ export interface VariantResultRow {
   variant: string;
   VIF: number;
   vifbin: number;
-}
-
-export interface RegionResult extends RegionResultRaw {
-  //needed for the table
-  id: number;
 }
