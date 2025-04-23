@@ -97,11 +97,9 @@ function PaginatedTable<T extends GridValidRowModel>({
         onSortModelChange={onSortModelChange}
         onStateChange={(state) => {
           const newRows = gridFilteredSortedRowIdsSelector(state);
-          //this will give you the ids of the visible rows (unpaginated), which we can then pass to a callback
-          //but we don't know what triggered the state change....
-          //alternately could just put a button on the toolbar that sez "Update Chart" --> yup, that sounds best
+          //this will ids of the visible rows (unpaginated), which we can then pass to a callback
+          //alternately could just put a button on the toolbar that says "Update Chart"
           //if we can pass in the callback, which seems to have been an issue before (maybe only with typescript?)
-          //console.log(newRows);
         }}
         pageSizeOptions={[10, 20]}
         paginationMode="client"

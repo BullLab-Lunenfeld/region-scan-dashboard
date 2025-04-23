@@ -8,10 +8,26 @@ const chromSort =
     const chr1: number = cellParams1.api.getRowParams(cellParams1.id).row.chr;
     const chr2: number = cellParams1.api.getRowParams(cellParams2.id).row.chr;
 
-    if (direction === "asc") {
-      return chr1 < chr2 ? -1 : chr1 > chr2 ? 1 : v1 < v2 ? -1 : 1;
+    if (direction === "asc" || !direction) {
+      return chr1 < chr2
+        ? -1
+        : chr1 > chr2
+        ? 1
+        : v1 < v2
+        ? -1
+        : v1 > v2
+        ? 1
+        : 0;
     } else if (direction == "desc") {
-      return chr1 < chr2 ? 1 : chr1 > chr2 ? -1 : v1 < v2 ? 1 : -1;
+      return chr1 < chr2
+        ? 1
+        : chr1 > chr2
+        ? -1
+        : v1 < v2
+        ? 1
+        : v1 > v2
+        ? -1
+        : 0;
     } else return 0;
   };
 
@@ -27,13 +43,13 @@ export const RegionResultCols: PaginatedTableColumn<RegionResult>[] = [
     field: "start_bp",
     headerName: "start_bp",
     sortable: true,
-    getSortComparator: chromSort,
+    //getSortComparator: chromSort,
   },
   {
     field: "end_bp",
     headerName: "end_bp",
     sortable: true,
-    getSortComparator: chromSort,
+    //getSortComparator: chromSort,
   },
   { field: "GATES_p", headerName: "GATES_p", sortable: true },
   { field: "LCB", hideOnLoad: true, headerName: "LCB", sortable: true },

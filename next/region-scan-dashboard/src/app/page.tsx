@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Grid2 as Grid, IconButton, MenuItem, TextField } from "@mui/material";
 import { schemeDark2 } from "d3-scale-chromatic";
 import { UndoSharp } from "@mui/icons-material";
@@ -17,6 +17,7 @@ import { parseTsv } from "@/lib/ts/util";
 import { RegionResult } from "@/lib/ts/types";
 import { RegionResultCols } from "@/util/columnConfigs";
 import { BrushFilter } from "@/components/MiamiPlot";
+import { max } from "d3-array";
 
 const TOP_COLOR = schemeDark2[0];
 const BOTTOM_COLOR = schemeDark2[1];
@@ -27,7 +28,7 @@ export default function Home() {
   );
 
   const [filterModel, setFilterModel] = useState<GridFilterModel>();
-  const [lowerThresh, setLowerThresh] = useState<number>(10e-5);
+  const [lowerThresh, setLowerThresh] = useState<number>(5e-6);
   const [lowerVariable, setLowerVariable] = useState<keyof RegionResult | "">(
     ""
   );
@@ -38,26 +39,42 @@ export default function Home() {
     []
   );
 
-  const [selectedDatum, setSelectedDatum] = useState<RegionResult>();
+  const [selectedRegion, setSelectedRegion] = useState<RegionResult>();
 
-  const [upperThresh, setUpperThresh] = useState<number>(10e-5);
+  const [uploadKey, setUploadKey] = useState(
+    Math.random().toString(36).slice(2)
+  );
+
+  const [upperThresh, setUpperThresh] = useState<number>(5e-6);
   const [upperVariable, setUpperVariable] = useState<keyof RegionResult | "">(
     ""
   );
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
-  const _setRegionDetailData = (d: RegionResult) => {
-    const chr = d.chr;
-    const start = d.region - 10;
-    const end = d.region + 10;
+  const largestRegion = useMemo(
+    () => max(regionData.map((d) => d.end_bp - d.start_bp)) || 0,
+    [regionData]
+  );
 
-    const regionDetailData = regionDisplayData.filter(
-      (d) => d.region >= start && d.region <= end && d.chr == chr
-    );
+  useEffect(() => {
+    if (selectedRegion) {
+      const chr = selectedRegion.chr;
+      const start = selectedRegion.region - 10;
+      const end = selectedRegion.region + 10;
 
-    setRegionDetailData(regionDetailData);
-  };
+      // some chroms have 2 regions, so we'll check the distance too
+      const regionDetailData = regionDisplayData.filter(
+        (d) =>
+          Math.abs(d.start_bp - selectedRegion.start_bp) < largestRegion * 10 &&
+          d.region >= start &&
+          d.region <= end &&
+          d.chr == chr
+      );
+
+      setRegionDetailData(regionDetailData);
+    }
+  }, [selectedRegion]);
 
   useEffect(() => {
     setRegionDetailData([]);
@@ -94,7 +111,7 @@ export default function Home() {
 
   const resetVisualizationVariables = () => {
     setRegionDetailData([]);
-    setSelectedDatum(undefined);
+    setSelectedRegion(undefined);
     setBrushFilterHistory([]);
     setRegionDetailData([]);
   };
@@ -105,40 +122,44 @@ export default function Home() {
         <Grid size={{ xs: 4, lg: 2 }} direction="column" container spacing={2}>
           <Grid>
             <UploadButtonMulti
+              key={uploadKey}
               fileType="region"
               onUpload={async (files: File[]) => {
                 let results: RegionResult[] = [];
                 resetVisualizationVariables();
+                let i = 1;
                 for (const file of files) {
                   const parsed = await parseTsv<RegionResult>(file);
                   results = [
                     ...results,
-                    ...parsed.map((val) =>
-                      Object.fromEntries(
+                    ...parsed.map((val, j) => {
+                      val.id = +`${i}${j}`;
+                      return Object.fromEntries(
                         Object.entries(val)
                           .map(([k, v]) => [k.replaceAll(".", "_"), +v])
                           .filter(([k, v]) => {
+                            // these are old and redundant values
+                            if (["MLCZ_p", "LCZ_p"].includes(k + "")) {
+                              return false;
+                            }
                             //for now we'll filter out negative p values
                             //but we may want to correct them later
-                            if (
+                            else if (
                               typeof k == "string" &&
                               k.toLowerCase().endsWith("_p")
                             ) {
                               return !!+v && +v > 0;
                             } else return true;
                           })
-                      )
-                    ),
+                      );
+                    }),
                   ] as RegionResult[];
+                  i++;
                 }
-
-                results = results.map((r, i) => {
-                  r.id = i;
-                  return r;
-                });
 
                 setRegionData(results);
                 setRegionDisplayData(results);
+                setUploadKey(Math.random().toString(36).slice(2));
               }}
             />
           </Grid>
@@ -235,15 +256,12 @@ export default function Home() {
                 bottomColor={BOTTOM_COLOR}
                 bottomThresh={lowerThresh}
                 data={regionDisplayData}
-                onCircleClick={(d) => {
-                  setSelectedDatum(d);
-                  _setRegionDetailData(d);
-                }}
+                onCircleClick={(d) => setSelectedRegion(d)}
                 filter={brushFilterHistory[brushFilterHistory.length - 1]}
                 filterCb={(f) =>
                   setBrushFilterHistory(brushFilterHistory.concat(f))
                 }
-                selectedDatum={selectedDatum}
+                selectedRegion={selectedRegion}
                 topCol={upperVariable}
                 topColor={TOP_COLOR}
                 topThresh={upperThresh}
@@ -293,7 +311,7 @@ export default function Home() {
             <RegionPlot
               data={regionDetailData}
               selector="region-plot"
-              selectedDatum={selectedDatum}
+              selectedRegion={selectedRegion}
               var1={upperVariable}
               var1Color={TOP_COLOR}
               var2={lowerVariable}
@@ -304,7 +322,7 @@ export default function Home() {
         )}
       </Grid>
       <Grid width="100%">
-        {/* Ideally we don't need controlled filters at all, if we could just get the filtered data out of it... */}
+        {/* Ideally we don't need controlled filters at all*/}
         {!!regionDisplayData.length && (
           <PaginatedTable
             cols={RegionResultCols}

@@ -1,11 +1,18 @@
 import React, { useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { extent, groups, range, max, bin, group } from "d3-array";
+import { extent, groups, max } from "d3-array";
 import { axisBottom, axisLeft } from "d3-axis";
 import { schemeSet3 } from "d3-scale-chromatic";
 import { format } from "d3-format";
 import { BaseType, select, selectAll, Selection } from "d3-selection";
 import { scaleLinear, ScaleOrdinal, scaleOrdinal } from "d3-scale";
-import { Box, Button, Grid2 as Grid } from "@mui/material";
+import {
+  Box,
+  Button,
+  Checkbox,
+  FormControl,
+  FormControlLabel,
+  Grid2 as Grid,
+} from "@mui/material";
 import {
   EnsemblGeneResult,
   RegionResult,
@@ -14,6 +21,7 @@ import {
 import { UploadButtonSingle } from "@/components";
 import { parseTsv } from "@/lib/ts/util";
 import { fetchGenes } from "@/util/fetchGenes";
+import LoadingOverlay from "./LoadingIndicator";
 
 interface RegionData {
   region: number;
@@ -56,7 +64,7 @@ const showVariantTooltip = (data: VariantResultRow, e: MouseEvent) => {
       [
         `Variant: ${data.variant}`,
         `Region: ${data.region}`,
-        `Start pos: ${format(",")(data.start_bp)}`,
+        `Pos: ${format(",")(data.pos)}`,
         `sg pval: ${format(".5")(data.sg_pval)}`,
       ],
       (d) => d
@@ -86,6 +94,10 @@ const showGeneTooltip = (data: EnsemblGeneResult, e: MouseEvent) => {
     .style("font-size", "15px")
     .text((d) => d);
 };
+
+const variantColorScale = scaleOrdinal<string>()
+  .range(["teal", "orange"])
+  .domain(["0", "1"]);
 
 const regionRectHeight = 5;
 const marginBottom = 35;
@@ -178,6 +190,7 @@ class RegionChart {
     genes: EnsemblGeneResult[]
   ) => {
     // ensure miami plot variables are rendered first
+
     const variables = [this.var1, this.var2].concat(
       Object.keys(data[0]).filter(
         (k) =>
@@ -296,14 +309,14 @@ class RegionChart {
       .data(variants, (v) => v.sg_pval)
       .join("circle")
       .attr("class", "variant")
-      .attr("cx", (d) => xScale(d.start_bp))
+      .attr("cx", (d) => xScale(d.pos))
       .attr("cy", (d) => yScalePval(-Math.log10(d.sg_pval)))
-      .attr("fill", "violet")
+      .attr("fill", (d) => variantColorScale((d.region % 2) + ""))
       .transition()
       .duration(300)
       .selection()
       .attr("opacity", 0.7)
-      .attr("r", 4)
+      .attr("r", 3)
       .on("mouseover", (e: MouseEvent, d: VariantResultRow) =>
         showVariantTooltip(d, e)
       )
@@ -421,7 +434,7 @@ class RegionChart {
 
 interface RegionPlotProps {
   data: RegionResult[];
-  selectedDatum?: RegionResult;
+  selectedRegion?: RegionResult;
   selector: string;
   var1: keyof RegionResult;
   var1Color: string;
@@ -432,7 +445,7 @@ interface RegionPlotProps {
 
 const RegionPlot: React.FC<RegionPlotProps> = ({
   data,
-  selectedDatum,
+  selectedRegion,
   selector,
   var1,
   var1Color,
@@ -442,15 +455,35 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 }) => {
   const [chart, setChart] = useState<RegionChart>();
 
+  const [proteinGenesOnly, setProteinGenesOnly] = useState(true);
+
   const [variantsVisible, setVariantsVisible] = useState<boolean>(true);
 
   const [variants, setVariants] = useState<VariantResultRow[]>([]);
 
   const [genes, setGenes] = useState<EnsemblGeneResult[]>([]);
 
+  const [loading, setLoading] = useState(false);
+
   const [uploadKey, setUploadKey] = useState<string>(
     Math.random().toString(36).slice(2)
   );
+
+  const visibleGenes = useMemo(() => {
+    if (proteinGenesOnly) {
+      return genes.filter((g) => g.biotype === "protein_coding");
+    } else {
+      return genes;
+    }
+  }, [genes, proteinGenesOnly]);
+
+  const visibleVariants = useMemo(() => {
+    if (variantsVisible) {
+      return variants
+    } else {
+      return [];
+    }
+  }, [variants, variantsVisible]);
 
   const visibleRegions = useMemo(
     () =>
@@ -469,11 +502,10 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   useEffect(() => {
     if (chart) {
-      const _variants = variantsVisible ? variants : [];
-      chart.render(data, _variants, genes);
+      chart.render(data, visibleVariants, genes);
     }
     setUploadKey(Math.random().toString(36).slice(2));
-  }, [genes, variants, variantsVisible]);
+  }, [visibleGenes, visibleVariants]);
 
   useLayoutEffect(() => {
     if (chart) {
@@ -482,7 +514,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
       setGenes([]);
       setVariantsVisible(true);
     }
-    if (selectedDatum) {
+    if (selectedRegion) {
       const Chart = new RegionChart(
         selector,
         var1,
@@ -494,7 +526,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
       Chart.render(data, variants, genes);
       setChart(Chart);
     }
-  }, [selectedDatum]);
+  }, [selectedRegion]);
 
   return (
     <Grid container>
@@ -542,19 +574,41 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
         <Grid>
           <Button
             onClick={async () => {
+              setLoading(true);
               const _genes = await fetchGenes(chr, posRange[0], posRange[1]);
               if (_genes !== null) {
-                setGenes(_genes.filter((g) => g.biotype === "protein_coding"));
+                setGenes(_genes);
+                if (_genes.length === 0) {
+                  alert("No genes found for this region");
+                }
               } else {
                 alert("there was an error fetching the genes for this region");
                 setGenes([]);
               }
+              setLoading(false);
             }}
           >
             Fetch genes
           </Button>
         </Grid>
+        {!!genes.length && (
+          <Grid>
+            <FormControl>
+              <FormControlLabel
+                label="Protein Coding Only"
+                control={
+                  <Checkbox
+                    onChange={() => setProteinGenesOnly(!proteinGenesOnly)}
+                    checked={proteinGenesOnly}
+                    title="Protein Coding only"
+                  />
+                }
+              />
+            </FormControl>
+          </Grid>
+        )}
       </Grid>
+      {!!loading && <LoadingOverlay open={true} />}
     </Grid>
   );
 };
