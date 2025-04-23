@@ -53,7 +53,12 @@ const showTooltip = (data: RegionResult, e: MouseEvent) => {
     .select<HTMLUListElement>("ul")
     .selectAll<HTMLLIElement, string>("li")
     .data<string>(
-      [`Chromosome: ${data.chr}`, `Start pos: ${format(",")(data.start_bp)}`],
+      [
+        `Chromosome: ${data.chr}`,
+        `Start pos: ${format(",")(data.start_bp)}`,
+        `End pos: ${format(",")(data.end_bp)}`,
+        `Region: ${data.region}`,
+      ],
       (d) => d
     )
     .join("li")
@@ -91,7 +96,7 @@ const buildChart = (
   filterCb: (filter: BrushFilter) => void,
   height: number,
   onCircleClick: (d: RegionResult) => void,
-  selectedDatum: RegionResult | undefined,
+  selectedRegion: RegionResult | undefined,
   selector: string,
   topCol: keyof RegionResult,
   topColor: string,
@@ -143,12 +148,16 @@ const buildChart = (
       {}
     );
 
-  const transformedData = data.map((d) => {
-    const _d = { ...d };
-    _d[topCol] = -1 * Math.log10(_d[topCol]);
-    _d[bottomCol] = Math.log10(_d[bottomCol]);
-    return _d;
-  });
+  const transformedData = data
+    .map((d) => {
+      const _d = { ...d };
+      _d[topCol] = -1 * Math.log10(_d[topCol]);
+      _d[bottomCol] = Math.log10(_d[bottomCol]);
+      return _d;
+    })
+    .sort((a, b) =>
+      !!selectedRegion && a.region === selectedRegion.region ? 1 : -1
+    );
 
   const upperData = transformedData.filter((d) => {
     const exists = !!d[topCol];
@@ -409,9 +418,10 @@ const buildChart = (
     .attr("stroke-width", 2)
     .attr(
       "stroke",
-      selectedDatum
+      selectedRegion
         ? (d) =>
-            d.chr === selectedDatum.chr && d.start_bp === selectedDatum.start_bp
+            d.chr === selectedRegion.chr &&
+            d.start_bp === selectedRegion.start_bp
               ? "black"
               : "none"
         : "none"
@@ -432,9 +442,10 @@ const buildChart = (
     .attr("stroke-width", 2)
     .attr(
       "stroke",
-      selectedDatum
+      selectedRegion
         ? (d) =>
-            d.chr === selectedDatum.chr && d.start_bp === selectedDatum.start_bp
+            d.chr === selectedRegion.chr &&
+            d.start_bp === selectedRegion.start_bp
               ? "black"
               : "none"
         : "none"
@@ -496,7 +507,7 @@ interface MiamiPlotProps {
   filterCb: (filter: BrushFilter) => void;
   filter?: BrushFilter;
   onCircleClick: (d: RegionResult) => void;
-  selectedDatum?: RegionResult;
+  selectedRegion?: RegionResult;
   topThresh: number;
   topCol: keyof RegionResult;
   topColor: string;
@@ -511,7 +522,7 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
   filter,
   filterCb,
   onCircleClick,
-  selectedDatum,
+  selectedRegion,
   topCol,
   topColor,
   topThresh,
@@ -527,7 +538,7 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
       filterCb,
       0.4 * width,
       onCircleClick,
-      selectedDatum,
+      selectedRegion,
       `.${className}`,
       topCol,
       topColor,
@@ -541,7 +552,7 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
     data,
     filter,
     filterCb,
-    selectedDatum,
+    selectedRegion,
     topCol,
     topColor,
     topThresh,
