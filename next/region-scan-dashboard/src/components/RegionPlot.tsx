@@ -84,6 +84,7 @@ const showGeneTooltip = (data: EnsemblGeneResult, e: MouseEvent) => {
     .data<string>(
       [
         `Gene: ${data.external_name}`,
+        `Type: ${data.biotype}`,
         `ID: ${data.gene_id}`,
         `Start pos: ${format(",")(data.start)}`,
         `End pos: ${format(".5")(data.end)}`,
@@ -479,7 +480,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   const visibleVariants = useMemo(() => {
     if (variantsVisible) {
-      return variants
+      return variants;
     } else {
       return [];
     }
@@ -502,7 +503,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   useEffect(() => {
     if (chart) {
-      chart.render(data, visibleVariants, genes);
+      chart.render(data, visibleVariants, visibleGenes);
     }
     setUploadKey(Math.random().toString(36).slice(2));
   }, [visibleGenes, visibleVariants]);
