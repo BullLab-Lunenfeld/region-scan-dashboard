@@ -85,3 +85,8 @@ export interface VariantResultRow {
   VIF: number;
   vifbin: number;
 }
+
+export interface AssembyInfo {
+  assembly: "GRCh37" | "GRCh38";
+  lengths: Record<string, number>;
+}

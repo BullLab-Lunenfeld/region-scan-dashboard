@@ -14,6 +14,7 @@ import {
   Grid2 as Grid,
 } from "@mui/material";
 import {
+  AssembyInfo,
   EnsemblGeneResult,
   RegionResult,
   VariantResultRow,
@@ -431,6 +432,7 @@ class RegionChart {
 }
 
 interface RegionPlotProps {
+  assemblyInfo: AssembyInfo;
   data: RegionResult[];
   selectedRegion?: RegionResult;
   selector: string;
@@ -442,6 +444,7 @@ interface RegionPlotProps {
 }
 
 const RegionPlot: React.FC<RegionPlotProps> = ({
+  assemblyInfo,
   data,
   selectedRegion,
   selector,
@@ -524,7 +527,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
       Chart.render(data, variants, genes);
       setChart(Chart);
     }
-  }, [selectedRegion]);
+  }, [selectedRegion, assemblyInfo]);
 
   return (
     <Grid container>
@@ -573,7 +576,12 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
           <Button
             onClick={async () => {
               setLoading(true);
-              const _genes = await fetchGenes(chr, posRange[0], posRange[1]);
+              const _genes = await fetchGenes(
+                chr,
+                posRange[0],
+                posRange[1],
+                assemblyInfo.assembly
+              );
               if (_genes !== null) {
                 setGenes(_genes);
                 if (_genes.length === 0) {

@@ -15,14 +15,20 @@ import {
   UploadButtonMulti,
 } from "@/components";
 import { parseTsv } from "@/lib/ts/util";
-import { RegionResult } from "@/lib/ts/types";
+import { AssembyInfo, RegionResult } from "@/lib/ts/types";
 import { RegionResultCols } from "@/util/columnConfigs";
 import { BrushFilter } from "@/components/MiamiPlot";
+import { chromLengths37, chromLengths38 } from "@/util/chromLengths";
 
 const TOP_COLOR = schemeDark2[0];
 const BOTTOM_COLOR = schemeDark2[1];
 
 export default function Home() {
+  const [assemblyInfo, setAssemblyInfo] = useState<AssembyInfo>({
+    assembly: "GRCh38",
+    lengths: chromLengths38,
+  });
+
   const [brushFilterHistory, setBrushFilterHistory] = useState<BrushFilter[]>(
     []
   );
@@ -163,6 +169,30 @@ export default function Home() {
               }}
             />
           </Grid>
+          {!!regionData.length && (
+            <Grid>
+              <TextField
+                label="Assembly"
+                fullWidth={true}
+                select
+                value={assemblyInfo.assembly}
+                onChange={(e) =>
+                  e.target.value === "GRCh37"
+                    ? setAssemblyInfo({
+                        assembly: "GRCh37",
+                        lengths: chromLengths37,
+                      })
+                    : setAssemblyInfo({
+                        assembly: "GRCh38",
+                        lengths: chromLengths38,
+                      })
+                }
+              >
+                <MenuItem value="GRCh37">GRCh37</MenuItem>
+                <MenuItem value="GRCh38">GRCh38</MenuItem>
+              </TextField>
+            </Grid>
+          )}
           <Grid>
             {!!regionData.length && (
               <TextField
@@ -252,6 +282,7 @@ export default function Home() {
             !!lowerVariable &&
             !!chartContainerRef.current && (
               <MiamiPlot
+                assemblyInfo={assemblyInfo}
                 bottomCol={lowerVariable}
                 bottomColor={BOTTOM_COLOR}
                 bottomThresh={lowerThresh}
@@ -309,6 +340,7 @@ export default function Home() {
         {!!regionDetailData.length && !!upperVariable && !!lowerVariable && (
           <Grid>
             <RegionPlot
+              assemblyInfo={assemblyInfo}
               data={regionDetailData}
               selector="region-plot"
               selectedRegion={selectedRegion}

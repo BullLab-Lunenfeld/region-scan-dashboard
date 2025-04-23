@@ -10,8 +10,7 @@ import { line } from "d3-shape";
 import { ScaleLinear, scaleLinear, scaleThreshold } from "d3-scale";
 import { BaseType, select, selectAll, Selection } from "d3-selection";
 import { Box } from "@mui/material";
-import { RegionResult } from "@/lib/ts/types";
-import { chromLengths } from "@/util/chromLengths";
+import { AssembyInfo, RegionResult } from "@/lib/ts/types";
 
 const className = "miami-plot";
 
@@ -88,6 +87,7 @@ const marginLeft = yLabelMargin + yAxisMargin;
 const marginTop = 25;
 
 const buildChart = (
+  assemblyInfo: AssembyInfo,
   bottomCol: keyof RegionResult,
   bottomColor: string,
   bottomThresh: number,
@@ -113,7 +113,8 @@ const buildChart = (
     .sort((a, b) => (+a < +b ? -1 : 1));
 
   //make an array of the corresponding lengths
-  const chrLengths = chrs.map((c) => chromLengths[c]);
+
+  const chrLengths = chrs.map((c) => assemblyInfo.lengths[c]);
 
   //find total base pairs
   const totalLength = sum(chrLengths);
@@ -143,7 +144,7 @@ const buildChart = (
         ...acc,
         [k]: scaleLinear()
           .range([allChrScale(v[0]), allChrScale(v[1])])
-          .domain([0, chromLengths[k]]),
+          .domain([0, assemblyInfo.lengths[k]]),
       }),
       {}
     );
@@ -500,6 +501,7 @@ const buildChart = (
 };
 
 interface MiamiPlotProps {
+  assemblyInfo: AssembyInfo;
   bottomCol: keyof RegionResult;
   bottomColor: string;
   bottomThresh: number;
@@ -515,6 +517,7 @@ interface MiamiPlotProps {
 }
 
 const MiamiPlot: React.FC<MiamiPlotProps> = ({
+  assemblyInfo,
   bottomCol,
   bottomColor,
   bottomThresh,
@@ -530,6 +533,7 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
 }) => {
   useLayoutEffect(() => {
     buildChart(
+      assemblyInfo,
       bottomCol,
       bottomColor,
       bottomThresh,
@@ -546,6 +550,7 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
       width
     );
   }, [
+    assemblyInfo,
     bottomCol,
     bottomColor,
     bottomThresh,

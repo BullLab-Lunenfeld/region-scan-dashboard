@@ -1,15 +1,20 @@
-import { EnsemblGeneResult } from "@/lib/ts/types";
+import { AssembyInfo, EnsemblGeneResult } from "@/lib/ts/types";
 
-export const fetchGenes = async (chr: number, start: number, end: number) => {
+export const fetchGenes = async (
+  chr: number,
+  start: number,
+  end: number,
+  assembly?: AssembyInfo["assembly"]
+) => {
   if (end - start > 10e6) {
     throw "Region cannot be larger than 10MB";
   }
-
   const region = `${chr}:${start}-${end}`;
+  const assemblyPrefix = assembly === "GRCh37" ? "grch37." : "";
   let result: null | EnsemblGeneResult[] = null;
   try {
     const response = await fetch(
-      `https://rest.ensembl.org/overlap/region/human/${region}?feature=gene`,
+      `https://${assemblyPrefix}rest.ensembl.org/overlap/region/human/${region}?feature=gene`,
       { headers: { Accept: "application/json" } }
     );
 
