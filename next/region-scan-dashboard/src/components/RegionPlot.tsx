@@ -18,10 +18,9 @@ import {
   RegionResult,
   VariantResultRow,
 } from "@/lib/ts/types";
-import { UploadButtonSingle } from "@/components";
+import { LoadingOverlay, UploadButtonSingle } from "@/components";
 import { parseTsv } from "@/lib/ts/util";
 import { fetchGenes } from "@/util/fetchGenes";
-import LoadingOverlay from "./LoadingIndicator";
 
 interface RegionData {
   region: number;
@@ -203,7 +202,7 @@ class RegionChart {
     const geneHeightMap = genes.reduce<Record<string, number>>(
       (acc, curr) => ({
         ...acc,
-        [curr.external_name]: 0,
+        [curr.id]: 0,
       }),
       {}
     );
@@ -211,23 +210,21 @@ class RegionChart {
     if (genes.length) {
       const sorted = genes.sort((a, b) => (a.start < b.start ? -1 : 1));
       sorted.forEach((outer_g, i) => {
-        let overlaps = 0;
-        for (let inner_g of sorted.slice(i)) {
+        for (const inner_g of sorted.slice(i)) {
           if (inner_g.start < outer_g.end) {
-            overlaps += 1;
-            geneHeightMap[inner_g.external_name] =
-              //make sure it has't already been assigned a position higher from a previous overlap
-              geneHeightMap[inner_g.external_name] < overlaps
-                ? overlaps
-                : geneHeightMap[inner_g.external_name];
+            geneHeightMap[inner_g.id] = geneHeightMap[outer_g.id] + 1;
           }
         }
       });
     }
 
-    const geneHeightCount = max(Object.values(geneHeightMap)) || (0 as number);
+    const geneHeightCount = !!genes.length
+      ? max(Object.values(geneHeightMap)) || 1
+      : 0;
 
-    const geneSpace = geneHeightCount * (geneHeight + 12); //add padding and room for text
+    const geneSpace = !!geneHeightCount
+      ? geneHeightCount * (geneHeight + 3)
+      : 0; //padding
 
     const chr = data[0].chr;
     const regionData = groups(data, (d) => d.region).flatMap(
@@ -276,7 +273,7 @@ class RegionChart {
 
     const yScaleGene = scaleLinear()
       .range([
-        this.height - geneSpace - marginBottom + 12, //padding
+        this.height - geneSpace - marginBottom,
         this.height - marginBottom,
       ])
       .domain([geneHeightCount, 0]);
@@ -333,7 +330,7 @@ class RegionChart {
       .attr("class", "gene")
       //x and y are upper-left corner
       .attr("x", (d) => xScale(d.start))
-      .attr("y", (d) => yScaleGene(geneHeightMap[d.external_name]))
+      .attr("y", (d) => yScaleGene(geneHeightMap[d.id]))
       .attr("fill", "blue")
       .attr("height", geneHeight)
       .attr("width", (d) => xScale(d.end) - xScale(d.start))

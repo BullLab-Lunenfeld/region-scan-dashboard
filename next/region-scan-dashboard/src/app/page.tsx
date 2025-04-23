@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Grid2 as Grid, IconButton, MenuItem, TextField } from "@mui/material";
 import { schemeDark2 } from "d3-scale-chromatic";
+import { max } from "d3-array";
 import { UndoSharp } from "@mui/icons-material";
 import { GridFilterModel } from "@mui/x-data-grid";
 import {
@@ -17,7 +18,6 @@ import { parseTsv } from "@/lib/ts/util";
 import { RegionResult } from "@/lib/ts/types";
 import { RegionResultCols } from "@/util/columnConfigs";
 import { BrushFilter } from "@/components/MiamiPlot";
-import { max } from "d3-array";
 
 const TOP_COLOR = schemeDark2[0];
 const BOTTOM_COLOR = schemeDark2[1];

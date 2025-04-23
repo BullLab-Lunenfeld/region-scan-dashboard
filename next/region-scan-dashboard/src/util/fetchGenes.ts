@@ -15,7 +15,7 @@ export const fetchGenes = async (chr: number, start: number, end: number) => {
 
     result = await (response.json() as Promise<EnsemblGeneResult[]>);
   } catch (e) {
-    console.log(e);
+    console.error(e);
   }
 
   return result;
