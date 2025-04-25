@@ -10,8 +10,8 @@ import { extent, groups, max } from "d3-array";
 import { axisBottom, axisLeft } from "d3-axis";
 import { schemeSet3 } from "d3-scale-chromatic";
 import { format } from "d3-format";
-import { BaseType, select, selectAll, Selection } from "d3-selection";
-import { scaleLinear, ScaleOrdinal, scaleOrdinal } from "d3-scale";
+import { BaseType, pointer, select, selectAll, Selection } from "d3-selection";
+import { ScaleLinear, scaleLinear, ScaleOrdinal, scaleOrdinal } from "d3-scale";
 import {
   Box,
   Button,
@@ -118,16 +118,18 @@ const geneHeight = 3;
 
 //need this as a class so that we can store the active variables
 class RegionChart {
+  activeVariables: (keyof RegionResult)[];
+  container: Selection<SVGGElement, number, SVGElement, unknown>;
+  height: number;
+  mainWidth: number;
   selector: string;
+  svg: Selection<SVGElement, number, BaseType, unknown>;
   var1: keyof RegionResult;
   var1Color: string;
   var2: keyof RegionResult;
   var2Color: string;
   width: number;
-  activeVariables: (keyof RegionResult)[];
-  mainWidth: number;
-  height: number;
-  container: Selection<SVGGElement, number, SVGElement, unknown>;
+  xScale: ScaleLinear<number, number, never> | null = null;
 
   constructor(
     selector: string,
@@ -148,7 +150,7 @@ class RegionChart {
     this.mainWidth = 0.8 * width;
     this.height = 0.5 * width;
 
-    const svg = select(`.${this.selector}`)
+    this.svg = select(`.${this.selector}`)
       .selectAll<SVGElement, number>("svg")
       .data([1])
       .join("svg")
@@ -162,7 +164,7 @@ class RegionChart {
       unknown
     >;
 
-    this.container = svg
+    this.container = this.svg
       .selectAll<SVGGElement, number>("g.container")
       .data([1])
       .join("g")
@@ -195,10 +197,10 @@ class RegionChart {
   render = (
     data: RegionResult[],
     variants: VariantResultRow[],
-    genes: EnsemblGeneResult[]
+    genes: EnsemblGeneResult[],
+    wheelCb: (delta: number, pos: number) => void,
+    setCenterRegion: (region: number) => void
   ) => {
-    // ensure miami plot variables are rendered first
-
     const variables = [this.var1, this.var2].concat(
       Object.keys(data[0]).filter(
         (k) =>
@@ -258,6 +260,8 @@ class RegionChart {
       .domain(extent(regionData.flatMap((d) => [d.start, d.end])) as number[])
       .clamp(true);
 
+    this.xScale = xScale;
+
     const regionColorScale = scaleOrdinal<string, string>()
       .range(schemeSet3)
       .domain(
@@ -295,11 +299,13 @@ class RegionChart {
       .join("rect")
       .attr("class", "region")
       //x and y are upper-left corner
+      .transition()
+      .duration(100)
       .attr("x", (d) => xScale(d.start))
       .attr("y", (d) => yScalePval(d.pvalue))
       .attr("fill", (d) => this.getRectFill(d.variable, regionColorScale))
       .transition()
-      .duration(150)
+      .duration(250)
       .attr("opacity", (d) => this.getRectOpacity(d.variable))
       .attr("height", regionRectHeight)
       .attr("width", (d) => xScale(d.end) - xScale(d.start))
@@ -307,9 +313,8 @@ class RegionChart {
       .on("mouseover", (e: MouseEvent, d: RegionData) =>
         showRegionTooltip(d, e)
       )
-      .on("mouseout", () =>
-        selectAll(".tooltip").style("visibility", "hidden")
-      );
+      .on("mouseout", () => selectAll(".tooltip").style("visibility", "hidden"))
+      .on("click", (e, d) => setCenterRegion(d.region));
 
     // add variants
     this.container
@@ -427,7 +432,7 @@ class RegionChart {
         } else {
           this.activeVariables = this.activeVariables.concat(d);
         }
-        this.render(data, variants, genes);
+        this.render(data, variants, genes, wheelCb, setCenterRegion);
       });
 
     legendContainer
@@ -437,6 +442,12 @@ class RegionChart {
       .text((d) => d)
       .attr("text-anchor", "right")
       .attr("transform", (_, i) => `translate(15,${16 + i * 18})`);
+
+    this.svg.on("wheel", function (e: WheelEvent) {
+      e.preventDefault();
+      const [x] = pointer(e);
+      wheelCb(e.deltaY, xScale.invert(x));
+    });
   };
 }
 
@@ -503,11 +514,6 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     }
   }, [variants, variantsVisible]);
 
-  const regionCount = useMemo(
-    () => [...new Set(data.map((d) => d.region))].length,
-    [data]
-  );
-
   //set visible data depending on zoom and center
   useEffect(() => {
     if (!!data.length) {
@@ -536,97 +542,38 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     [data]
   );
 
-  const updateFrame = useCallback(
-    (e: WheelEvent) => {
-      if (wheelTick <= 1 && e.deltaY < 0) {
+  const updateRange = useCallback(
+    (delta: number, pos: number) => {
+      if (wheelTick <= 1 && delta < 0) {
         return;
       }
 
-      //maxwheeltick is just the max distance from center region to most distant region
+      const targetRegion = visibleData.find(
+        (d) => pos >= d.start_bp && pos <= d.end_bp
+      );
+
+      //maxwheeltick ("zoom out") is max distance from center region to most distant region
+      //ensuring we can use the full frame
       const maxWheelTick = max(
         regionRange.map((r) => Math.abs(r - centerRegion))
       ) as number;
 
-      if (wheelTick > maxWheelTick && e.deltaY > 0) {
+      if (wheelTick > maxWheelTick && delta > 0) {
         return;
       } else {
-        setWheelTick((wt) => (e.deltaY > 0 ? wt + 1 : wt - 1));
+        if (targetRegion && centerRegion != targetRegion.region) {
+          if (targetRegion.region > centerRegion) {
+            setCenterRegion(centerRegion + 1);
+          } else {
+            setCenterRegion(centerRegion - 1);
+          }
+        }
+
+        setWheelTick((wt) => (delta > 0 ? wt + 1 : wt - 1));
       }
     },
-    [wheelTick, regionCount]
+    [wheelTick, centerRegion, regionRange, visibleData]
   );
-
-  useLayoutEffect(() => {
-    const _ref = containerRef.current;
-    let ticking = false;
-    const listener = (e: WheelEvent) => {
-      e.preventDefault();
-
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          updateFrame(e);
-          ticking = false;
-        });
-
-        ticking = true;
-      }
-    };
-    if (_ref) {
-      _ref.addEventListener("wheel", listener);
-    }
-    return () => {
-      if (_ref) _ref.removeEventListener("wheel", listener);
-    };
-  }, [data, updateFrame]);
-
-  const updateDrag = useCallback(
-    (direction: number) => {
-      const [firstRegion, lastRegion] = regionRange;
-
-      if (direction === -1 && centerRegion === firstRegion) {
-        return;
-      }
-      if (direction === 1 && centerRegion === lastRegion) {
-        return;
-      } else {
-        setCenterRegion(centerRegion - direction);
-      }
-    },
-    [centerRegion, regionRange]
-  );
-
-  //this should just update center region, similar to above
-  useLayoutEffect(() => {
-    const _ref = containerRef.current;
-    let ticking = false;
-    let start = 0;
-    const dragStartListener = (e: DragEvent) => {
-      start = e.clientX;
-    };
-
-    const dragEndListener = (e: DragEvent) => {
-      const end = e.clientX;
-      const delta = end - start;
-
-      if (!!delta && !ticking) {
-        window.requestAnimationFrame(() => {
-          updateDrag(delta / Math.abs(delta));
-          ticking = false;
-        });
-
-        ticking = true;
-      }
-    };
-
-    if (_ref) {
-      _ref.addEventListener("dragstart", dragStartListener);
-      _ref.addEventListener("dragend", dragEndListener);
-    }
-    return () => {
-      if (_ref) _ref.removeEventListener("dragend", dragEndListener);
-      if (_ref) _ref.removeEventListener("dragstart", dragStartListener);
-    };
-  }, [updateDrag]);
 
   //initial render
   useLayoutEffect(() => {
@@ -655,10 +602,23 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
   //update
   useEffect(() => {
     if (!!chart && !!visibleData.length) {
-      chart.render(visibleData, visibleVariants, visibleGenes);
+      chart.render(
+        visibleData,
+        visibleVariants,
+        visibleGenes,
+        updateRange,
+        setCenterRegion
+      );
     }
     setUploadKey(Math.random().toString(36).slice(2));
-  }, [chart, visibleGenes, visibleVariants, visibleData]);
+  }, [
+    chart,
+    visibleGenes,
+    visibleVariants,
+    visibleData,
+    updateRange,
+    setCenterRegion,
+  ]);
 
   return (
     <Grid container>
