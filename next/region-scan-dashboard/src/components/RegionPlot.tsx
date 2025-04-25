@@ -1,4 +1,11 @@
-import React, { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { extent, groups, max } from "d3-array";
 import { axisBottom, axisLeft } from "d3-axis";
 import { schemeSet3 } from "d3-scale-chromatic";
@@ -251,7 +258,6 @@ class RegionChart {
       .domain(extent(regionData.flatMap((d) => [d.start, d.end])) as number[])
       .clamp(true);
 
-    //updatabale, goes in render method, along with legend, or at least has its own
     const regionColorScale = scaleOrdinal<string, string>()
       .range(schemeSet3)
       .domain(
@@ -292,9 +298,12 @@ class RegionChart {
       .attr("x", (d) => xScale(d.start))
       .attr("y", (d) => yScalePval(d.pvalue))
       .attr("fill", (d) => this.getRectFill(d.variable, regionColorScale))
+      .transition()
+      .duration(150)
       .attr("opacity", (d) => this.getRectOpacity(d.variable))
       .attr("height", regionRectHeight)
       .attr("width", (d) => xScale(d.end) - xScale(d.start))
+      .selection()
       .on("mouseover", (e: MouseEvent, d: RegionData) =>
         showRegionTooltip(d, e)
       )
@@ -434,7 +443,7 @@ class RegionChart {
 interface RegionPlotProps {
   assemblyInfo: AssembyInfo;
   data: RegionResult[];
-  selectedRegion?: RegionResult;
+  selectedRegion: RegionResult;
   selector: string;
   var1: keyof RegionResult;
   var1Color: string;
@@ -454,21 +463,29 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
   var2Color,
   width,
 }) => {
+  const [centerRegion, setCenterRegion] = useState(selectedRegion.region);
+
   const [chart, setChart] = useState<RegionChart>();
-
-  const [proteinGenesOnly, setProteinGenesOnly] = useState(true);
-
-  const [variantsVisible, setVariantsVisible] = useState<boolean>(true);
-
-  const [variants, setVariants] = useState<VariantResultRow[]>([]);
 
   const [genes, setGenes] = useState<EnsemblGeneResult[]>([]);
 
   const [loading, setLoading] = useState(false);
 
+  const [proteinGenesOnly, setProteinGenesOnly] = useState(true);
+
+  const [wheelTick, setWheelTick] = useState(10);
+
+  const [variantsVisible, setVariantsVisible] = useState<boolean>(true);
+
+  const [variants, setVariants] = useState<VariantResultRow[]>([]);
+
+  const [visibleData, setVisibleData] = useState<RegionResult[]>([]);
+
   const [uploadKey, setUploadKey] = useState<string>(
     Math.random().toString(36).slice(2)
   );
+
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   const visibleGenes = useMemo(() => {
     if (proteinGenesOnly) {
@@ -486,11 +503,29 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     }
   }, [variants, variantsVisible]);
 
-  const visibleRegions = useMemo(
-    () =>
-      data
-        .filter((d, i) => data.findIndex((c) => c.region === d.region) === i)
-        .map((d) => d.region),
+  const regionCount = useMemo(
+    () => [...new Set(data.map((d) => d.region))].length,
+    [data]
+  );
+
+  //set visible data depending on zoom and center
+  useEffect(() => {
+    if (!!data.length) {
+      const [_startReg, _endReg] = [
+        centerRegion - wheelTick,
+        centerRegion + wheelTick,
+      ];
+
+      const visibleData = data.filter(
+        (d) => d.region >= _startReg && d.region <= _endReg
+      );
+
+      setVisibleData(visibleData);
+    }
+  }, [centerRegion, data, wheelTick]);
+
+  const regionRange = useMemo(
+    () => [...new Set(data.map((d) => d.region))],
     [data]
   );
 
@@ -501,38 +536,134 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     [data]
   );
 
-  useEffect(() => {
-    if (chart) {
-      chart.render(data, visibleVariants, visibleGenes);
-    }
-    setUploadKey(Math.random().toString(36).slice(2));
-  }, [visibleGenes, visibleVariants]);
+  const updateFrame = useCallback(
+    (e: WheelEvent) => {
+      if (wheelTick <= 1 && e.deltaY < 0) {
+        return;
+      }
+
+      //maxwheeltick is just the max distance from center region to most distant region
+      const maxWheelTick = max(
+        regionRange.map((r) => Math.abs(r - centerRegion))
+      ) as number;
+
+      if (wheelTick > maxWheelTick && e.deltaY > 0) {
+        return;
+      } else {
+        setWheelTick((wt) => (e.deltaY > 0 ? wt + 1 : wt - 1));
+      }
+    },
+    [wheelTick, regionCount]
+  );
 
   useLayoutEffect(() => {
-    if (chart) {
-      chart.remove();
+    const _ref = containerRef.current;
+    let ticking = false;
+    const listener = (e: WheelEvent) => {
+      e.preventDefault();
+
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          updateFrame(e);
+          ticking = false;
+        });
+
+        ticking = true;
+      }
+    };
+    if (_ref) {
+      _ref.addEventListener("wheel", listener);
+    }
+    return () => {
+      if (_ref) _ref.removeEventListener("wheel", listener);
+    };
+  }, [data, updateFrame]);
+
+  const updateDrag = useCallback(
+    (direction: number) => {
+      const [firstRegion, lastRegion] = regionRange;
+
+      if (direction === -1 && centerRegion === firstRegion) {
+        return;
+      }
+      if (direction === 1 && centerRegion === lastRegion) {
+        return;
+      } else {
+        setCenterRegion(centerRegion - direction);
+      }
+    },
+    [centerRegion, regionRange]
+  );
+
+  //this should just update center region, similar to above
+  useLayoutEffect(() => {
+    const _ref = containerRef.current;
+    let ticking = false;
+    let start = 0;
+    const dragStartListener = (e: DragEvent) => {
+      start = e.clientX;
+    };
+
+    const dragEndListener = (e: DragEvent) => {
+      const end = e.clientX;
+      const delta = end - start;
+
+      if (!!delta && !ticking) {
+        window.requestAnimationFrame(() => {
+          updateDrag(delta / Math.abs(delta));
+          ticking = false;
+        });
+
+        ticking = true;
+      }
+    };
+
+    if (_ref) {
+      _ref.addEventListener("dragstart", dragStartListener);
+      _ref.addEventListener("dragend", dragEndListener);
+    }
+    return () => {
+      if (_ref) _ref.removeEventListener("dragend", dragEndListener);
+      if (_ref) _ref.removeEventListener("dragstart", dragStartListener);
+    };
+  }, [updateDrag]);
+
+  //initial render
+  useLayoutEffect(() => {
+    const Chart = new RegionChart(
+      selector,
+      var1,
+      var1Color,
+      var2,
+      var2Color,
+      width
+    );
+    setChart(Chart);
+  }, []);
+
+  //new data
+  useEffect(() => {
+    if (selectedRegion) {
       setVariants([]);
       setGenes([]);
+      setWheelTick(10);
       setVariantsVisible(true);
-    }
-    if (selectedRegion) {
-      const Chart = new RegionChart(
-        selector,
-        var1,
-        var1Color,
-        var2,
-        var2Color,
-        width
-      );
-      Chart.render(data, variants, genes);
-      setChart(Chart);
+      setCenterRegion(selectedRegion.region);
     }
   }, [selectedRegion, assemblyInfo]);
+
+  //update
+  useEffect(() => {
+    if (!!chart && !!visibleData.length) {
+      chart.render(visibleData, visibleVariants, visibleGenes);
+    }
+    setUploadKey(Math.random().toString(36).slice(2));
+  }, [chart, visibleGenes, visibleVariants, visibleData]);
 
   return (
     <Grid container>
       <Grid>
-        <Box className={selector} />
+        <Box ref={containerRef} className={selector} />
       </Grid>
       <Grid spacing={2} direction="column">
         <Grid>
@@ -553,7 +684,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
                 )
                 .filter(
                   (v) =>
-                    visibleRegions.includes(v.region) &&
+                    regionRange.includes(v.region) &&
                     v.start_bp > posRange[0] &&
                     v.end_bp < posRange[1]
                 );

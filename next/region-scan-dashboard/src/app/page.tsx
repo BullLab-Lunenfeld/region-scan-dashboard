@@ -66,13 +66,14 @@ export default function Home() {
   useEffect(() => {
     if (selectedRegion) {
       const chr = selectedRegion.chr;
-      const start = selectedRegion.region - 10;
-      const end = selectedRegion.region + 10;
+      const start = selectedRegion.region - 50;
+      const end = selectedRegion.region + 50;
 
       // some chroms have 2 regions, so we'll check the distance too
       const regionDetailData = regionDisplayData.filter(
         (d) =>
-          Math.abs(d.start_bp - selectedRegion.start_bp) < largestRegion * 10 &&
+          Math.abs(d.start_bp - selectedRegion.start_bp) <
+            largestRegion * 100 &&
           d.region >= start &&
           d.region <= end &&
           d.chr == chr
@@ -337,21 +338,24 @@ export default function Home() {
             </>
           )}
         </Grid>
-        {!!regionDetailData.length && !!upperVariable && !!lowerVariable && (
-          <Grid>
-            <RegionPlot
-              assemblyInfo={assemblyInfo}
-              data={regionDetailData}
-              selector="region-plot"
-              selectedRegion={selectedRegion}
-              var1={upperVariable}
-              var1Color={TOP_COLOR}
-              var2={lowerVariable}
-              var2Color={BOTTOM_COLOR}
-              width={800}
-            />
-          </Grid>
-        )}
+        {!!regionDetailData.length &&
+          !!upperVariable &&
+          !!lowerVariable &&
+          !!selectedRegion && (
+            <Grid>
+              <RegionPlot
+                assemblyInfo={assemblyInfo}
+                data={regionDetailData}
+                selector="region-plot"
+                selectedRegion={selectedRegion}
+                var1={upperVariable}
+                var1Color={TOP_COLOR}
+                var2={lowerVariable}
+                var2Color={BOTTOM_COLOR}
+                width={800}
+              />
+            </Grid>
+          )}
       </Grid>
       <Grid width="100%">
         {/* Ideally we don't need controlled filters at all*/}
