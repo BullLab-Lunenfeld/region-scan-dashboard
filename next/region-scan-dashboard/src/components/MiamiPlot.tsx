@@ -76,8 +76,6 @@ export interface BrushFilter {
     chr: string;
     pos: number;
   };
-  upperRange: [number, number];
-  lowerRange: [number, number];
 }
 
 const marginBottom = 25;
@@ -156,30 +154,13 @@ const buildChart = (
       _d[bottomCol] = Math.log10(_d[bottomCol]);
       return _d;
     })
-    .sort((a, b) =>
+    .sort((a) =>
       !!selectedRegion && a.region === selectedRegion.region ? 1 : -1
     );
 
-  const upperData = transformedData.filter((d) => {
-    const exists = !!d[topCol];
-    let brushPass = true;
-    if (filter) {
-      brushPass =
-        d[topCol] >= filter.upperRange[0] && d[topCol] <= filter.upperRange[1];
-    }
-    return exists && brushPass;
-  });
+  const upperData = transformedData.filter((d) => !!d[topCol]);
 
-  const lowerData = transformedData.filter((d) => {
-    const exists = !!d[bottomCol];
-    let brushPass = true;
-    if (filter) {
-      brushPass =
-        d[bottomCol] <= filter.lowerRange[0] &&
-        d[bottomCol] >= filter.lowerRange[1];
-    }
-    return exists && brushPass;
-  });
+  const lowerData = transformedData.filter((d) => !!d[bottomCol]);
 
   const xScale =
     chrs.length > 1
@@ -334,7 +315,7 @@ const buildChart = (
       "start brush end",
       function (event: D3BrushEvent<number>) {
         if (event.selection) {
-          const [[x0, y0], [x1, y1]] = event.selection as [
+          const [[x0], [x1]] = event.selection as [
             [number, number],
             [number, number]
           ];
@@ -362,25 +343,6 @@ const buildChart = (
             const pos0 = posScale.invert(x0);
             const pos1 = posScale.invert(x1);
 
-            //if both are positive, we have upper only, if both are negative, we have lower only
-            const highPoint = yScale.invert(y0); // as -logp
-            const lowPoint = yScale.invert(y1); // as logp
-
-            const upperRange = [0, 0] as [number, number];
-            const lowerRange = [0, 0] as [number, number];
-
-            if (highPoint > 0) {
-              upperRange[1] = highPoint;
-            } else {
-              lowerRange[0] = highPoint;
-            }
-
-            if (lowPoint < 0) {
-              lowerRange[1] = lowPoint;
-            } else {
-              upperRange[0] = lowPoint;
-            }
-
             const filter: BrushFilter = {
               x0Lim: {
                 chr: chr0,
@@ -390,8 +352,6 @@ const buildChart = (
                 chr: chr1,
                 pos: pos1,
               },
-              upperRange,
-              lowerRange,
             };
 
             filterCb(filter);

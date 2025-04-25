@@ -116,7 +116,6 @@ const marginTop = 25;
 const marginRight = 15;
 const geneHeight = 3;
 
-//need this as a class so that we can store the active variables
 class RegionChart {
   activeVariables: (keyof RegionResult)[];
   container: Selection<SVGGElement, number, SVGElement, unknown>;
