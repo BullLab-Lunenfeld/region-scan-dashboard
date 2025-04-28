@@ -38,6 +38,16 @@ interface RegionData {
   pvalue: number;
 }
 
+/**
+ *
+ * @param gene1 the gene to be tested
+ * @param gene2 the possibly overlapping gene
+ */
+const overlaps = (gene1: EnsemblGeneResult, gene2: EnsemblGeneResult) =>
+  (gene1.start < gene2.start && gene1.end > gene2.start) ||
+  (gene1.start < gene2.start && gene1.end < gene2.end) ||
+  (gene1.start < gene2.end && gene1.end > gene1.end);
+
 const showRegionTooltip = (data: RegionData, e: MouseEvent) => {
   select(".tooltip")
     .style("left", `${e.pageX + 15}px`)
@@ -198,7 +208,8 @@ class RegionChart {
     variants: VariantResultRow[],
     genes: EnsemblGeneResult[],
     wheelCb: (delta: number, pos: number) => void,
-    setCenterRegion: (region: number) => void
+    setCenterRegion: (region: number) => void,
+    regionRange: number[]
   ) => {
     const variables = [this.var1, this.var2].concat(
       Object.keys(data[0]).filter(
@@ -218,10 +229,26 @@ class RegionChart {
 
     if (genes.length) {
       const sorted = genes.sort((a, b) => (a.start < b.start ? -1 : 1));
-      sorted.forEach((outer_g, i) => {
-        for (const inner_g of sorted.slice(i)) {
-          if (inner_g.start < outer_g.end) {
-            geneHeightMap[inner_g.id] = geneHeightMap[outer_g.id] + 1;
+      sorted.forEach((outerG, i) => {
+        // Chr1 Regions 2295-2395
+        for (const innerG of sorted.slice(i)) {
+          if (innerG.start < outerG.end) {
+            let found = false;
+            // if this is already an overlap
+            if (geneHeightMap[outerG.id] > 0) {
+              for (let j = i - 1; j >= 0; j--) {
+                if (overlaps(genes[j], outerG) && !overlaps(genes[j], innerG)) {
+                  geneHeightMap[innerG.id] = geneHeightMap[j];
+                  found = true;
+                  break;
+                }
+              }
+            }
+            if (found) {
+              continue;
+            } else {
+              geneHeightMap[innerG.id] = geneHeightMap[outerG.id] + 1;
+            }
           }
         }
       });
@@ -388,12 +415,16 @@ class RegionChart {
       .data([1])
       .join("g")
       .attr("class", "x-label")
-      .attr("transform", `translate(${this.mainWidth / 2},${this.height})`)
+      .attr("transform", `translate(${this.mainWidth / 2},${this.height - 3})`)
       .selection()
       .selectAll<SVGGElement, string>("text")
       .data([1])
       .join("text")
-      .text(`Chr${chr}`)
+      .text(
+        `Chr${chr} Regions ${regionRange[0]}-${
+          regionRange[regionRange.length - 1]
+        }`
+      )
       .attr("font-size", 12)
       .attr("text-anchor", "middle");
 
@@ -431,7 +462,14 @@ class RegionChart {
         } else {
           this.activeVariables = this.activeVariables.concat(d);
         }
-        this.render(data, variants, genes, wheelCb, setCenterRegion);
+        this.render(
+          data,
+          variants,
+          genes,
+          wheelCb,
+          setCenterRegion,
+          regionRange
+        );
       });
 
     legendContainer
@@ -606,7 +644,8 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
         visibleVariants,
         visibleGenes,
         updateRange,
-        setCenterRegion
+        setCenterRegion,
+        regionRange
       );
     }
     setUploadKey(Math.random().toString(36).slice(2));
@@ -617,6 +656,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     visibleData,
     updateRange,
     setCenterRegion,
+    regionRange,
   ]);
 
   return (

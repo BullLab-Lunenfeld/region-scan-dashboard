@@ -137,7 +137,7 @@ export default function Home() {
         setRegionDisplayData(regionData);
       }
     }
-  }, [brushFilterHistory, upperVariable, lowerVariable]);
+  }, [brushFilterHistory, upperVariable, lowerVariable, regionData]);
 
   const resetVisualizationVariables = () => {
     setRegionDetailData([]);
