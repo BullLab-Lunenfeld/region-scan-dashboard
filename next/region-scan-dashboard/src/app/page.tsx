@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Grid2 as Grid, IconButton, MenuItem, TextField } from "@mui/material";
 import { schemeDark2 } from "d3-scale-chromatic";
-import { max } from "d3-array";
+import { group, groups, max } from "d3-array";
 import { UndoSharp } from "@mui/icons-material";
 import { GridFilterModel } from "@mui/x-data-grid";
 import {
@@ -33,7 +33,7 @@ export default function Home() {
     []
   );
 
-  const [filterModel, setFilterModel] = useState<GridFilterModel>();
+  //  const [filterModel, setFilterModel] = useState<GridFilterModel>();
   const [lowerThresh, setLowerThresh] = useState<number>(5e-6);
   const [lowerVariable, setLowerVariable] = useState<keyof RegionResult | "">(
     ""
@@ -58,22 +58,45 @@ export default function Home() {
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
-  const largestRegion = useMemo(
-    () => max(regionData.map((d) => d.end_bp - d.start_bp)) || 0,
-    [regionData]
-  );
+  // save where the regions restart (centromeres)
+  const regionRestartPoints = useMemo(() => {
+    const mapping: Record<number, number> = {};
+    if (regionData.length) {
+      const grouped = groups(regionData, (d) => d.chr);
+      for (let i = 0; i < grouped.length; i++) {
+        const chr = grouped[i][0];
+        grouped[i][1].sort().forEach((d, j) => {
+          if (j > 1 && d.region === 1) {
+            mapping[chr] = d.start_bp;
+          }
+        });
+      }
+    }
+
+    return mapping;
+  }, [regionData]);
 
   useEffect(() => {
-    if (selectedRegion) {
+    if (selectedRegion && regionRestartPoints) {
       const chr = selectedRegion.chr;
+      let minBp = 0;
+      let maxBp = Infinity;
       const start = selectedRegion.region - 50;
       const end = selectedRegion.region + 50;
 
-      // some chroms have 2 regions, so we'll check the distance too
+      if (regionRestartPoints[chr]) {
+        const chrPart = regionRestartPoints[chr];
+        if (selectedRegion.end_bp < chrPart) {
+          maxBp = regionRestartPoints[chr];
+        } else {
+          minBp = regionRestartPoints[chr];
+        }
+      }
+
       const regionDetailData = regionDisplayData.filter(
         (d) =>
-          Math.abs(d.start_bp - selectedRegion.start_bp) <
-            largestRegion * 100 &&
+          d.end_bp < maxBp &&
+          d.start_bp >= minBp &&
           d.region >= start &&
           d.region <= end &&
           d.chr == chr
@@ -81,7 +104,7 @@ export default function Home() {
 
       setRegionDetailData(regionDetailData);
     }
-  }, [selectedRegion]);
+  }, [regionDisplayData, regionRestartPoints, selectedRegion]);
 
   useEffect(() => {
     setRegionDetailData([]);
@@ -363,9 +386,9 @@ export default function Home() {
           <PaginatedTable
             cols={RegionResultCols}
             data={regionDisplayData}
-            filterModel={filterModel}
-            onFilterModelChange={(m) => console.log(m)}
-            onSelect={(m) => null}
+            //filterModel={filterModel}
+            //onFilterModelChange={(m) => console.log(m)}
+            //onSelect={(m) => null}
           />
         )}
       </Grid>

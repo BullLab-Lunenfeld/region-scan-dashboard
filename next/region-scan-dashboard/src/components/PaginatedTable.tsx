@@ -5,18 +5,13 @@ import { Download, TuneOutlined } from "@mui/icons-material";
 import { Box, Button, Grid2 as Grid } from "@mui/material";
 import {
   DataGrid,
-  GridColDef,
   GridColumnVisibilityModel,
-  gridFilteredSortedRowIdsSelector,
   GridFilterModel,
   GridPaginationModel,
   GridPreferencePanelsValue,
-  gridSortedRowEntriesSelector,
-  GridSortModel,
   GridToolbarContainer,
   GridToolbarFilterButton,
   GridValidRowModel,
-  gridVisibleRowsSelector,
   useGridApiContext,
 } from "@mui/x-data-grid";
 import { GridBaseColDef } from "@mui/x-data-grid/internals";
@@ -35,8 +30,8 @@ interface PaginatedTableProps<T extends GridValidRowModel> {
   data: T[];
   filterModel?: GridFilterModel;
   loading?: boolean;
-  onFilterModelChange: (filterModel?: GridFilterModel) => void;
-  onSelect: (model: T) => void;
+  onFilterModelChange?: (filterModel?: GridFilterModel) => void;
+  onSelect?: (model: T) => void;
   selected?: number;
   total?: number;
 }
@@ -58,8 +53,6 @@ function PaginatedTable<T extends GridValidRowModel>({
     pageSize: DEFAULT_PAGE_SIZE,
   });
 
-  const [sortModel, setSortModel] = useState<GridSortModel>();
-
   const columnVisibilityModel = useMemo(() => {
     return cols.reduce<GridColumnVisibilityModel>(
       (acc, curr) => ({
@@ -69,10 +62,6 @@ function PaginatedTable<T extends GridValidRowModel>({
       {}
     );
   }, [cols]);
-
-  const onSortModelChange = (model: GridSortModel) => {
-    ///
-  };
 
   const onPaginationModelChange = (model: GridPaginationModel) => {
     setPaginationModel(model);
@@ -94,13 +83,6 @@ function PaginatedTable<T extends GridValidRowModel>({
         onFilterModelChange={onFilterModelChange}
         onPaginationModelChange={onPaginationModelChange}
         onRowClick={(params) => (onSelect ? onSelect(params.row) : () => null)}
-        onSortModelChange={onSortModelChange}
-        onStateChange={(state) => {
-          const newRows = gridFilteredSortedRowIdsSelector(state);
-          //this will ids of the visible rows (unpaginated), which we can then pass to a callback
-          //alternately could just put a button on the toolbar that says "Update Chart"
-          //if we can pass in the callback, which seems to have been an issue before (maybe only with typescript?)
-        }}
         pageSizeOptions={[10, 20]}
         paginationMode="client"
         paginationModel={paginationModel}
@@ -113,7 +95,6 @@ function PaginatedTable<T extends GridValidRowModel>({
         slots={{
           toolbar: RSGridToolbar,
         }}
-        sortModel={sortModel}
         sortingMode="client"
       />
     </Grid>
