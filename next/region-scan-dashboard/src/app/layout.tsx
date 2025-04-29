@@ -15,7 +15,7 @@ import {
 import { ThemeProvider } from "@mui/material/styles";
 
 import theme from "../lib/mui/theme";
-import { Footer } from "@/components";
+//import { Footer } from "@/components";
 
 const inter = Inter({ subsets: ["latin"] });
 
