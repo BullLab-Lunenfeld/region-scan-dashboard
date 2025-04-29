@@ -1,13 +1,21 @@
 import { AssembyInfo, EnsemblGeneResult } from "@/lib/ts/types";
 
+/**
+ * Fetch genes from ensembl, note that maximum size is 5,000,000
+ * @param chr
+ * @param start
+ * @param end
+ * @param assembly
+ * @returns
+ */
 export const fetchGenes = async (
   chr: number,
   start: number,
   end: number,
   assembly?: AssembyInfo["assembly"]
 ) => {
-  if (end - start > 10e6) {
-    throw "Region cannot be larger than 10MB";
+  if (end - start > 5e6) {
+    throw "Region cannot be larger than 5MB";
   }
   const region = `${chr}:${start}-${end}`;
   const assemblyPrefix = assembly === "GRCh37" ? "grch37." : "";

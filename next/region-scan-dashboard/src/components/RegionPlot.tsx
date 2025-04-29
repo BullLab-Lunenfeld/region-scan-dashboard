@@ -27,7 +27,7 @@ import {
   VariantResultRow,
 } from "@/lib/ts/types";
 import { LoadingOverlay, UploadButtonSingle } from "@/components";
-import { parseTsv } from "@/lib/ts/util";
+import { drawDottedLine, parseTsv } from "@/lib/ts/util";
 import { fetchGenes } from "@/util/fetchGenes";
 
 interface RegionData {
@@ -37,16 +37,6 @@ interface RegionData {
   variable: keyof RegionResult;
   pvalue: number;
 }
-
-/**
- *
- * @param gene1 the gene to be tested
- * @param gene2 the possibly overlapping gene
- */
-const overlaps = (gene1: EnsemblGeneResult, gene2: EnsemblGeneResult) =>
-  (gene1.start < gene2.start && gene1.end > gene2.start) ||
-  (gene1.start < gene2.start && gene1.end < gene2.end) ||
-  (gene1.start < gene2.end && gene1.end > gene1.end);
 
 const showRegionTooltip = (data: RegionData, e: MouseEvent) => {
   select(".tooltip")
@@ -104,7 +94,7 @@ const showGeneTooltip = (data: EnsemblGeneResult, e: MouseEvent) => {
         `Type: ${data.biotype}`,
         `ID: ${data.gene_id}`,
         `Start pos: ${format(",")(data.start)}`,
-        `End pos: ${format(".5")(data.end)}`,
+        `End pos: ${format(",")(data.end)}`,
       ],
       (d) => d
     )
@@ -180,8 +170,6 @@ class RegionChart {
       .attr("class", "container");
   }
 
-  remove = () => this.container.selectChildren().remove();
-
   updateActiveVariables = (variables: (keyof RegionResult)[]) =>
     (this.activeVariables = variables);
 
@@ -222,7 +210,7 @@ class RegionChart {
     const geneHeightMap = genes.reduce<Record<string, number>>(
       (acc, curr) => ({
         ...acc,
-        [curr.id]: 0,
+        [curr.id]: 1,
       }),
       {}
     );
@@ -230,25 +218,25 @@ class RegionChart {
     if (genes.length) {
       const sorted = genes.sort((a, b) => (a.start < b.start ? -1 : 1));
       sorted.forEach((outerG, i) => {
-        // Chr1 Regions 2295-2395
-        for (const innerG of sorted.slice(i)) {
-          if (innerG.start < outerG.end) {
-            let found = false;
-            // if this is already an overlap
-            if (geneHeightMap[outerG.id] > 0) {
-              for (let j = i - 1; j >= 0; j--) {
-                if (overlaps(genes[j], outerG) && !overlaps(genes[j], innerG)) {
-                  geneHeightMap[innerG.id] = geneHeightMap[j];
-                  found = true;
-                  break;
+        for (let j = i; j < sorted.length; j++) {
+          if (outerG.end > sorted[j].start) {
+            let height = geneHeightMap[outerG.id] + 1;
+            if (geneHeightMap[outerG.id] > 1) {
+              const covered = sorted
+                .slice(0, i)
+                .sort((a, b) => (a.end < b.end ? -1 : 1));
+              for (let k = geneHeightMap[outerG.id]; k > 0; k--) {
+                for (let l = i - 1; l >= 0; l--) {
+                  if (geneHeightMap[covered[l].id] === k) {
+                    if (covered[l].end < sorted[j].start) {
+                      height = k;
+                    }
+                    break;
+                  }
                 }
               }
             }
-            if (found) {
-              continue;
-            } else {
-              geneHeightMap[innerG.id] = geneHeightMap[outerG.id] + 1;
-            }
+            geneHeightMap[genes[j].id] = height;
           }
         }
       });
@@ -270,7 +258,7 @@ class RegionChart {
         ) as [number, number];
 
         return Object.entries(members[0])
-          .filter(([k, _]) => k.toLowerCase().endsWith("_p"))
+          .filter(([k]) => k.toLowerCase().endsWith("_p"))
           .map(([variable, pvalue]) => ({
             region,
             start,
@@ -292,8 +280,8 @@ class RegionChart {
       .range(schemeSet3)
       .domain(
         Object.entries(data[0])
-          .filter(([k, _]) => k.toLowerCase().endsWith("_p"))
-          .map(([k, _]) => k)
+          .filter(([k]) => k.toLowerCase().endsWith("_p"))
+          .map(([k]) => k)
           .filter((k, i, a) => a.findIndex((d) => d === k) === i) as string[]
       );
 
@@ -310,7 +298,7 @@ class RegionChart {
 
     const yScaleGene = scaleLinear()
       .range([
-        this.height - geneSpace - marginBottom,
+        this.height - geneSpace - marginBottom + geneHeight,
         this.height - marginBottom,
       ])
       .domain([geneHeightCount, 0]);
@@ -485,6 +473,26 @@ class RegionChart {
       const [x] = pointer(e);
       wheelCb(e.deltaY, xScale.invert(x));
     });
+
+    drawDottedLine(
+      this.container,
+      "region-p-line",
+      yScalePval(-Math.log10(5e-6)),
+      xScale.range()[0],
+      xScale.range()[1]
+    );
+
+    if (!!variants.length) {
+      drawDottedLine(
+        this.container,
+        "variant-p-line",
+        yScalePval(-Math.log10(5e-7)),
+        xScale.range()[0],
+        xScale.range()[1]
+      );
+    } else {
+      this.container.select("g.variant-p-line").remove();
+    }
   };
 }
 

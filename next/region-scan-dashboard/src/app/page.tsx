@@ -3,9 +3,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Grid2 as Grid, IconButton, MenuItem, TextField } from "@mui/material";
 import { schemeDark2 } from "d3-scale-chromatic";
-import { group, groups, max } from "d3-array";
+import { groups } from "d3-array";
 import { UndoSharp } from "@mui/icons-material";
-import { GridFilterModel } from "@mui/x-data-grid";
 import {
   MiamiPlot,
   NumberInput,
@@ -81,9 +80,8 @@ export default function Home() {
       const chr = selectedRegion.chr;
       let minBp = 0;
       let maxBp = Infinity;
-      const start = selectedRegion.region - 50;
-      const end = selectedRegion.region + 50;
 
+      // first trim, in case there's a half-chromosome cutoff
       if (regionRestartPoints[chr]) {
         const chrPart = regionRestartPoints[chr];
         if (selectedRegion.end_bp < chrPart) {
@@ -93,13 +91,17 @@ export default function Home() {
         }
       }
 
+      //we have to have <= 5 mb for gene fetch API
+      if (selectedRegion.start_bp - minBp > 2500000) {
+        minBp = selectedRegion.start_bp - 2500000;
+      }
+
+      if (maxBp - selectedRegion.start_bp > 2500000) {
+        maxBp = selectedRegion.start_bp + 2500000;
+      }
+
       const regionDetailData = regionDisplayData.filter(
-        (d) =>
-          d.end_bp < maxBp &&
-          d.start_bp >= minBp &&
-          d.region >= start &&
-          d.region <= end &&
-          d.chr == chr
+        (d) => d.end_bp < maxBp && d.start_bp >= minBp && d.chr == chr
       );
 
       setRegionDetailData(regionDetailData);

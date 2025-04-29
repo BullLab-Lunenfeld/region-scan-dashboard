@@ -2,47 +2,17 @@
 
 import React, { useLayoutEffect } from "react";
 import "d3-transition"; // must be imported before selection
-import { cumsum, extent, range, sum } from "d3-array";
+import { cumsum, extent, sum } from "d3-array";
 import { axisBottom, axisLeft } from "d3-axis";
 import { brush, D3BrushEvent } from "d3-brush";
 import { format } from "d3-format";
-import { line } from "d3-shape";
 import { ScaleLinear, scaleLinear, scaleThreshold } from "d3-scale";
 import { BaseType, select, selectAll, Selection } from "d3-selection";
 import { Box } from "@mui/material";
 import { AssembyInfo, RegionResult } from "@/lib/ts/types";
+import { drawDottedLine } from "@/lib/ts/util";
 
 const className = "miami-plot";
-
-const drawDottedLine = (
-  container: Selection<SVGGElement, number, SVGElement, number>,
-  cls: string,
-  y: number,
-  x1: number,
-  x2: number
-) => {
-  //We'll have 10px intervals for a 5px line segment and 5px gap
-  const lineCount = Math.round((x2 - x1) / 10);
-
-  container
-    .selectAll(`g.${cls}`)
-    .data([y])
-    .join("g")
-    .attr("class", cls)
-    .transition()
-    .duration(500)
-    .attr("transform", `translate(0, ${y})`)
-    .selection()
-    .selectAll("path")
-    .data(range(lineCount))
-    .join("path")
-    .attr("d", (d) =>
-      line<number>()
-        .x((d) => x1 + d)
-        .y(() => 0)([d * 10, d * 10 + 5])
-    )
-    .attr("stroke", "grey");
-};
 
 const showTooltip = (data: RegionResult, e: MouseEvent) => {
   select(".tooltip")
@@ -169,13 +139,13 @@ const buildChart = (
             [marginLeft].concat(
               Object.entries(chrCumSumScale)
                 .sort((a, b) => (+a[0] > +b[0] ? 1 : -1))
-                .map(([_, v]) => v.range()[1])
+                .map((kv) => kv[1].range()[1])
             )
           )
           .domain(
             Object.entries(chrCumSumScale)
               .sort((a, b) => (+a[0] > +b[0] ? 1 : -1))
-              .map(([k, _]) => +k)
+              .map(([k]) => +k)
           )
       : scaleLinear()
           .range([marginLeft, width])
