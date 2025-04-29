@@ -19,22 +19,22 @@ jobs:
           cache-dependency-path: next
       -
         name: Install packages
-        working-directory: next/cycle-network
+        working-directory: next/region-scan-dashboard
         run: |
           npm ci
       -
         name: Check React formatting
-        working-directory: next/cycle-network
+        working-directory: next/region-scan-dashboard
         run: |
           npm run format-check
       -
         name: Lint React code
-        working-directory: next/cycle-network
+        working-directory: next/region-scan-dashboard
         run: |
           npm run lint-check
       -
         name: Check typescript
-        working-directory: next/cycle-network
+        working-directory: next/region-scan-dashboard
         run: |
           npm run type-check
 
