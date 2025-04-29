@@ -28,7 +28,7 @@ const showTooltip = (data: RegionResult, e: MouseEvent) => {
         `End pos: ${format(",")(data.end_bp)}`,
         `Region: ${data.region}`,
       ],
-      (d) => d
+      (d) => d,
     )
     .join("li")
     .style("font-size", "15px")
@@ -69,10 +69,8 @@ const buildChart = (
   topCol: keyof RegionResult,
   topColor: string,
   topThresh: number,
-  width: number
+  width: number,
 ) => {
-  //TODO: once the features are done, convert to object
-
   // get unique chromosomes, convert to string, sort asc
   const chrs = data
     .map((d) => d.chr)
@@ -101,7 +99,7 @@ const buildChart = (
       ...acc,
       [curr]: [i === 0 ? 0 : cumsums[i - 1] + 1, cumsums[i]],
     }),
-    {}
+    {},
   );
 
   //create a scale keyed by chromosome (for plotting)
@@ -114,7 +112,7 @@ const buildChart = (
           .range([allChrScale(v[0]), allChrScale(v[1])])
           .domain([0, assemblyInfo.lengths[k]]),
       }),
-      {}
+      {},
     );
 
   const transformedData = data
@@ -125,7 +123,7 @@ const buildChart = (
       return _d;
     })
     .sort((a) =>
-      !!selectedRegion && a.region === selectedRegion.region ? 1 : -1
+      !!selectedRegion && a.region === selectedRegion.region ? 1 : -1,
     );
 
   const upperData = transformedData.filter((d) => !!d[topCol]);
@@ -139,13 +137,13 @@ const buildChart = (
             [marginLeft].concat(
               Object.entries(chrCumSumScale)
                 .sort((a, b) => (+a[0] > +b[0] ? 1 : -1))
-                .map((kv) => kv[1].range()[1])
-            )
+                .map((kv) => kv[1].range()[1]),
+            ),
           )
           .domain(
             Object.entries(chrCumSumScale)
               .sort((a, b) => (+a[0] > +b[0] ? 1 : -1))
-              .map(([k]) => +k)
+              .map(([k]) => +k),
           )
       : scaleLinear()
           .range([marginLeft, width])
@@ -153,8 +151,8 @@ const buildChart = (
             extent(
               upperData
                 .map((d) => d.start_bp)
-                .concat(lowerData.map((d) => d.start_bp))
-            ) as [number, number]
+                .concat(lowerData.map((d) => d.start_bp)),
+            ) as [number, number],
           );
 
   const yScale = scaleLinear()
@@ -163,7 +161,7 @@ const buildChart = (
       extent([
         ...upperData.map((d) => d[topCol]),
         ...lowerData.map((d) => d[bottomCol]),
-      ]).reverse() as [number, number]
+      ]).reverse() as [number, number],
     );
 
   const svg = select(selector)
@@ -187,7 +185,7 @@ const buildChart = (
     .attr("class", "container");
 
   const xAxis = axisBottom(xScale).tickFormat((t) =>
-    chrs.length > 1 ? "" : format(",")(t)
+    chrs.length > 1 ? "" : format(",")(t),
   );
 
   const xAxisSelection = container
@@ -287,7 +285,7 @@ const buildChart = (
         if (event.selection) {
           const [[x0], [x1]] = event.selection as [
             [number, number],
-            [number, number]
+            [number, number],
           ];
 
           if (event.type === "end") {
@@ -329,8 +327,8 @@ const buildChart = (
             event.target.clear(select(this));
           }
         }
-      }
-    )
+      },
+    ),
   );
 
   circleContainer
@@ -344,7 +342,7 @@ const buildChart = (
     .attr("cx", (d) =>
       chrs.length > 1
         ? chrCumSumScale[d.chr.toString()](d.end_bp)
-        : xScale(d.end_bp)
+        : xScale(d.end_bp),
     )
     .attr("stroke-width", 2)
     .attr(
@@ -355,7 +353,7 @@ const buildChart = (
             d.start_bp === selectedRegion.start_bp
               ? "black"
               : "none"
-        : "none"
+        : "none",
     )
     .attr("cy", (d) => yScale(d[topCol]))
     .selection()
@@ -379,13 +377,13 @@ const buildChart = (
             d.start_bp === selectedRegion.start_bp
               ? "black"
               : "none"
-        : "none"
+        : "none",
     )
     .attr("opacity", 0.5)
     .attr("cx", (d) =>
       chrs.length > 1
         ? chrCumSumScale[d.chr.toString()](d.end_bp)
-        : xScale(d.end_bp)
+        : xScale(d.end_bp),
     )
     .attr("cy", (d) => yScale(d[bottomCol]))
     .on("click", (_, d: RegionResult) => onCircleClick(d))
@@ -397,7 +395,7 @@ const buildChart = (
     "top-thresh",
     yScale(-Math.log10(topThresh)),
     marginLeft,
-    width
+    width,
   );
 
   drawDottedLine(
@@ -405,7 +403,7 @@ const buildChart = (
     "bottom-thresh",
     yScale(Math.log10(bottomThresh)),
     marginLeft,
-    width
+    width,
   );
 
   //append tooltip
@@ -477,7 +475,7 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
       topCol,
       topColor,
       topThresh,
-      width
+      width,
     );
   }, [
     assemblyInfo,

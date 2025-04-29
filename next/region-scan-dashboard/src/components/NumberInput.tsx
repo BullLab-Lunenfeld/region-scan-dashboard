@@ -36,7 +36,7 @@ export const NumberInput: React.FC<NumberInputProps> = ({
 
   const submit = useCallback(
     () => !!internalValue && onChange(+internalValue),
-    [internalValue, onChange]
+    [internalValue, onChange],
   );
 
   return (

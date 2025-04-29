@@ -23,7 +23,7 @@ const getQuartiles = (data: number[], qcount: number = 25) => {
   const step = 100 / qcount;
 
   return range(qcount - 1).map((d) =>
-    quantile(data, (d + 1) * 0.01 * step)
+    quantile(data, (d + 1) * 0.01 * step),
   ) as number[];
 };
 
@@ -32,7 +32,7 @@ const buildChart = (
   pvals: number[],
   selector: string,
   variable: string,
-  width: number
+  width: number,
 ) => {
   const height = 0.5 * width;
 
@@ -40,7 +40,7 @@ const buildChart = (
 
   const pvalQuartiles = getQuartiles(
     filteredPvals,
-    min([250, filteredPvals.length])
+    min([250, filteredPvals.length]),
   );
 
   const rv = randomUniform(max(filteredPvals));

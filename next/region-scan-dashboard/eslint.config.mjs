@@ -9,51 +9,63 @@ import { FlatCompat } from "@eslint/eslintrc";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const compat = new FlatCompat({
-    baseDirectory: __dirname,
-    recommendedConfig: js.configs.recommended,
-    allConfig: js.configs.all
+  baseDirectory: __dirname,
+  recommendedConfig: js.configs.recommended,
+  allConfig: js.configs.all,
 });
 
-export default defineConfig([{
+export default defineConfig([
+  {
     extends: compat.extends(
-        "next/core-web-vitals",
-        "plugin:react/recommended",
-        "plugin:@typescript-eslint/recommended",
+      "next/core-web-vitals",
+      "plugin:react/recommended",
+      "plugin:@typescript-eslint/recommended",
+      "prettier"
     ),
 
     plugins: {
-        "@typescript-eslint": typescriptEslint,
-        react,
+      "@typescript-eslint": typescriptEslint,
+      react,
     },
 
     rules: {
-        "no-console": ["warn", {
-            allow: ["error"],
-        }],
+      "no-console": [
+        "warn",
+        {
+          allow: ["error"],
+        },
+      ],
 
-        "no-case-declarations": "off",
-        "no-debugger": "off",
-        "react/no-unescaped-entities": "off",
-        "react-hooks/rules-of-hooks": "error",
-        "react-hooks/exhaustive-deps": "warn",
-        "@typescript-eslint/no-non-null-assertion": "off",
-        "@typescript-eslint/no-this-alias": "off",
-        "@typescript-eslint/no-explicit-any": "off",
+      "no-case-declarations": "off",
+      "no-debugger": "off",
+      "react/no-unescaped-entities": "off",
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
+      "@typescript-eslint/no-non-null-assertion": "off",
+      "@typescript-eslint/no-this-alias": "off",
+      "@typescript-eslint/no-explicit-any": "off",
 
-        "import/order": ["error", {
-            pathGroups: [{
-                pattern: "next/dynamic",
-                group: "builtin",
-                position: "before",
-            }, {
-                pattern: "react",
-                group: "builtin",
-                position: "before",
-            }],
+      "import/order": [
+        "error",
+        {
+          pathGroups: [
+            {
+              pattern: "next/dynamic",
+              group: "builtin",
+              position: "before",
+            },
+            {
+              pattern: "react",
+              group: "builtin",
+              position: "before",
+            },
+          ],
 
-            pathGroupsExcludedImportTypes: ["react"],
-        }],
+          pathGroupsExcludedImportTypes: ["react"],
+        },
+      ],
 
-        "import/no-useless-path-segments": "error",
+      "import/no-useless-path-segments": "error",
     },
-}]);
+  },
+]);

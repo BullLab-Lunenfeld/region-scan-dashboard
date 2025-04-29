@@ -4,14 +4,14 @@ import { line } from "d3-shape";
 import Papa from "papaparse";
 
 export const parseTsv = <T extends Record<string, any>>(
-  tsv: File
+  tsv: File,
 ): Promise<T[]> => {
   return new Promise((resolve) =>
     Papa.parse<T>(tsv, {
       header: true,
       skipEmptyLines: true,
       complete: (v) => resolve(v.data),
-    })
+    }),
   );
 };
 
@@ -20,7 +20,7 @@ export const drawDottedLine = (
   cls: string,
   y: number,
   x1: number,
-  x2: number
+  x2: number,
 ) => {
   //We'll have 10px intervals for a 5px line segment and 5px gap
   const lineCount = Math.round((x2 - x1) / 10);
@@ -40,7 +40,7 @@ export const drawDottedLine = (
     .attr("d", (d) =>
       line<number>()
         .x((d) => x1 + d)
-        .y(() => 0)([d * 10, d * 10 + 5])
+        .y(() => 0)([d * 10, d * 10 + 5]),
     )
     .attr("stroke", "grey");
 };

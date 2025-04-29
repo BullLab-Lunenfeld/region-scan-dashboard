@@ -12,22 +12,22 @@ const chromSort =
       return chr1 < chr2
         ? -1
         : chr1 > chr2
-        ? 1
-        : v1 < v2
-        ? -1
-        : v1 > v2
-        ? 1
-        : 0;
+          ? 1
+          : v1 < v2
+            ? -1
+            : v1 > v2
+              ? 1
+              : 0;
     } else if (direction == "desc") {
       return chr1 < chr2
         ? 1
         : chr1 > chr2
-        ? -1
-        : v1 < v2
-        ? 1
-        : v1 > v2
-        ? -1
-        : 0;
+          ? -1
+          : v1 < v2
+            ? 1
+            : v1 > v2
+              ? -1
+              : 0;
     } else return 0;
   };
 

@@ -12,7 +12,7 @@ export const fetchGenes = async (
   chr: number,
   start: number,
   end: number,
-  assembly?: AssembyInfo["assembly"]
+  assembly?: AssembyInfo["assembly"],
 ) => {
   if (end - start > 5e6) {
     throw "Region cannot be larger than 5MB";
@@ -23,7 +23,7 @@ export const fetchGenes = async (
   try {
     const response = await fetch(
       `https://${assemblyPrefix}rest.ensembl.org/overlap/region/human/${region}?feature=gene`,
-      { headers: { Accept: "application/json" } }
+      { headers: { Accept: "application/json" } },
     );
 
     result = await (response.json() as Promise<EnsemblGeneResult[]>);

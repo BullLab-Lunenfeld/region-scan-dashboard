@@ -59,7 +59,7 @@ function PaginatedTable<T extends GridValidRowModel>({
         [curr.field]: curr.hideOnLoad ? false : true,
         ...acc,
       }),
-      {}
+      {},
     );
   }, [cols]);
 

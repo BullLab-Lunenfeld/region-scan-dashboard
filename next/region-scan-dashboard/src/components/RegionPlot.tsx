@@ -53,7 +53,7 @@ const showRegionTooltip = (data: RegionData, e: MouseEvent) => {
         `End pos: ${format(",")(data.end)}`,
         `Pval: ${format(".5")(data.pvalue)}`,
       ],
-      (d) => d
+      (d) => d,
     )
     .join("li")
     .style("font-size", "15px")
@@ -74,7 +74,7 @@ const showVariantTooltip = (data: VariantResultRow, e: MouseEvent) => {
         `Pos: ${format(",")(data.pos)}`,
         `sg pval: ${format(".5")(data.sg_pval)}`,
       ],
-      (d) => d
+      (d) => d,
     )
     .join("li")
     .style("font-size", "15px")
@@ -96,7 +96,7 @@ const showGeneTooltip = (data: EnsemblGeneResult, e: MouseEvent) => {
         `Start pos: ${format(",")(data.start)}`,
         `End pos: ${format(",")(data.end)}`,
       ],
-      (d) => d
+      (d) => d,
     )
     .join("li")
     .style("font-size", "15px")
@@ -136,7 +136,7 @@ class RegionChart {
     var1Color: string,
     var2: keyof RegionResult,
     var2Color: string,
-    width: number
+    width: number,
   ) {
     //display properties
     this.selector = selector;
@@ -175,7 +175,7 @@ class RegionChart {
 
   getRectFill = (
     variable: keyof RegionResult,
-    regionColorScale: ScaleOrdinal<string, string, never>
+    regionColorScale: ScaleOrdinal<string, string, never>,
   ) => {
     if (variable === this.var1) {
       return this.var1Color;
@@ -197,14 +197,14 @@ class RegionChart {
     genes: EnsemblGeneResult[],
     wheelCb: (delta: number, pos: number) => void,
     setCenterRegion: (region: number) => void,
-    regionRange: number[]
+    regionRange: number[],
   ) => {
     const variables = [this.var1, this.var2].concat(
       Object.keys(data[0]).filter(
         (k) =>
           ![this.var1, this.var2].includes(k as keyof RegionResult) &&
-          k.toLowerCase().endsWith("_p")
-      ) as (keyof RegionResult)[]
+          k.toLowerCase().endsWith("_p"),
+      ) as (keyof RegionResult)[],
     );
 
     const geneHeightMap = genes.reduce<Record<string, number>>(
@@ -212,7 +212,7 @@ class RegionChart {
         ...acc,
         [curr.id]: 1,
       }),
-      {}
+      {},
     );
 
     if (genes.length) {
@@ -254,7 +254,7 @@ class RegionChart {
     const regionData = groups(data, (d) => d.region).flatMap(
       ([region, members]) => {
         const [start, end] = extent(
-          members.flatMap((m) => [m.start_bp, m.end_bp])
+          members.flatMap((m) => [m.start_bp, m.end_bp]),
         ) as [number, number];
 
         return Object.entries(members[0])
@@ -266,7 +266,7 @@ class RegionChart {
             variable,
             pvalue: -Math.log10(pvalue),
           })) as RegionData[];
-      }
+      },
     );
 
     const xScale = scaleLinear()
@@ -282,7 +282,7 @@ class RegionChart {
         Object.entries(data[0])
           .filter(([k]) => k.toLowerCase().endsWith("_p"))
           .map(([k]) => k)
-          .filter((k, i, a) => a.findIndex((d) => d === k) === i) as string[]
+          .filter((k, i, a) => a.findIndex((d) => d === k) === i) as string[],
       );
 
     const yScalePval = scaleLinear()
@@ -291,7 +291,9 @@ class RegionChart {
         max(
           regionData
             .map((d) => d.pvalue)
-            .concat(variants ? variants.map((v) => -Math.log10(v.sg_pval)) : [])
+            .concat(
+              variants ? variants.map((v) => -Math.log10(v.sg_pval)) : [],
+            ),
         ) as number,
         -0.05,
       ]);
@@ -308,7 +310,7 @@ class RegionChart {
       .selectAll<SVGRectElement, RegionData>("rect.region")
       .data(
         regionData.filter((d) => this.activeVariables.includes(d.variable)),
-        (d) => d.pvalue
+        (d) => d.pvalue,
       )
       .join("rect")
       .attr("class", "region")
@@ -325,7 +327,7 @@ class RegionChart {
       .attr("width", (d) => xScale(d.end) - xScale(d.start))
       .selection()
       .on("mouseover", (e: MouseEvent, d: RegionData) =>
-        showRegionTooltip(d, e)
+        showRegionTooltip(d, e),
       )
       .on("mouseout", () => selectAll(".tooltip").style("visibility", "hidden"))
       .on("click", (e, d) => setCenterRegion(d.region));
@@ -345,10 +347,10 @@ class RegionChart {
       .attr("opacity", 0.7)
       .attr("r", 3)
       .on("mouseover", (e: MouseEvent, d: VariantResultRow) =>
-        showVariantTooltip(d, e)
+        showVariantTooltip(d, e),
       )
       .on("mouseout", () =>
-        selectAll(".tooltip").style("visibility", "hidden")
+        selectAll(".tooltip").style("visibility", "hidden"),
       );
 
     // add genes
@@ -364,10 +366,10 @@ class RegionChart {
       .attr("height", geneHeight)
       .attr("width", (d) => xScale(d.end) - xScale(d.start))
       .on("mouseover", (e: MouseEvent, d: EnsemblGeneResult) =>
-        showGeneTooltip(d, e)
+        showGeneTooltip(d, e),
       )
       .on("mouseout", () =>
-        selectAll(".tooltip").style("visibility", "hidden")
+        selectAll(".tooltip").style("visibility", "hidden"),
       );
 
     this.container
@@ -411,7 +413,7 @@ class RegionChart {
       .text(
         `Chr${chr} Regions ${regionRange[0]}-${
           regionRange[regionRange.length - 1]
-        }`
+        }`,
       )
       .attr("font-size", 12)
       .attr("text-anchor", "middle");
@@ -456,7 +458,7 @@ class RegionChart {
           genes,
           wheelCb,
           setCenterRegion,
-          regionRange
+          regionRange,
         );
       });
 
@@ -479,7 +481,7 @@ class RegionChart {
       "region-p-line",
       yScalePval(-Math.log10(5e-6)),
       xScale.range()[0],
-      xScale.range()[1]
+      xScale.range()[1],
     );
 
     if (!!variants.length) {
@@ -488,7 +490,7 @@ class RegionChart {
         "variant-p-line",
         yScalePval(-Math.log10(5e-7)),
         xScale.range()[0],
-        xScale.range()[1]
+        xScale.range()[1],
       );
     } else {
       this.container.select("g.variant-p-line").remove();
@@ -538,7 +540,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
   const [visibleData, setVisibleData] = useState<RegionResult[]>([]);
 
   const [uploadKey, setUploadKey] = useState<string>(
-    Math.random().toString(36).slice(2)
+    Math.random().toString(36).slice(2),
   );
 
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -568,7 +570,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
       ];
 
       const visibleData = data.filter(
-        (d) => d.region >= _startReg && d.region <= _endReg
+        (d) => d.region >= _startReg && d.region <= _endReg,
       );
 
       setVisibleData(visibleData);
@@ -577,14 +579,14 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   const regionRange = useMemo(
     () => [...new Set(data.map((d) => d.region))],
-    [data]
+    [data],
   );
 
   const chr = useMemo(() => data[0].chr, [data]);
 
   const posRange = useMemo(
     () => extent(data.map((d) => d.start_bp)) as [number, number],
-    [data]
+    [data],
   );
 
   const updateRange = useCallback(
@@ -594,13 +596,13 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
       }
 
       const targetRegion = visibleData.find(
-        (d) => pos >= d.start_bp && pos <= d.end_bp
+        (d) => pos >= d.start_bp && pos <= d.end_bp,
       );
 
       //maxwheeltick ("zoom out") is max distance from center region to most distant region
       //ensuring we can use the full frame
       const maxWheelTick = max(
-        regionRange.map((r) => Math.abs(r - centerRegion))
+        regionRange.map((r) => Math.abs(r - centerRegion)),
       ) as number;
 
       if (wheelTick > maxWheelTick && delta > 0) {
@@ -617,7 +619,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
         setWheelTick((wt) => (delta > 0 ? wt + 1 : wt - 1));
       }
     },
-    [wheelTick, centerRegion, regionRange, visibleData]
+    [wheelTick, centerRegion, regionRange, visibleData],
   );
 
   //initial render
@@ -628,7 +630,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
       var1Color,
       var2,
       var2Color,
-      width
+      width,
     );
     setChart(Chart);
   }, []);
@@ -653,7 +655,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
         visibleGenes,
         updateRange,
         setCenterRegion,
-        regionRange
+        regionRange,
       );
     }
     setUploadKey(Math.random().toString(36).slice(2));
@@ -686,14 +688,14 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
                       Object.entries(v).map(([k, v]) => [
                         k.replace(".", "_"),
                         k === "variant" ? v : +v,
-                      ])
-                    ) as unknown as VariantResultRow
+                      ]),
+                    ) as unknown as VariantResultRow,
                 )
                 .filter(
                   (v) =>
                     regionRange.includes(v.region) &&
                     v.start_bp > posRange[0] &&
-                    v.end_bp < posRange[1]
+                    v.end_bp < posRange[1],
                 );
               if (mapped.length === 0) {
                 alert("no variants found for this region");
@@ -718,7 +720,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
                 chr,
                 posRange[0],
                 posRange[1],
-                assemblyInfo.assembly
+                assemblyInfo.assembly,
               );
               if (_genes !== null) {
                 setGenes(_genes);

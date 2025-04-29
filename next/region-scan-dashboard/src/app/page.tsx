@@ -29,30 +29,30 @@ export default function Home() {
   });
 
   const [brushFilterHistory, setBrushFilterHistory] = useState<BrushFilter[]>(
-    []
+    [],
   );
 
   //  const [filterModel, setFilterModel] = useState<GridFilterModel>();
   const [lowerThresh, setLowerThresh] = useState<number>(5e-6);
   const [lowerVariable, setLowerVariable] = useState<keyof RegionResult | "">(
-    ""
+    "",
   );
 
   const [regionData, setRegionData] = useState<RegionResult[]>([]);
   const [regionDetailData, setRegionDetailData] = useState<RegionResult[]>([]);
   const [regionDisplayData, setRegionDisplayData] = useState<RegionResult[]>(
-    []
+    [],
   );
 
   const [selectedRegion, setSelectedRegion] = useState<RegionResult>();
 
   const [uploadKey, setUploadKey] = useState(
-    Math.random().toString(36).slice(2)
+    Math.random().toString(36).slice(2),
   );
 
   const [upperThresh, setUpperThresh] = useState<number>(5e-6);
   const [upperVariable, setUpperVariable] = useState<keyof RegionResult | "">(
-    ""
+    "",
   );
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -101,7 +101,7 @@ export default function Home() {
       }
 
       const regionDetailData = regionDisplayData.filter(
-        (d) => d.end_bp < maxBp && d.start_bp >= minBp && d.chr == chr
+        (d) => d.end_bp < maxBp && d.start_bp >= minBp && d.chr == chr,
       );
 
       setRegionDetailData(regionDetailData);
@@ -182,7 +182,7 @@ export default function Home() {
                             ) {
                               return !!+v && +v > 0;
                             } else return true;
-                          })
+                          }),
                       );
                     }),
                   ] as RegionResult[];
@@ -352,7 +352,7 @@ export default function Home() {
                   <QQPlot
                     color={BOTTOM_COLOR}
                     pvals={regionData.map(
-                      (v) => v[lowerVariable as keyof RegionResult]
+                      (v) => v[lowerVariable as keyof RegionResult],
                     )}
                     selector="lower-qq"
                     variable={lowerVariable}
