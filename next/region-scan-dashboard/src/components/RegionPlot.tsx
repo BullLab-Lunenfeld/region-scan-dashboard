@@ -12,6 +12,7 @@ import { schemeSet3 } from "d3-scale-chromatic";
 import { format } from "d3-format";
 import { BaseType, pointer, select, selectAll, Selection } from "d3-selection";
 import { ScaleLinear, scaleLinear, ScaleOrdinal, scaleOrdinal } from "d3-scale";
+import { line } from "d3-shape";
 import {
   Box,
   Button,
@@ -31,7 +32,6 @@ import { LoadingOverlay, UploadButtonSingle } from "@/components";
 import { drawDottedLine, parseTsv } from "@/lib/ts/util";
 import { fetchGenes } from "@/util/fetchGenes";
 import { fetchRecomb } from "@/util/fetchRecomb";
-import { line } from "d3-shape";
 
 interface RegionData {
   region: number;
@@ -314,6 +314,10 @@ class RegionChart {
         extent(data.map((d) => d.recombRate)).reverse() as [number, number],
       );
 
+    const filteredVariants = variants.filter(
+      (v) => v.start_bp >= xScale.domain()[0] && v.end_bp <= xScale.domain()[1],
+    );
+
     //draw region rectangles
     this.container
       .selectAll<SVGRectElement, RegionData>("rect.region")
@@ -344,7 +348,7 @@ class RegionChart {
     // add variants
     this.container
       .selectAll<SVGCircleElement, VariantResultRow>("circle.variant")
-      .data(variants, (v) => v.sg_pval)
+      .data(filteredVariants, (v) => v.sg_pval)
       .join("circle")
       .attr("class", "variant")
       .attr("cx", (d) => xScale(d.pos))
@@ -354,7 +358,7 @@ class RegionChart {
       .duration(300)
       .selection()
       .attr("opacity", 0.7)
-      .attr("r", 3)
+      .attr("r", 1.5)
       .on("mouseover", (e: MouseEvent, d: VariantResultRow) =>
         showVariantTooltip(d, e),
       )
@@ -467,8 +471,6 @@ class RegionChart {
     const recombLine = line<RegionPlotRegionResult>()
       .x((d) => xScale(d.start_bp))
       .y((d) => yScaleRecomb(d.recombRate));
-
-    console.log(data);
 
     this.container
       .selectAll("path.recomb")
