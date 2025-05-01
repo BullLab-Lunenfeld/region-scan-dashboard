@@ -9,7 +9,7 @@
     "format": "prettier --write src",
     "format-check": "prettier -c src",
     "lint-check": "next lint --quiet src",
-    "type-check": "tsc --rootdir ./",
+    "type-check": "tsc --rootdir ./src",
     "lint": "next lint"
   },
   "dependencies": {
