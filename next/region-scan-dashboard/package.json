@@ -8,8 +8,8 @@
     "start": "next start",
     "format": "prettier --write src",
     "format-check": "prettier -c src",
-    "lint-check": "next lint --quiet src",
-    "type-check": "tsc --rootdir ./src",
+    "lint-check": "eslint --quiet src",
+    "type-check": "tsc --rootdir ./",
     "lint": "next lint"
   },
   "dependencies": {
