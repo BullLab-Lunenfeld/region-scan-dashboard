@@ -46,6 +46,8 @@ interface RecombLineData {
   recomb: number;
 }
 
+const circleWidthScale = scaleLinear().range([1, 2.5]).domain([5e6, 5e4]);
+
 const showRegionTooltip = (data: RegionData, e: MouseEvent) => {
   select(".tooltip")
     .style("left", `${e.pageX + 15}px`)
@@ -260,6 +262,7 @@ class RegionChart {
       : 0; //padding
 
     const chr = data[0].chr;
+
     const regionData = groups(data, (d) => d.region).flatMap(
       ([region, members]) => {
         const [start, end] = extent(
@@ -305,7 +308,9 @@ class RegionChart {
           regionData
             .map((d) => d.pvalue)
             .concat(
-              variants ? variants.map((v) => -Math.log10(v.sg_pval)) : [],
+              filteredVariants
+                ? filteredVariants.map((v) => -Math.log10(v.sg_pval))
+                : [],
             ),
         ) as number,
         -0.05,
@@ -325,10 +330,12 @@ class RegionChart {
     const yScaleRecomb = scaleLinear()
       .range(yScalePval.range())
       .domain(
-        extent(filteredRecomb.map((d) => d.value)).reverse() as [
-          number,
-          number,
-        ],
+        !filteredRecomb.length
+          ? [0, 0]
+          : (extent(filteredRecomb.map((d) => d.value)).reverse() as [
+              number,
+              number,
+            ]),
       );
 
     //draw region rectangles
@@ -371,7 +378,7 @@ class RegionChart {
       .duration(300)
       .selection()
       .attr("opacity", 0.7)
-      .attr("r", 1.5)
+      .attr("r", circleWidthScale(xScale.domain()[1] - xScale.domain()[0]))
       .on("mouseover", (e: MouseEvent, d: VariantResultRow) =>
         showVariantTooltip(d, e),
       )
@@ -492,7 +499,7 @@ class RegionChart {
 
     this.container
       .selectAll("path.recomb")
-      .data([recombLineData], () => Math.random().toString(36).slice(2))
+      .data([recombLineData], () => recombLineData.length)
       .join("path")
       .attr("class", "recomb")
       .style("fill", "none")
@@ -604,6 +611,8 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   const [recombData, setRecombData] = useState<UCSCRecombTrackResult[]>([]);
 
+  const [recombVisible, setRecombVisible] = useState(true);
+
   const [uploadKey, setUploadKey] = useState<string>(
     Math.random().toString(36).slice(2),
   );
@@ -640,6 +649,14 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
       return [];
     }
   }, [variants, variantsVisible]);
+
+  const visibleRecomb = useMemo(() => {
+    if (recombVisible) {
+      return recombData;
+    } else {
+      return [];
+    }
+  }, [recombData, recombVisible]);
 
   useEffect(() => {
     // fetch the recomb rate data and merge with region data, this means only 1 api call per chart
@@ -745,7 +762,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
         updateRange,
         setCenterRegion,
         regionRange,
-        recombData,
+        visibleRecomb,
       );
     }
     setUploadKey(Math.random().toString(36).slice(2));
@@ -757,7 +774,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     updateRange,
     setCenterRegion,
     regionRange,
-    recombData,
+    visibleRecomb,
   ]);
 
   return (
@@ -802,6 +819,11 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
               {variantsVisible ? "Hide " : " Show"} Variants
             </Button>
           )}
+        </Grid>
+        <Grid>
+          <Button onClick={() => setRecombVisible(!recombVisible)}>
+            {recombVisible ? "Hide " : " Show"} Recombination
+          </Button>
         </Grid>
         <Grid>
           <Button
