@@ -18,6 +18,12 @@ export interface EnsemblGeneResult {
   seq_region_name: string;
 }
 
+export interface UCSCRecombTrackResult {
+  start: number;
+  end: number;
+  value: number;
+}
+
 export interface RegionResultRaw {
   chr: number;
   end_bp: number;
@@ -50,6 +56,10 @@ export interface RegionResultRaw {
 export interface RegionResult extends RegionResultRaw {
   //needed for the table
   id: number;
+}
+
+export interface RegionPlotRegionResult extends RegionResult {
+  recombRate: number;
 }
 
 export interface VariantResultRow {

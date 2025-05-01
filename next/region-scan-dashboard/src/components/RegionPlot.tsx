@@ -7,7 +7,7 @@ import React, {
   useState,
 } from "react";
 import { extent, groups, max } from "d3-array";
-import { axisBottom, axisLeft } from "d3-axis";
+import { axisBottom, axisLeft, axisRight } from "d3-axis";
 import { schemeSet3 } from "d3-scale-chromatic";
 import { format } from "d3-format";
 import { BaseType, pointer, select, selectAll, Selection } from "d3-selection";
@@ -23,12 +23,15 @@ import {
 import {
   AssembyInfo,
   EnsemblGeneResult,
+  RegionPlotRegionResult,
   RegionResult,
   VariantResultRow,
 } from "@/lib/ts/types";
 import { LoadingOverlay, UploadButtonSingle } from "@/components";
 import { drawDottedLine, parseTsv } from "@/lib/ts/util";
 import { fetchGenes } from "@/util/fetchGenes";
+import { fetchRecomb } from "@/util/fetchRecomb";
+import { line } from "d3-shape";
 
 interface RegionData {
   region: number;
@@ -192,7 +195,7 @@ class RegionChart {
   };
 
   render = (
-    data: RegionResult[],
+    data: RegionPlotRegionResult[],
     variants: VariantResultRow[],
     genes: EnsemblGeneResult[],
     wheelCb: (delta: number, pos: number) => void,
@@ -304,6 +307,12 @@ class RegionChart {
         this.height - marginBottom,
       ])
       .domain([geneHeightCount, 0]);
+
+    const yScaleRecomb = scaleLinear()
+      .range(yScalePval.range())
+      .domain(
+        extent(data.map((d) => d.recombRate)).reverse() as [number, number],
+      );
 
     //draw region rectangles
     this.container
@@ -426,15 +435,56 @@ class RegionChart {
       .attr("transform", `translate(${marginLeft},0)`)
       .transition()
       .duration(500)
-      .call(axisLeft(yScalePval))
-      .selection();
+      .call(axisLeft(yScalePval));
+
+    this.container
+      .selectAll<SVGGElement, number>("g.y-axis-r")
+      .data([1])
+      .join("g")
+      .attr("class", "y-axis-r")
+      .attr("transform", `translate(${this.mainWidth - marginRight},0)`)
+      .transition()
+      .duration(500)
+      .call(axisRight(yScaleRecomb));
+
+    this.container
+      .selectAll("g.y-label-r")
+      .data([1])
+      .join("g")
+      .attr("class", "y-label-r")
+      .transition()
+      .duration(500)
+      .attr("transform", `translate(${this.mainWidth + 12},${this.height / 2})`)
+      .selection()
+      .selectAll("text")
+      .data([1])
+      .join("text")
+      .text("Recombination Rate")
+      .attr("font-size", 12)
+      .attr("transform", "rotate(90)")
+      .attr("text-anchor", "middle");
+
+    const recombLine = line<RegionPlotRegionResult>()
+      .x((d) => xScale(d.start_bp))
+      .y((d) => yScaleRecomb(d.recombRate));
+
+    console.log(data);
+
+    this.container
+      .selectAll("path.recomb")
+      .data([data.sort((a, b) => (a.start_bp < b.start_bp ? -1 : 1))])
+      .join("path")
+      .attr("class", "recomb")
+      .style("fill", "none")
+      .style("stroke", "lightsteelblue")
+      .attr("d", (d) => recombLine(d));
 
     const legendContainer = this.container
       .selectAll("g.legend")
       .data([1])
       .join("g")
       .attr("class", "legend")
-      .attr("transform", `translate(${this.mainWidth + 5},0)`);
+      .attr("transform", `translate(${this.mainWidth + 12},0)`);
 
     legendContainer
       .selectAll("rect")
@@ -521,13 +571,17 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
   var2Color,
   width,
 }) => {
+  const [annotatedData, setAnnotatedData] = useState<RegionPlotRegionResult[]>(
+    [],
+  );
+
   const [centerRegion, setCenterRegion] = useState(selectedRegion.region);
 
   const [chart, setChart] = useState<RegionChart>();
 
   const [genes, setGenes] = useState<EnsemblGeneResult[]>([]);
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const [proteinGenesOnly, setProteinGenesOnly] = useState(true);
 
@@ -537,13 +591,20 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   const [variants, setVariants] = useState<VariantResultRow[]>([]);
 
-  const [visibleData, setVisibleData] = useState<RegionResult[]>([]);
+  const [visibleData, setVisibleData] = useState<RegionPlotRegionResult[]>([]);
 
   const [uploadKey, setUploadKey] = useState<string>(
     Math.random().toString(36).slice(2),
   );
 
   const containerRef = useRef<HTMLDivElement | null>(null);
+
+  const chr = useMemo(() => data[0].chr, [data]);
+
+  const posRange = useMemo(
+    () => extent(data.map((d) => d.start_bp)) as [number, number],
+    [data],
+  );
 
   const visibleGenes = useMemo(() => {
     if (proteinGenesOnly) {
@@ -561,32 +622,52 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     }
   }, [variants, variantsVisible]);
 
+  useEffect(() => {
+    // fetch the recomb rate data and merge with region data, this means only 1 api call per chart
+    const [start, end] = posRange;
+
+    fetchRecomb(chr, start, end, assemblyInfo.assembly).then((r) => {
+      if (r) {
+        r.sort((a, b) => (a.start < b.start ? -1 : 1));
+        let j = 0;
+        const annotated = data.slice() as RegionPlotRegionResult[];
+        for (const v of r) {
+          for (const d of annotated.slice(j)) {
+            if (d.end_bp < v.end) {
+              d.recombRate = v.value;
+              j++;
+            } else {
+              break;
+            }
+          }
+        }
+        setAnnotatedData(annotated);
+      } else {
+        alert("Error fetching recombination data");
+        setAnnotatedData(data.map((d) => ({ ...d, recombRate: 0 })));
+      }
+    });
+  }, [data, assemblyInfo, chr, posRange]);
+
   //set visible data depending on zoom and center
   useEffect(() => {
-    if (!!data.length) {
+    if (!!annotatedData.length) {
       const [_startReg, _endReg] = [
         centerRegion - wheelTick,
         centerRegion + wheelTick,
       ];
 
-      const visibleData = data.filter(
+      const visibleData = annotatedData.filter(
         (d) => d.region >= _startReg && d.region <= _endReg,
       );
 
       setVisibleData(visibleData);
     }
-  }, [centerRegion, data, wheelTick]);
+  }, [centerRegion, annotatedData, wheelTick]);
 
   const regionRange = useMemo(
-    () => [...new Set(data.map((d) => d.region))],
-    [data],
-  );
-
-  const chr = useMemo(() => data[0].chr, [data]);
-
-  const posRange = useMemo(
-    () => extent(data.map((d) => d.start_bp)) as [number, number],
-    [data],
+    () => [...new Set(annotatedData.map((d) => d.region))] as number[],
+    [annotatedData],
   );
 
   const updateRange = useCallback(
@@ -633,6 +714,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
       width,
     );
     setChart(Chart);
+    setLoading(false);
   }, []);
 
   //new data

@@ -20,7 +20,7 @@ export default defineConfig([
       "next/core-web-vitals",
       "plugin:react/recommended",
       "plugin:@typescript-eslint/recommended",
-      "prettier"
+      "prettier",
     ),
 
     plugins: {
