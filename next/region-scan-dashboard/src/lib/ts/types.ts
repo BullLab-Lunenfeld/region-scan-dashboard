@@ -58,10 +58,6 @@ export interface RegionResult extends RegionResultRaw {
   id: number;
 }
 
-export interface RegionPlotRegionResult extends RegionResult {
-  recombRate: number;
-}
-
 export interface VariantResultRow {
   bin: number;
   chr: number;

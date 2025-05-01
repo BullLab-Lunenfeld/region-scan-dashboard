@@ -24,8 +24,8 @@ import {
 import {
   AssembyInfo,
   EnsemblGeneResult,
-  RegionPlotRegionResult,
   RegionResult,
+  UCSCRecombTrackResult,
   VariantResultRow,
 } from "@/lib/ts/types";
 import { LoadingOverlay, UploadButtonSingle } from "@/components";
@@ -39,6 +39,11 @@ interface RegionData {
   end: number;
   variable: keyof RegionResult;
   pvalue: number;
+}
+
+interface RecombLineData {
+  x: number;
+  recomb: number;
 }
 
 const showRegionTooltip = (data: RegionData, e: MouseEvent) => {
@@ -195,12 +200,13 @@ class RegionChart {
   };
 
   render = (
-    data: RegionPlotRegionResult[],
+    data: RegionResult[],
     variants: VariantResultRow[],
     genes: EnsemblGeneResult[],
     wheelCb: (delta: number, pos: number) => void,
     setCenterRegion: (region: number) => void,
     regionRange: number[],
+    recombData: UCSCRecombTrackResult[],
   ) => {
     const variables = [this.var1, this.var2].concat(
       Object.keys(data[0]).filter(
@@ -279,6 +285,10 @@ class RegionChart {
 
     this.xScale = xScale;
 
+    const filteredVariants = variants.filter(
+      (v) => v.start_bp >= xScale.domain()[0] && v.end_bp <= xScale.domain()[1],
+    );
+
     const regionColorScale = scaleOrdinal<string, string>()
       .range(schemeSet3)
       .domain(
@@ -308,15 +318,18 @@ class RegionChart {
       ])
       .domain([geneHeightCount, 0]);
 
+    const filteredRecomb = recombData.filter(
+      (r) => r.end <= xScale.domain()[1] && r.start >= xScale.domain()[0],
+    );
+
     const yScaleRecomb = scaleLinear()
       .range(yScalePval.range())
       .domain(
-        extent(data.map((d) => d.recombRate)).reverse() as [number, number],
+        extent(filteredRecomb.map((d) => d.value)).reverse() as [
+          number,
+          number,
+        ],
       );
-
-    const filteredVariants = variants.filter(
-      (v) => v.start_bp >= xScale.domain()[0] && v.end_bp <= xScale.domain()[1],
-    );
 
     //draw region rectangles
     this.container
@@ -468,13 +481,18 @@ class RegionChart {
       .attr("transform", "rotate(90)")
       .attr("text-anchor", "middle");
 
-    const recombLine = line<RegionPlotRegionResult>()
-      .x((d) => xScale(d.start_bp))
-      .y((d) => yScaleRecomb(d.recombRate));
+    const recombLineData = filteredRecomb.flatMap((d) => [
+      { recomb: d.value, x: d.start },
+      { recomb: d.value, x: d.end },
+    ]);
+
+    const recombLine = line<RecombLineData>()
+      .x((d) => xScale(d.x))
+      .y((d) => yScaleRecomb(d.recomb));
 
     this.container
       .selectAll("path.recomb")
-      .data([data.sort((a, b) => (a.start_bp < b.start_bp ? -1 : 1))])
+      .data([recombLineData], () => Math.random().toString(36).slice(2))
       .join("path")
       .attr("class", "recomb")
       .style("fill", "none")
@@ -511,6 +529,7 @@ class RegionChart {
           wheelCb,
           setCenterRegion,
           regionRange,
+          recombData,
         );
       });
 
@@ -573,10 +592,6 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
   var2Color,
   width,
 }) => {
-  const [annotatedData, setAnnotatedData] = useState<RegionPlotRegionResult[]>(
-    [],
-  );
-
   const [centerRegion, setCenterRegion] = useState(selectedRegion.region);
 
   const [chart, setChart] = useState<RegionChart>();
@@ -587,17 +602,19 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   const [proteinGenesOnly, setProteinGenesOnly] = useState(true);
 
-  const [wheelTick, setWheelTick] = useState(10);
+  const [recombData, setRecombData] = useState<UCSCRecombTrackResult[]>([]);
+
+  const [uploadKey, setUploadKey] = useState<string>(
+    Math.random().toString(36).slice(2),
+  );
 
   const [variantsVisible, setVariantsVisible] = useState<boolean>(true);
 
   const [variants, setVariants] = useState<VariantResultRow[]>([]);
 
-  const [visibleData, setVisibleData] = useState<RegionPlotRegionResult[]>([]);
+  const [visibleData, setVisibleData] = useState<RegionResult[]>([]);
 
-  const [uploadKey, setUploadKey] = useState<string>(
-    Math.random().toString(36).slice(2),
-  );
+  const [wheelTick, setWheelTick] = useState(10);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -631,45 +648,33 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     fetchRecomb(chr, start, end, assemblyInfo.assembly).then((r) => {
       if (r) {
         r.sort((a, b) => (a.start < b.start ? -1 : 1));
-        let j = 0;
-        const annotated = data.slice() as RegionPlotRegionResult[];
-        for (const v of r) {
-          for (const d of annotated.slice(j)) {
-            if (d.end_bp < v.end) {
-              d.recombRate = v.value;
-              j++;
-            } else {
-              break;
-            }
-          }
-        }
-        setAnnotatedData(annotated);
+        setRecombData(r);
       } else {
         alert("Error fetching recombination data");
-        setAnnotatedData(data.map((d) => ({ ...d, recombRate: 0 })));
+        setRecombData([]);
       }
     });
   }, [data, assemblyInfo, chr, posRange]);
 
   //set visible data depending on zoom and center
   useEffect(() => {
-    if (!!annotatedData.length) {
+    if (!!data.length) {
       const [_startReg, _endReg] = [
         centerRegion - wheelTick,
         centerRegion + wheelTick,
       ];
 
-      const visibleData = annotatedData.filter(
+      const visibleData = data.filter(
         (d) => d.region >= _startReg && d.region <= _endReg,
       );
 
       setVisibleData(visibleData);
     }
-  }, [centerRegion, annotatedData, wheelTick]);
+  }, [centerRegion, data, wheelTick]);
 
   const regionRange = useMemo(
-    () => [...new Set(annotatedData.map((d) => d.region))] as number[],
-    [annotatedData],
+    () => [...new Set(data.map((d) => d.region))] as number[],
+    [data],
   );
 
   const updateRange = useCallback(
@@ -740,6 +745,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
         updateRange,
         setCenterRegion,
         regionRange,
+        recombData,
       );
     }
     setUploadKey(Math.random().toString(36).slice(2));
@@ -751,6 +757,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     updateRange,
     setCenterRegion,
     regionRange,
+    recombData,
   ]);
 
   return (
