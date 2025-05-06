@@ -29,7 +29,7 @@ import {
   UCSCRecombTrackResult,
   VariantResultRow,
 } from "@/lib/ts/types";
-import { UploadButtonSingle } from "@/components";
+import { LoadingOverlay, UploadButtonSingle } from "@/components";
 import { drawDottedLine, parseTsv } from "@/lib/ts/util";
 import { fetchGenes } from "@/util/fetchGenes";
 import { fetchRecomb } from "@/util/fetchRecomb";
@@ -669,6 +669,8 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   const [geneLabelsVisible, setGeneLabelsVisible] = useState(false);
 
+  const [loading, setLoading] = useState(false);
+
   const [proteinGenesOnly, setProteinGenesOnly] = useState(true);
 
   const [recombData, setRecombData] = useState<UCSCRecombTrackResult[]>([]);
@@ -893,6 +895,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
         <Grid>
           <Button
             onClick={async () => {
+              setLoading(true);
               const _genes = await fetchGenes(
                 chr,
                 posRange[0],
@@ -908,6 +911,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
                 alert("there was an error fetching the genes for this region");
                 setGenes([]);
               }
+              setLoading(false);
             }}
           >
             Fetch genes
@@ -937,6 +941,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
           </Grid>
         )}
       </Grid>
+      <LoadingOverlay open={loading} />
     </Grid>
   );
 };
