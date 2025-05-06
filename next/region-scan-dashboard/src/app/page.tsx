@@ -75,6 +75,7 @@ export default function Home() {
     return mapping;
   }, [regionData]);
 
+  // compute regionPlot data
   useEffect(() => {
     if (selectedRegion && regionRestartPoints) {
       const chr = selectedRegion.chr;
@@ -256,7 +257,6 @@ export default function Home() {
                 label="Lower Variable"
                 select
               >
-                setBrushFilter
                 {Object.keys(regionData[0])
                   .filter((k) => k.endsWith("_p"))
                   .filter((k) => k !== upperVariable)
@@ -340,7 +340,7 @@ export default function Home() {
                 {!!upperVariable && (
                   <QQPlot
                     color={TOP_COLOR}
-                    pvals={regionData.map((v) => v[upperVariable])}
+                    data={regionData}
                     selector="upper-qq"
                     variable={upperVariable}
                     width={400}
@@ -351,9 +351,7 @@ export default function Home() {
                 {!!lowerVariable && (
                   <QQPlot
                     color={BOTTOM_COLOR}
-                    pvals={regionData.map(
-                      (v) => v[lowerVariable as keyof RegionResult],
-                    )}
+                    data={regionData}
                     selector="lower-qq"
                     variable={lowerVariable}
                     width={400}

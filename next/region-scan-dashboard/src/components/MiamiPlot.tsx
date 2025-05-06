@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useLayoutEffect } from "react";
+import React, { useEffect, useState } from "react";
 import "d3-transition"; // must be imported before selection
 import { cumsum, extent, sum } from "d3-array";
 import { axisBottom, axisLeft } from "d3-axis";
@@ -9,6 +9,7 @@ import { format } from "d3-format";
 import { ScaleLinear, scaleLinear, scaleThreshold } from "d3-scale";
 import { BaseType, select, selectAll, Selection } from "d3-selection";
 import { Box } from "@mui/material";
+import LoadingOverlay from "./LoadingOverlay";
 import { AssembyInfo, RegionResult } from "@/lib/ts/types";
 import { drawDottedLine } from "@/lib/ts/util";
 
@@ -459,24 +460,37 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
   topThresh,
   width,
 }) => {
-  useLayoutEffect(() => {
-    buildChart(
-      assemblyInfo,
-      bottomCol,
-      bottomColor,
-      bottomThresh,
-      data,
-      filter,
-      filterCb,
-      0.4 * width,
-      onCircleClick,
-      selectedRegion,
-      `.${className}`,
-      topCol,
-      topColor,
-      topThresh,
-      width,
-    );
+  const [loading, setLoading] = useState(true);
+
+  //we need a full tick and render to show the loading indicator
+  const [renderFlag, setRenderFlag] = useState(false);
+
+  useEffect(() => {
+    setTimeout(() => setRenderFlag(true));
+  }, []);
+
+  useEffect(() => {
+    if (renderFlag) {
+      Promise.resolve(
+        buildChart(
+          assemblyInfo,
+          bottomCol,
+          bottomColor,
+          bottomThresh,
+          data,
+          filter,
+          filterCb,
+          0.4 * width,
+          onCircleClick,
+          selectedRegion,
+          `.${className}`,
+          topCol,
+          topColor,
+          topThresh,
+          width,
+        ),
+      ).finally(() => setLoading(false));
+    }
   }, [
     assemblyInfo,
     bottomCol,
@@ -490,9 +504,15 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
     topColor,
     topThresh,
     width,
+    renderFlag,
   ]);
 
-  return <Box className={className} />;
+  return (
+    <>
+      <LoadingOverlay open={loading} />
+      <Box className={className} />
+    </>
+  );
 };
 
 export default MiamiPlot;

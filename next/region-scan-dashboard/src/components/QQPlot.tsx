@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useLayoutEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Box } from "@mui/material";
 import { select, Selection, BaseType } from "d3-selection";
 import { quantile, range, zip, extent, min, max } from "d3-array";
 import { randomUniform } from "d3-random";
 import { scaleLinear } from "d3-scale";
 import { axisBottom, axisLeft } from "d3-axis";
+import LoadingOverlay from "./LoadingOverlay";
+import { RegionResult } from "@/lib/ts/types";
 
 const marginBottom = 30;
 const yLabelMargin = 28;
@@ -145,24 +147,44 @@ const buildChart = (
 
 interface QQPlotProps {
   color: string;
-  pvals: number[];
+  data: RegionResult[];
   selector: string;
-  variable: string;
+  variable: keyof RegionResult;
   width: number;
 }
 
 const QQPlot: React.FC<QQPlotProps> = ({
   color,
-  pvals,
+  data,
   selector,
   variable,
   width,
 }) => {
-  useLayoutEffect(() => {
-    buildChart(color, pvals, selector, variable, width);
-  }, [color, pvals, selector, variable, width]);
+  const [loading, setLoading] = useState(true);
 
-  return <Box className={selector} />;
+  //we need a full tick and render to show the loading indicator
+  const [renderFlag, setRenderFlag] = useState(false);
+
+  useEffect(() => {
+    setTimeout(() => setRenderFlag(true));
+  }, []);
+
+  const pvals = useMemo(() => data.map((v) => v[variable]), [variable, data]);
+
+  useEffect(() => {
+    if (renderFlag) {
+      Promise.resolve(buildChart(color, pvals, selector, variable, width)).then(
+        () => setLoading(false),
+      );
+    }
+  }, [color, pvals, selector, variable, width, renderFlag]);
+
+  return (
+    <>
+      <Box className={selector} />
+      <LoadingOverlay open={loading} />
+    </>
+  );
 };
 
 export default QQPlot;

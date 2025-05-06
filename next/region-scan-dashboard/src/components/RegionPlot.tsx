@@ -29,7 +29,7 @@ import {
   UCSCRecombTrackResult,
   VariantResultRow,
 } from "@/lib/ts/types";
-import { LoadingOverlay, UploadButtonSingle } from "@/components";
+import { UploadButtonSingle } from "@/components";
 import { drawDottedLine, parseTsv } from "@/lib/ts/util";
 import { fetchGenes } from "@/util/fetchGenes";
 import { fetchRecomb } from "@/util/fetchRecomb";
@@ -459,6 +459,7 @@ class RegionChart {
       .attr("y", (d) => yScaleGene(geneHeightMap[d.id]) - 1)
       .text((d) => d.external_name)
       .style("font-size", 9)
+      .style("text-anchor", "middle")
       .on("mouseover", (e: MouseEvent, d: EnsemblGeneResult) =>
         showGeneTooltip(d, e),
       )
@@ -668,8 +669,6 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   const [geneLabelsVisible, setGeneLabelsVisible] = useState(false);
 
-  const [loading, setLoading] = useState(true);
-
   const [proteinGenesOnly, setProteinGenesOnly] = useState(true);
 
   const [recombData, setRecombData] = useState<UCSCRecombTrackResult[]>([]);
@@ -801,17 +800,18 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
       width,
     );
     setChart(Chart);
-    setLoading(false);
   }, []);
 
   //new data
   useEffect(() => {
     if (selectedRegion) {
-      setVariants([]);
-      setGenes([]);
-      setWheelTick(10);
-      setVariantsVisible(true);
-      setCenterRegion(selectedRegion.region);
+      Promise.resolve(() => {
+        setVariants([]);
+        setGenes([]);
+        setWheelTick(10);
+        setVariantsVisible(true);
+        setCenterRegion(selectedRegion.region);
+      });
     }
   }, [selectedRegion, assemblyInfo]);
 
@@ -895,7 +895,6 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
         <Grid>
           <Button
             onClick={async () => {
-              setLoading(true);
               const _genes = await fetchGenes(
                 chr,
                 posRange[0],
@@ -911,7 +910,6 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
                 alert("there was an error fetching the genes for this region");
                 setGenes([]);
               }
-              setLoading(false);
             }}
           >
             Fetch genes
@@ -941,7 +939,6 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
           </Grid>
         )}
       </Grid>
-      {!!loading && <LoadingOverlay open={true} />}
     </Grid>
   );
 };
