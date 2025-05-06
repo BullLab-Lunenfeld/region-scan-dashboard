@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import "d3-transition"; // must be imported before selection
 import { cumsum, extent, sum } from "d3-array";
 import { axisBottom, axisLeft } from "d3-axis";
@@ -333,8 +333,8 @@ const buildChart = (
   );
 
   circleContainer
-    .selectAll("circle.upper")
-    .data(upperData, (_, i) => `${i}-${topCol}`)
+    .selectAll<SVGCircleElement, RegionResult>("circle.upper")
+    .data(upperData, (d) => `${d.id === selectedRegion?.id}`)
     .join("circle")
     .attr("class", "upper")
     .attr("r", circleWidthScale(transformedData.length))
@@ -350,6 +350,7 @@ const buildChart = (
       "stroke",
       selectedRegion
         ? (d) =>
+            //could be multiple regions
             d.chr === selectedRegion.chr &&
             d.start_bp === selectedRegion.start_bp
               ? "black"
@@ -465,6 +466,8 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
   //we need a full tick and render to show the loading indicator
   const [renderFlag, setRenderFlag] = useState(false);
 
+  const _width = useMemo(() => width, [width]);
+
   useEffect(() => {
     setTimeout(() => setRenderFlag(true));
   }, []);
@@ -487,7 +490,7 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
           topCol,
           topColor,
           topThresh,
-          width,
+          _width,
         ),
       ).finally(() => setLoading(false));
     }

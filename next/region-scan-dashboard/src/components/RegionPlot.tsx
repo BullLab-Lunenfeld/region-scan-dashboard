@@ -805,13 +805,11 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
   //new data
   useEffect(() => {
     if (selectedRegion) {
-      Promise.resolve(() => {
-        setVariants([]);
-        setGenes([]);
-        setWheelTick(10);
-        setVariantsVisible(true);
-        setCenterRegion(selectedRegion.region);
-      });
+      setVariants([]);
+      setGenes([]);
+      setWheelTick(10);
+      setVariantsVisible(true);
+      setCenterRegion(selectedRegion.region);
     }
   }, [selectedRegion, assemblyInfo]);
 

@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Grid2 as Grid, IconButton, MenuItem, TextField } from "@mui/material";
 import { schemeDark2 } from "d3-scale-chromatic";
 import { groups } from "d3-array";
@@ -148,6 +154,11 @@ export default function Home() {
     setBrushFilterHistory([]);
     setRegionDetailData([]);
   };
+
+  const filterCb = useCallback(
+    (f: BrushFilter) => setBrushFilterHistory(brushFilterHistory.concat(f)),
+    [brushFilterHistory],
+  );
 
   return (
     <Grid container direction="column" spacing={2}>
@@ -315,9 +326,7 @@ export default function Home() {
                 data={regionDisplayData}
                 onCircleClick={(d) => setSelectedRegion(d)}
                 filter={brushFilterHistory[brushFilterHistory.length - 1]}
-                filterCb={(f) =>
-                  setBrushFilterHistory(brushFilterHistory.concat(f))
-                }
+                filterCb={filterCb}
                 selectedRegion={selectedRegion}
                 topCol={upperVariable}
                 topColor={TOP_COLOR}
