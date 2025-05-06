@@ -10,6 +10,7 @@ import { extent, groups, max } from "d3-array";
 import { axisBottom, axisLeft, axisRight } from "d3-axis";
 import { schemeSet3 } from "d3-scale-chromatic";
 import { format } from "d3-format";
+import "d3-transition"; // must be imported before selection
 import { BaseType, pointer, select, selectAll, Selection } from "d3-selection";
 import { ScaleLinear, scaleLinear, ScaleOrdinal, scaleOrdinal } from "d3-scale";
 import { line } from "d3-shape";
@@ -117,6 +118,16 @@ const variantColorScale = scaleOrdinal<string>()
   .range(["teal", "orange"])
   .domain(["0", "1"]);
 
+const getGeneLabelXCoord = (
+  gene: EnsemblGeneResult,
+  xScale: ScaleLinear<number, number, number>,
+) => {
+  const x1 = Math.max(xScale(gene.start), xScale.range()[0]);
+  const x2 = Math.min(xScale(gene.end), xScale.range()[1]);
+
+  return (x1 + x2) / 2;
+};
+
 const regionRectHeight = 5;
 const marginBottom = 35;
 const yLabelMargin = 28;
@@ -124,12 +135,13 @@ const yAxisMargin = 20;
 const marginLeft = yLabelMargin + yAxisMargin;
 const marginTop = 25;
 const marginRight = 15;
-const geneHeight = 3;
+const geneRectHeight = 3;
 
 class RegionChart {
   activeVariables: (keyof RegionResult)[];
   container: Selection<SVGGElement, number, SVGElement, unknown>;
   height: number;
+  hiddenGeneLabels: string[];
   mainWidth: number;
   selector: string;
   svg: Selection<SVGElement, number, BaseType, unknown>;
@@ -158,6 +170,7 @@ class RegionChart {
     this.activeVariables = [var1, var2];
     this.mainWidth = 0.8 * width;
     this.height = 0.5 * width;
+    this.hiddenGeneLabels = [];
 
     this.svg = select(`.${this.selector}`)
       .selectAll<SVGElement, number>("svg")
@@ -179,6 +192,8 @@ class RegionChart {
       .join("g")
       .attr("class", "container");
   }
+
+  resetHiddenGeneLabels = () => (this.hiddenGeneLabels = []);
 
   updateActiveVariables = (variables: (keyof RegionResult)[]) =>
     (this.activeVariables = variables);
@@ -209,60 +224,8 @@ class RegionChart {
     setCenterRegion: (region: number) => void,
     regionRange: number[],
     recombData: UCSCRecombTrackResult[],
+    geneLabelsVisible: boolean,
   ) => {
-    const variables = [this.var1, this.var2].concat(
-      Object.keys(data[0]).filter(
-        (k) =>
-          ![this.var1, this.var2].includes(k as keyof RegionResult) &&
-          k.toLowerCase().endsWith("_p"),
-      ) as (keyof RegionResult)[],
-    );
-
-    const geneHeightMap = genes.reduce<Record<string, number>>(
-      (acc, curr) => ({
-        ...acc,
-        [curr.id]: 1,
-      }),
-      {},
-    );
-
-    if (genes.length) {
-      const sorted = genes.sort((a, b) => (a.start < b.start ? -1 : 1));
-      sorted.forEach((outerG, i) => {
-        for (let j = i; j < sorted.length; j++) {
-          if (outerG.end > sorted[j].start) {
-            let height = geneHeightMap[outerG.id] + 1;
-            if (geneHeightMap[outerG.id] > 1) {
-              const covered = sorted
-                .slice(0, i)
-                .sort((a, b) => (a.end < b.end ? -1 : 1));
-              for (let k = geneHeightMap[outerG.id]; k > 0; k--) {
-                for (let l = i - 1; l >= 0; l--) {
-                  if (geneHeightMap[covered[l].id] === k) {
-                    if (covered[l].end < sorted[j].start) {
-                      height = k;
-                    }
-                    break;
-                  }
-                }
-              }
-            }
-            geneHeightMap[genes[j].id] = height;
-          }
-        }
-      });
-    }
-
-    const geneHeightCount = !!genes.length
-      ? max(Object.values(geneHeightMap)) || 1
-      : 0;
-
-    const geneSpace = !!geneHeightCount
-      ? geneHeightCount * (geneHeight + 3)
-      : 0; //padding
-
-    const chr = data[0].chr;
-
     const regionData = groups(data, (d) => d.region).flatMap(
       ([region, members]) => {
         const [start, end] = extent(
@@ -286,7 +249,64 @@ class RegionChart {
       .domain(extent(regionData.flatMap((d) => [d.start, d.end])) as number[])
       .clamp(true);
 
-    this.xScale = xScale;
+    this.xScale = xScale; //ts, could just initialize empty
+
+    const visibleGenes = genes.filter(
+      (g) => g.end >= xScale.domain()[0] && g.start <= xScale.domain()[1],
+    );
+
+    const variables = [this.var1, this.var2].concat(
+      Object.keys(data[0]).filter(
+        (k) =>
+          ![this.var1, this.var2].includes(k as keyof RegionResult) &&
+          k.toLowerCase().endsWith("_p"),
+      ) as (keyof RegionResult)[],
+    );
+
+    const geneHeightMap = visibleGenes.reduce<Record<string, number>>(
+      (acc, curr) => ({
+        ...acc,
+        [curr.id]: 0,
+      }),
+      {},
+    );
+
+    if (visibleGenes.length) {
+      const sorted = visibleGenes.sort((a, b) => (a.start < b.start ? -1 : 1));
+      sorted.forEach((outerG, i) => {
+        for (let j = i; j < sorted.length; j++) {
+          if (outerG.end > sorted[j].start) {
+            let height = geneHeightMap[outerG.id] + 1;
+            if (geneHeightMap[outerG.id] > 1) {
+              const covered = sorted
+                .slice(0, i)
+                .sort((a, b) => (a.end < b.end ? -1 : 1));
+              for (let k = geneHeightMap[outerG.id]; k > 0; k--) {
+                for (let l = i - 1; l >= 0; l--) {
+                  if (geneHeightMap[covered[l].id] === k) {
+                    if (covered[l].end < sorted[j].start) {
+                      height = k;
+                    }
+                    break;
+                  }
+                }
+              }
+            }
+            geneHeightMap[visibleGenes[j].id] = height;
+          }
+        }
+      });
+    }
+
+    const geneHeightCount = !!visibleGenes.length
+      ? max(Object.values(geneHeightMap)) || 1
+      : 0;
+
+    const geneSpace = !!geneHeightCount
+      ? geneHeightCount * (geneRectHeight + (geneLabelsVisible ? 12 : 3))
+      : 0; //padding
+
+    const chr = data[0].chr;
 
     const filteredVariants = variants.filter(
       (v) => v.start_bp >= xScale.domain()[0] && v.end_bp <= xScale.domain()[1],
@@ -318,10 +338,10 @@ class RegionChart {
 
     const yScaleGene = scaleLinear()
       .range([
-        this.height - geneSpace - marginBottom + geneHeight,
-        this.height - marginBottom,
+        this.height - geneSpace - marginBottom,
+        this.height - marginBottom - geneRectHeight - 1,
       ])
-      .domain([geneHeightCount, 0]);
+      .domain([geneHeightCount ? geneHeightCount + 1 : geneHeightCount, 1]); // add an extra for padding
 
     const filteredRecomb = recombData.filter(
       (r) => r.end <= xScale.domain()[1] && r.start >= xScale.domain()[0],
@@ -389,38 +409,62 @@ class RegionChart {
     // add genes
     this.container
       .selectAll<SVGRectElement, EnsemblGeneResult>("rect.gene")
-      .data(genes)
+      .data(visibleGenes)
       .join("rect")
       .attr("class", "gene")
       //x and y are upper-left corner
       .attr("x", (d) => xScale(d.start))
       .attr("y", (d) => yScaleGene(geneHeightMap[d.id]))
       .attr("fill", "blue")
-      .attr("height", geneHeight)
+      .attr("height", geneRectHeight)
       .attr("width", (d) => xScale(d.end) - xScale(d.start))
+      .on("mouseover", (e: MouseEvent, d: EnsemblGeneResult) =>
+        showGeneTooltip(d, e),
+      )
+      .on("mouseout", () => selectAll(".tooltip").style("visibility", "hidden"))
+      .on("click", (e, d) => {
+        if (this.hiddenGeneLabels.includes(d.external_name)) {
+          this.hiddenGeneLabels = this.hiddenGeneLabels.filter(
+            (g) => g !== d.external_name,
+          );
+        } else {
+          this.hiddenGeneLabels.push(d.external_name);
+        }
+
+        this.render(
+          data,
+          variants,
+          genes,
+          wheelCb,
+          setCenterRegion,
+          regionRange,
+          recombData,
+          geneLabelsVisible,
+        );
+      });
+
+    // add gene labels
+    this.container
+      .selectAll<SVGRectElement, EnsemblGeneResult>("text.gene-label")
+      .data(
+        geneLabelsVisible
+          ? visibleGenes.filter(
+              (g) => !this.hiddenGeneLabels.includes(g.external_name),
+            )
+          : [],
+      )
+      .join("text")
+      .attr("class", "gene-label")
+      .attr("x", (d) => getGeneLabelXCoord(d, xScale))
+      .attr("y", (d) => yScaleGene(geneHeightMap[d.id]) - 1)
+      .text((d) => d.external_name)
+      .style("font-size", 9)
       .on("mouseover", (e: MouseEvent, d: EnsemblGeneResult) =>
         showGeneTooltip(d, e),
       )
       .on("mouseout", () =>
         selectAll(".tooltip").style("visibility", "hidden"),
       );
-
-    this.container
-      .selectAll("g.y-label")
-      .data([1])
-      .join("g")
-      .attr("class", "y-label")
-      .transition()
-      .duration(500)
-      .attr("transform", `translate(5,${this.height / 2})`)
-      .selection()
-      .selectAll("text")
-      .data([1])
-      .join("text")
-      .text("-log p-value")
-      .attr("font-size", 12)
-      .attr("transform", "rotate(90)")
-      .attr("text-anchor", "middle");
 
     this.container
       .selectAll<SVGGElement, number>("g.x-axis")
@@ -430,8 +474,7 @@ class RegionChart {
       .attr("transform", `translate(0,${this.height - marginBottom})`)
       .transition()
       .duration(500)
-      .call(axisBottom(xScale).ticks(5))
-      .selection();
+      .call(axisBottom(xScale).ticks(5));
 
     this.container
       .selectAll<SVGGElement, string>("g.x-label")
@@ -460,6 +503,23 @@ class RegionChart {
       .transition()
       .duration(500)
       .call(axisLeft(yScalePval));
+
+    this.container
+      .selectAll("g.y-label")
+      .data([1])
+      .join("g")
+      .attr("class", "y-label")
+      .transition()
+      .duration(500)
+      .attr("transform", `translate(5,${this.height / 2})`)
+      .selection()
+      .selectAll("text")
+      .data([1])
+      .join("text")
+      .text("-log p-value")
+      .attr("font-size", 12)
+      .attr("transform", "rotate(90)")
+      .attr("text-anchor", "middle");
 
     this.container
       .selectAll<SVGGElement, number>("g.y-axis-r")
@@ -537,6 +597,7 @@ class RegionChart {
           setCenterRegion,
           regionRange,
           recombData,
+          geneLabelsVisible,
         );
       });
 
@@ -604,6 +665,8 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
   const [chart, setChart] = useState<RegionChart>();
 
   const [genes, setGenes] = useState<EnsemblGeneResult[]>([]);
+
+  const [geneLabelsVisible, setGeneLabelsVisible] = useState(false);
 
   const [loading, setLoading] = useState(true);
 
@@ -755,6 +818,8 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
   //update
   useEffect(() => {
     if (!!chart && !!visibleData.length) {
+      chart.resetHiddenGeneLabels();
+
       chart.render(
         visibleData,
         visibleVariants,
@@ -763,11 +828,13 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
         setCenterRegion,
         regionRange,
         visibleRecomb,
+        geneLabelsVisible,
       );
     }
     setUploadKey(Math.random().toString(36).slice(2));
   }, [
     chart,
+    geneLabelsVisible,
     visibleGenes,
     visibleVariants,
     visibleData,
@@ -864,6 +931,13 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
                 }
               />
             </FormControl>
+          </Grid>
+        )}
+        {!!genes.length && (
+          <Grid>
+            <Button onClick={() => setGeneLabelsVisible(!geneLabelsVisible)}>
+              {`${geneLabelsVisible ? "Hide " : "Show "}`}Gene Names
+            </Button>
           </Grid>
         )}
       </Grid>
