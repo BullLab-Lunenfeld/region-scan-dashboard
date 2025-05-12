@@ -12,7 +12,7 @@ import LoadingOverlay from "./LoadingOverlay";
 import { RegionResult } from "@/lib/ts/types";
 import { getEntries } from "@/lib/ts/util";
 
-const marginBottom = 30;
+const marginBottom = 40;
 const yLabelMargin = 28;
 const yAxisMargin = 20;
 const marginLeft = yLabelMargin + yAxisMargin;
@@ -62,7 +62,11 @@ const buildChart = (
     );
 
     chartData.push(
-      refQuantiles.map((r, i) => ({ test: key, x: r, y: quantiles[i] })),
+      refQuantiles.map((r, i) => ({
+        test: key,
+        x: Math.log10(r),
+        y: Math.log10(quantiles[i]),
+      })),
     );
   }
 
@@ -132,7 +136,7 @@ const buildChart = (
     .selectAll("text")
     .data(["pValue"])
     .join("text")
-    .text("pValue")
+    .text("pValue (log10)")
     .attr("font-size", 12)
     .attr("transform", "rotate(90)")
     .attr("text-anchor", "middle");
@@ -142,12 +146,12 @@ const buildChart = (
     .data([0])
     .join("g")
     .attr("class", "x-label")
-    .attr("transform", `translate(${width / 2},${height})`)
+    .attr("transform", `translate(${width / 2},${height - 10})`)
     .selection()
     .selectAll<SVGGElement, string>("text")
     .data([1])
     .join("text")
-    .text("Uniform dist")
+    .text("Uniform dist (log10)")
     .attr("font-size", 12)
     .attr("text-anchor", "middle");
 
@@ -202,6 +206,10 @@ const QQPlot: React.FC<QQPlotProps> = ({
 
     [variables, data],
   );
+
+  useEffect(() => {
+    console.log("variables changed");
+  }, [variables]);
 
   useEffect(() => {
     if (renderFlag) {

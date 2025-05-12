@@ -57,6 +57,8 @@ export default function Home() {
     "",
   );
 
+  const [qqVariables, setQqVariables] = useState<(keyof RegionResult)[]>([]);
+
   const [regionData, setRegionData] = useState<RegionResult[]>([]);
   const [regionDetailData, setRegionDetailData] = useState<RegionResult[]>([]);
   const [regionDisplayData, setRegionDisplayData] = useState<RegionResult[]>(
@@ -77,17 +79,17 @@ export default function Home() {
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
   const pvalScale = useMemo(() => {
-    if (regionDisplayData.length) {
+    if (regionData.length) {
       return scaleOrdinal<string, string>()
         .range(schemeSet3)
         .domain(
-          Object.keys(regionDisplayData[0])
+          Object.keys(regionData[0])
             .filter((k) => k.toLowerCase().endsWith("_p"))
             .map((k) => k)
             .filter((k, i, a) => a.findIndex((d) => d === k) === i) as string[],
         );
     }
-  }, [regionDisplayData]);
+  }, [regionData]);
 
   // save where the regions restart (centromeres)
   const regionRestartPoints = useMemo(() => {
@@ -173,6 +175,12 @@ export default function Home() {
       }
     }
   }, [brushFilterHistory, upperVariable, lowerVariable, regionData]);
+
+  useEffect(() => {
+    setQqVariables(
+      [upperVariable, lowerVariable].filter(Boolean) as (keyof RegionResult)[],
+    );
+  }, [upperVariable, lowerVariable]);
 
   const resetVisualizationVariables = () => {
     setRegionDetailData([]);
@@ -386,12 +394,12 @@ export default function Home() {
           {!!pvalScale && (
             <>
               <Grid>
-                {!!upperVariable && (
+                {!!(!!upperVariable || !!lowerVariable) && (
                   <QQPlot
                     pvalScale={pvalScale}
                     data={regionData}
-                    selector="upper-qq"
-                    variables={[upperVariable, lowerVariable]}
+                    selector="qq"
+                    variables={qqVariables}
                     width={400}
                   />
                 )}
