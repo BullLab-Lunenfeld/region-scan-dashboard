@@ -10,7 +10,7 @@ import { scaleLinear, ScaleOrdinal } from "d3-scale";
 import { axisBottom, axisLeft } from "d3-axis";
 import LoadingOverlay from "./LoadingOverlay";
 import { RegionResult } from "@/lib/ts/types";
-import { getEntries } from "@/lib/ts/util";
+import { drawDottedLine, getEntries } from "@/lib/ts/util";
 
 const marginBottom = 40;
 const yLabelMargin = 28;
@@ -55,7 +55,7 @@ const buildChart = (
     const pvals = vals.map((v) => v.value).sort((a, b) => (a < b ? -1 : 1));
     const quantiles = getQuantiles(pvals, min([250, vals.length]) as number);
     const rv = randomUniform(max(pvals));
-    const refDist = range(2000).map(() => rv());
+    const refDist = range(20000).map(() => rv());
     const refQuantiles = getQuantiles(
       refDist,
       min([250, vals.length]) as number,
@@ -76,7 +76,8 @@ const buildChart = (
 
   const yScale = scaleLinear()
     .range([marginTop, height - marginBottom])
-    .domain(extent(chartData.flat().map((c) => c.y)).reverse() as number[]);
+    .domain(extent(chartData.flat().map((c) => c.y)).reverse() as number[])
+    .clamp(true);
 
   const svg = select(`.${selector}`)
     .selectAll<SVGElement, number>("svg")
@@ -125,6 +126,20 @@ const buildChart = (
     .selection();
 
   container
+    .selectAll<SVGGElement, string>("g.x-label")
+    .data([0])
+    .join("g")
+    .attr("class", "x-label")
+    .attr("transform", `translate(${width / 2},${height - 5})`)
+    .selection()
+    .selectAll<SVGGElement, string>("text")
+    .data([1])
+    .join("text")
+    .text("Uniform dist (log10)")
+    .attr("font-size", 12)
+    .attr("text-anchor", "middle");
+
+  container
     .selectAll("g.y-label")
     .data([0])
     .join("g")
@@ -142,20 +157,6 @@ const buildChart = (
     .attr("text-anchor", "middle");
 
   container
-    .selectAll<SVGGElement, string>("g.x-label")
-    .data([0])
-    .join("g")
-    .attr("class", "x-label")
-    .attr("transform", `translate(${width / 2},${height - 10})`)
-    .selection()
-    .selectAll<SVGGElement, string>("text")
-    .data([1])
-    .join("text")
-    .text("Uniform dist (log10)")
-    .attr("font-size", 12)
-    .attr("text-anchor", "middle");
-
-  container
     .selectAll<SVGGElement, number>("g.y-axis")
     .data([1], () => yScale.range().toString())
     .join("g")
@@ -165,6 +166,15 @@ const buildChart = (
     .duration(500)
     .call(axisLeft(yScale))
     .selection();
+
+  drawDottedLine(
+    container,
+    "true-line",
+    yScale.range()[1],
+    yScale.range()[0],
+    xScale.range()[0],
+    xScale.range()[1],
+  );
 };
 
 interface DisplayPVal {
@@ -206,10 +216,6 @@ const QQPlot: React.FC<QQPlotProps> = ({
 
     [variables, data],
   );
-
-  useEffect(() => {
-    console.log("variables changed");
-  }, [variables]);
 
   useEffect(() => {
     if (renderFlag) {

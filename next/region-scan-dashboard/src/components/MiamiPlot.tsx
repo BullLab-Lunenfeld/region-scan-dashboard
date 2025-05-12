@@ -409,6 +409,7 @@ const buildChart = (
     container,
     "top-thresh",
     yScale(-Math.log10(topThresh)),
+    yScale(-Math.log10(topThresh)),
     marginLeft,
     width,
   );
@@ -416,6 +417,7 @@ const buildChart = (
   drawDottedLine(
     container,
     "bottom-thresh",
+    yScale(Math.log10(bottomThresh)),
     yScale(Math.log10(bottomThresh)),
     marginLeft,
     width,
