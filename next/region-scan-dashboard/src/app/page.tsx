@@ -8,7 +8,8 @@ import React, {
   useState,
 } from "react";
 import { Grid2 as Grid, IconButton, MenuItem, TextField } from "@mui/material";
-import { schemeDark2 } from "d3-scale-chromatic";
+import { schemeSet3 } from "d3-scale-chromatic";
+import { scaleOrdinal } from "d3-scale";
 import { groups } from "d3-array";
 import { UndoSharp } from "@mui/icons-material";
 import {
@@ -19,14 +20,26 @@ import {
   RegionPlot,
   UploadButtonMulti,
 } from "@/components";
-import { parseTsv } from "@/lib/ts/util";
-import { AssembyInfo, RegionResult } from "@/lib/ts/types";
+import { getEntries, parseTsv } from "@/lib/ts/util";
+import {
+  AssembyInfo,
+  RegionResult,
+  RegionResultRaw,
+  RegionResultRawNew,
+  RegionResultRawOld,
+} from "@/lib/ts/types";
 import { RegionResultCols } from "@/util/columnConfigs";
 import { BrushFilter } from "@/components/MiamiPlot";
 import { chromLengths37, chromLengths38 } from "@/util/chromLengths";
 
-const TOP_COLOR = schemeDark2[0];
-const BOTTOM_COLOR = schemeDark2[1];
+const colMap: Partial<
+  Record<keyof RegionResultRawOld, keyof RegionResultRawNew>
+> = {
+  "max.VIF": "maxVIF",
+  "SKAT.pDavies": "SKAT.p",
+};
+
+const oldColsToDrop = ["GATES.df", "SKAT.pLiu", "SKAT"];
 
 export default function Home() {
   const [assemblyInfo, setAssemblyInfo] = useState<AssembyInfo>({
@@ -62,6 +75,19 @@ export default function Home() {
   );
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
+
+  const pvalScale = useMemo(() => {
+    if (regionDisplayData.length) {
+      return scaleOrdinal<string, string>()
+        .range(schemeSet3)
+        .domain(
+          Object.keys(regionDisplayData[0])
+            .filter((k) => k.toLowerCase().endsWith("_p"))
+            .map((k) => k)
+            .filter((k, i, a) => a.findIndex((d) => d === k) === i) as string[],
+        );
+    }
+  }, [regionDisplayData]);
 
   // save where the regions restart (centromeres)
   const regionRestartPoints = useMemo(() => {
@@ -173,22 +199,37 @@ export default function Home() {
                 resetVisualizationVariables();
                 let i = 1;
                 for (const file of files) {
-                  const parsed = await parseTsv<RegionResult>(file);
+                  const parsed = await parseTsv<RegionResultRaw>(file);
                   results = [
                     ...results,
                     ...parsed.map((val, j) => {
                       val.id = +`${i}${j}`;
                       return Object.fromEntries(
-                        Object.entries(val)
-                          .map(([k, v]) => [k.replaceAll(".", "_"), +v])
+                        getEntries(val)
+                          .map<[keyof RegionResultRaw, number | null]>(
+                            ([k, v]) => {
+                              let k_ =
+                                colMap[k as keyof RegionResultRawOld] || k;
+                              k_ = k_.replaceAll(
+                                ".",
+                                "_",
+                              ) as keyof RegionResultRaw;
+                              return [k_, v ? +v : null];
+                            },
+                          )
                           .filter(([k, v]) => {
-                            // these are old and redundant values
+                            if (oldColsToDrop.includes(k)) {
+                              return false;
+                            }
+
+                            // these are old and redundant values? Keeping this here.
                             if (["MLCZ_p", "LCZ_p"].includes(k + "")) {
                               return false;
                             }
                             //for now we'll filter out negative p values
                             //but we may want to correct them later
                             else if (
+                              !!v &&
                               typeof k == "string" &&
                               k.toLowerCase().endsWith("_p")
                             ) {
@@ -314,14 +355,14 @@ export default function Home() {
           </Grid>
         </Grid>
         <Grid ref={chartContainerRef} size={{ xs: 8, lg: 10 }}>
-          {!!regionData.length &&
+          {!!pvalScale &&
             !!upperVariable &&
             !!lowerVariable &&
             !!chartContainerRef.current && (
               <MiamiPlot
                 assemblyInfo={assemblyInfo}
+                pvalScale={pvalScale}
                 bottomCol={lowerVariable}
-                bottomColor={BOTTOM_COLOR}
                 bottomThresh={lowerThresh}
                 data={regionDisplayData}
                 onCircleClick={(d) => setSelectedRegion(d)}
@@ -329,7 +370,6 @@ export default function Home() {
                 filterCb={filterCb}
                 selectedRegion={selectedRegion}
                 topCol={upperVariable}
-                topColor={TOP_COLOR}
                 topThresh={upperThresh}
                 width={chartContainerRef.current.clientWidth}
               />
@@ -343,26 +383,15 @@ export default function Home() {
         alignItems="center"
       >
         <Grid container direction="column">
-          {!!regionDisplayData && (
+          {!!pvalScale && (
             <>
               <Grid>
                 {!!upperVariable && (
                   <QQPlot
-                    color={TOP_COLOR}
+                    pvalScale={pvalScale}
                     data={regionData}
                     selector="upper-qq"
-                    variable={upperVariable}
-                    width={400}
-                  />
-                )}
-              </Grid>
-              <Grid>
-                {!!lowerVariable && (
-                  <QQPlot
-                    color={BOTTOM_COLOR}
-                    data={regionData}
-                    selector="lower-qq"
-                    variable={lowerVariable}
+                    variables={[upperVariable, lowerVariable]}
                     width={400}
                   />
                 )}
@@ -370,7 +399,8 @@ export default function Home() {
             </>
           )}
         </Grid>
-        {!!regionDetailData.length &&
+        {!!pvalScale &&
+          !!regionDetailData.length &&
           !!upperVariable &&
           !!lowerVariable &&
           !!selectedRegion && (
@@ -378,12 +408,11 @@ export default function Home() {
               <RegionPlot
                 assemblyInfo={assemblyInfo}
                 data={regionDetailData}
+                pvalScale={pvalScale}
                 selector="region-plot"
                 selectedRegion={selectedRegion}
                 var1={upperVariable}
-                var1Color={TOP_COLOR}
                 var2={lowerVariable}
-                var2Color={BOTTOM_COLOR}
                 width={800}
               />
             </Grid>

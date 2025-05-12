@@ -6,12 +6,17 @@ import { cumsum, extent, sum } from "d3-array";
 import { axisBottom, axisLeft } from "d3-axis";
 import { brush, D3BrushEvent } from "d3-brush";
 import { format } from "d3-format";
-import { ScaleLinear, scaleLinear, scaleThreshold } from "d3-scale";
+import {
+  ScaleLinear,
+  scaleLinear,
+  ScaleOrdinal,
+  scaleThreshold,
+} from "d3-scale";
 import { BaseType, select, selectAll, Selection } from "d3-selection";
 import { Box } from "@mui/material";
 import LoadingOverlay from "./LoadingOverlay";
 import { AssembyInfo, RegionResult } from "@/lib/ts/types";
-import { drawDottedLine } from "@/lib/ts/util";
+import { drawDottedLine, getEntries } from "@/lib/ts/util";
 
 const className = "miami-plot";
 
@@ -58,17 +63,16 @@ const marginTop = 25;
 const buildChart = (
   assemblyInfo: AssembyInfo,
   bottomCol: keyof RegionResult,
-  bottomColor: string,
   bottomThresh: number,
   data: RegionResult[],
   filter: BrushFilter | undefined,
   filterCb: (filter: BrushFilter) => void,
   height: number,
   onCircleClick: (d: RegionResult) => void,
+  pvalScale: ScaleOrdinal<string, string, never>,
   selectedRegion: RegionResult | undefined,
   selector: string,
   topCol: keyof RegionResult,
-  topColor: string,
   topThresh: number,
   width: number,
 ) => {
@@ -117,15 +121,24 @@ const buildChart = (
     );
 
   const transformedData = data
-    .map((d) => {
-      const _d = { ...d };
-      _d[topCol] = -1 * Math.log10(_d[topCol]);
-      _d[bottomCol] = Math.log10(_d[bottomCol]);
-      return _d;
-    })
+    .map((d) =>
+      Object.fromEntries(
+        getEntries(d)
+          .filter(([, v]) => !!v)
+          .map(([k, v]) => {
+            if (k === topCol) {
+              return [k, -1 * Math.log10(v as number)];
+            } else if (k === bottomCol) {
+              return [k, Math.log10(v as number)];
+            } else {
+              return [k, v];
+            }
+          }),
+      ),
+    )
     .sort((a) =>
       !!selectedRegion && a.region === selectedRegion.region ? 1 : -1,
-    );
+    ) as unknown as RegionResult[];
 
   const upperData = transformedData.filter((d) => !!d[topCol]);
 
@@ -160,8 +173,8 @@ const buildChart = (
     .range([marginTop, height - marginBottom])
     .domain(
       extent([
-        ...upperData.map((d) => d[topCol]),
-        ...lowerData.map((d) => d[bottomCol]),
+        ...(upperData.map((d) => d[topCol]) as number[]),
+        ...(lowerData.map((d) => d[bottomCol]) as number[]),
       ]).reverse() as [number, number],
     );
 
@@ -338,7 +351,7 @@ const buildChart = (
     .join("circle")
     .attr("class", "upper")
     .attr("r", circleWidthScale(transformedData.length))
-    .attr("fill", topColor)
+    .attr("fill", pvalScale(topCol))
     .attr("opacity", 0.5)
     .attr("cx", (d) =>
       chrs.length > 1
@@ -357,7 +370,7 @@ const buildChart = (
               : "none"
         : "none",
     )
-    .attr("cy", (d) => yScale(d[topCol]))
+    .attr("cy", (d) => yScale(d[topCol]!))
     .selection()
     .on("click", (_, d: RegionResult) => onCircleClick(d))
     .on("mouseover", (e: MouseEvent, d: RegionResult) => showTooltip(d, e))
@@ -369,7 +382,7 @@ const buildChart = (
     .join("circle")
     .attr("class", "lower")
     .attr("r", circleWidthScale(transformedData.length))
-    .attr("fill", bottomColor)
+    .attr("fill", pvalScale(bottomCol))
     .attr("stroke-width", 2)
     .attr(
       "stroke",
@@ -387,7 +400,7 @@ const buildChart = (
         ? chrCumSumScale[d.chr.toString()](d.end_bp)
         : xScale(d.end_bp),
     )
-    .attr("cy", (d) => yScale(d[bottomCol]))
+    .attr("cy", (d) => yScale(d[bottomCol] as number))
     .on("click", (_, d: RegionResult) => onCircleClick(d))
     .on("mouseover", (e: MouseEvent, d: RegionResult) => showTooltip(d, e))
     .on("mouseout", () => selectAll(".tooltip").style("visibility", "hidden"));
@@ -433,31 +446,29 @@ const buildChart = (
 interface MiamiPlotProps {
   assemblyInfo: AssembyInfo;
   bottomCol: keyof RegionResult;
-  bottomColor: string;
   bottomThresh: number;
   data: RegionResult[];
   filterCb: (filter: BrushFilter) => void;
   filter?: BrushFilter;
   onCircleClick: (d: RegionResult) => void;
+  pvalScale: ScaleOrdinal<string, string, never>;
   selectedRegion?: RegionResult;
   topThresh: number;
   topCol: keyof RegionResult;
-  topColor: string;
   width: number;
 }
 
 const MiamiPlot: React.FC<MiamiPlotProps> = ({
   assemblyInfo,
   bottomCol,
-  bottomColor,
   bottomThresh,
   data,
   filter,
   filterCb,
   onCircleClick,
+  pvalScale,
   selectedRegion,
   topCol,
-  topColor,
   topThresh,
   width,
 }) => {
@@ -478,17 +489,16 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
         buildChart(
           assemblyInfo,
           bottomCol,
-          bottomColor,
           bottomThresh,
           data,
           filter,
           filterCb,
           0.4 * width,
           onCircleClick,
+          pvalScale,
           selectedRegion,
           `.${className}`,
           topCol,
-          topColor,
           topThresh,
           _width,
         ),
@@ -497,14 +507,13 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
   }, [
     assemblyInfo,
     bottomCol,
-    bottomColor,
     bottomThresh,
     data,
     filter,
     filterCb,
+    pvalScale,
     selectedRegion,
     topCol,
-    topColor,
     topThresh,
     width,
     renderFlag,

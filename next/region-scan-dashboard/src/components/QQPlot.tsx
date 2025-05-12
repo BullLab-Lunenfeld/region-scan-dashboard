@@ -3,12 +3,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Box } from "@mui/material";
 import { select, Selection, BaseType } from "d3-selection";
-import { quantile, range, zip, extent, min, max } from "d3-array";
+import { groups, quantile, range, extent, min, max } from "d3-array";
+import { line } from "d3-shape";
 import { randomUniform } from "d3-random";
-import { scaleLinear } from "d3-scale";
+import { scaleLinear, ScaleOrdinal } from "d3-scale";
 import { axisBottom, axisLeft } from "d3-axis";
 import LoadingOverlay from "./LoadingOverlay";
 import { RegionResult } from "@/lib/ts/types";
+import { getEntries } from "@/lib/ts/util";
 
 const marginBottom = 30;
 const yLabelMargin = 28;
@@ -17,7 +19,7 @@ const marginLeft = yLabelMargin + yAxisMargin;
 const marginTop = 25;
 const marginRight = 15;
 
-const getQuartiles = (data: number[], qcount: number = 25) => {
+const getQuantiles = (data: number[], qcount: number) => {
   if (qcount > data.length) {
     throw "Data cannot be longer than qcount";
   }
@@ -29,40 +31,52 @@ const getQuartiles = (data: number[], qcount: number = 25) => {
   ) as number[];
 };
 
+type PvalLineData = {
+  test: keyof RegionResult;
+  x: number;
+  y: number;
+};
+
 const buildChart = (
-  color: string,
-  pvals: number[],
+  pvals: DisplayPVal[],
+  pvalScale: ScaleOrdinal<string, string, never>,
   selector: string,
-  variable: string,
+  variables: (keyof RegionResult)[],
   width: number,
 ) => {
   const height = 0.5 * width;
 
-  const filteredPvals = pvals.filter(Boolean).sort();
+  const grouped = groups(pvals, (p) => p.pValType);
 
-  const pvalQuartiles = getQuartiles(
-    filteredPvals,
-    min([250, filteredPvals.length]),
-  );
+  const chartData: PvalLineData[][] = [];
 
-  const rv = randomUniform(max(filteredPvals));
+  for (let i = 0; i < grouped.length; i++) {
+    const [key, vals] = grouped[i];
+    const pvals = vals.map((v) => v.value).sort((a, b) => (a < b ? -1 : 1));
+    const quantiles = getQuantiles(pvals, min([250, vals.length]) as number);
+    const rv = randomUniform(max(pvals));
+    const refDist = range(2000).map(() => rv());
+    const refQuantiles = getQuantiles(
+      refDist,
+      min([250, vals.length]) as number,
+    );
 
-  const refDist = range(2000).map(() => rv());
-
-  const refQuartiles = getQuartiles(refDist, min([250, pvalQuartiles.length]));
-  const chartData = zip(refQuartiles, pvalQuartiles) as number[][];
+    chartData.push(
+      refQuantiles.map((r, i) => ({ test: key, x: r, y: quantiles[i] })),
+    );
+  }
 
   const xScale = scaleLinear()
     .range([marginLeft, width - marginRight])
-    .domain(extent(refQuartiles) as number[]);
+    .domain(extent(chartData.flat().map((d) => d.x)) as [number, number]);
 
   const yScale = scaleLinear()
     .range([marginTop, height - marginBottom])
-    .domain(extent(pvalQuartiles).reverse() as number[]);
+    .domain(extent(chartData.flat().map((c) => c.y)).reverse() as number[]);
 
   const svg = select(`.${selector}`)
     .selectAll<SVGElement, number>("svg")
-    .data([1], () => filteredPvals.toString())
+    .data([1])
     .join("svg")
     .attr("viewBox", [0, 0, width, height])
     .attr("width", width)
@@ -80,16 +94,20 @@ const buildChart = (
     .join("g")
     .attr("class", "container");
 
+  const qLine = line<PvalLineData>()
+    .x((d) => xScale(d.x))
+    .y((d) => yScale(d.y));
+
   container
-    .selectAll<SVGCircleElement, number[]>("circle")
-    .data<number[]>(chartData, (d: number[]) => d[0])
-    .join("circle")
-    .attr("class", "upper")
-    .attr("r", 3)
-    .attr("fill", color)
-    .attr("opacity", 0.5)
-    .attr("cx", (d) => xScale(d[0]))
-    .attr("cy", (d) => yScale(d[1]));
+    .selectAll("path.line")
+    .data(chartData)
+    .join("path")
+    .attr("class", "line")
+    .attr("d", (d) => qLine(d))
+    .attr("stroke", (d) => pvalScale(d[0].test))
+    .attr("stroke-width", 3)
+    .style("fill", "none")
+    .attr("opacity", 0.75);
 
   container
     .selectAll<SVGGElement, number>("g.x-axis")
@@ -104,7 +122,7 @@ const buildChart = (
 
   container
     .selectAll("g.y-label")
-    .data([variable])
+    .data([0])
     .join("g")
     .attr("class", "y-label")
     .transition()
@@ -112,22 +130,22 @@ const buildChart = (
     .attr("transform", `translate(5,${height / 2})`)
     .selection()
     .selectAll("text")
-    .data([variable])
+    .data(["pValue"])
     .join("text")
-    .text(variable)
+    .text("pValue")
     .attr("font-size", 12)
     .attr("transform", "rotate(90)")
     .attr("text-anchor", "middle");
 
   container
     .selectAll<SVGGElement, string>("g.x-label")
-    .data([variable], (d) => d)
+    .data([0])
     .join("g")
     .attr("class", "x-label")
     .attr("transform", `translate(${width / 2},${height})`)
     .selection()
     .selectAll<SVGGElement, string>("text")
-    .data([1], (d) => d)
+    .data([1])
     .join("text")
     .text("Uniform dist")
     .attr("font-size", 12)
@@ -145,39 +163,59 @@ const buildChart = (
     .selection();
 };
 
+interface DisplayPVal {
+  pValType: keyof RegionResult;
+  value: number;
+}
+
 interface QQPlotProps {
-  color: string;
   data: RegionResult[];
+  pvalScale: ScaleOrdinal<string, string, never>;
   selector: string;
-  variable: keyof RegionResult;
+  variables: (keyof RegionResult | "")[];
   width: number;
 }
 
 const QQPlot: React.FC<QQPlotProps> = ({
-  color,
   data,
+  pvalScale,
   selector,
-  variable,
+  variables,
   width,
 }) => {
   const [loading, setLoading] = useState(true);
 
-  //we need a full tick and render to show the loading indicator
+  //we need a full tick and render to show the initial loading indicator
   const [renderFlag, setRenderFlag] = useState(false);
 
   useEffect(() => {
     setTimeout(() => setRenderFlag(true));
   }, []);
 
-  const pvals = useMemo(() => data.map((v) => v[variable]), [variable, data]);
+  const pvals = useMemo(
+    () =>
+      data.flatMap((d) =>
+        getEntries(d)
+          .filter(([k, v]) => !!v && variables.includes(k))
+          .map(([k, v]) => ({ pValType: k, value: v }) as DisplayPVal),
+      ),
+
+    [variables, data],
+  );
 
   useEffect(() => {
     if (renderFlag) {
-      Promise.resolve(buildChart(color, pvals, selector, variable, width)).then(
-        () => setLoading(false),
-      );
+      Promise.resolve(
+        buildChart(
+          pvals,
+          pvalScale,
+          selector,
+          variables.filter(Boolean) as (keyof RegionResult)[],
+          width,
+        ),
+      ).then(() => setLoading(false));
     }
-  }, [color, pvals, selector, variable, width, renderFlag]);
+  }, [pvalScale, pvals, selector, variables, width, renderFlag]);
 
   return (
     <>

@@ -44,3 +44,6 @@ export const drawDottedLine = (
     )
     .attr("stroke", "grey");
 };
+
+export const getEntries = <T extends Record<any, any>>(obj: T) =>
+  Object.entries(obj) as [keyof T, T[keyof T]][];

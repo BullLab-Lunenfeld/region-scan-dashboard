@@ -8,7 +8,6 @@ import React, {
 } from "react";
 import { extent, groups, max } from "d3-array";
 import { axisBottom, axisLeft, axisRight } from "d3-axis";
-import { schemeSet3 } from "d3-scale-chromatic";
 import { format } from "d3-format";
 import "d3-transition"; // must be imported before selection
 import { BaseType, pointer, select, selectAll, Selection } from "d3-selection";
@@ -143,29 +142,26 @@ class RegionChart {
   height: number;
   hiddenGeneLabels: string[];
   mainWidth: number;
+  pvalScale: ScaleOrdinal<string, string, never>;
   selector: string;
   svg: Selection<SVGElement, number, BaseType, unknown>;
   var1: keyof RegionResult;
-  var1Color: string;
   var2: keyof RegionResult;
-  var2Color: string;
   width: number;
   xScale: ScaleLinear<number, number, never> | null = null;
 
   constructor(
+    pvalScale: ScaleOrdinal<string, string, never>,
     selector: string,
     var1: keyof RegionResult,
-    var1Color: string,
     var2: keyof RegionResult,
-    var2Color: string,
     width: number,
   ) {
     //display properties
+    this.pvalScale = pvalScale;
     this.selector = selector;
     this.var1 = var1;
-    this.var1Color = var1Color;
     this.var2 = var2;
-    this.var2Color = var2Color;
     this.width = width;
     this.activeVariables = [var1, var2];
     this.mainWidth = 0.8 * width;
@@ -197,18 +193,6 @@ class RegionChart {
 
   updateActiveVariables = (variables: (keyof RegionResult)[]) =>
     (this.activeVariables = variables);
-
-  getRectFill = (
-    variable: keyof RegionResult,
-    regionColorScale: ScaleOrdinal<string, string, never>,
-  ) => {
-    if (variable === this.var1) {
-      return this.var1Color;
-    }
-    if (variable === this.var2) {
-      return this.var2Color;
-    } else return regionColorScale(variable);
-  };
 
   getRectOpacity = (variable: keyof RegionResult) => {
     if (this.activeVariables.includes(variable)) {
@@ -312,15 +296,6 @@ class RegionChart {
       (v) => v.start_bp >= xScale.domain()[0] && v.end_bp <= xScale.domain()[1],
     );
 
-    const regionColorScale = scaleOrdinal<string, string>()
-      .range(schemeSet3)
-      .domain(
-        Object.entries(data[0])
-          .filter(([k]) => k.toLowerCase().endsWith("_p"))
-          .map(([k]) => k)
-          .filter((k, i, a) => a.findIndex((d) => d === k) === i) as string[],
-      );
-
     const yScalePval = scaleLinear()
       .range([marginTop, this.height - marginBottom - geneSpace])
       .domain([
@@ -372,7 +347,7 @@ class RegionChart {
       .duration(100)
       .attr("x", (d) => xScale(d.start))
       .attr("y", (d) => yScalePval(d.pvalue))
-      .attr("fill", (d) => this.getRectFill(d.variable, regionColorScale))
+      .attr("fill", (d) => this.pvalScale(d.variable))
       .transition()
       .duration(250)
       .attr("opacity", (d) => this.getRectOpacity(d.variable))
@@ -582,7 +557,7 @@ class RegionChart {
       .attr("height", 10)
       .attr("x", 0)
       .attr("y", (_, i) => 5 + i * 18)
-      .attr("fill", (d) => this.getRectFill(d, regionColorScale))
+      .attr("fill", (d) => this.pvalScale(d))
       .attr("opacity", (d) => this.getRectOpacity(d))
       .on("click", (e: MouseEvent, d) => {
         if (this.activeVariables.includes(d)) {
@@ -641,24 +616,22 @@ class RegionChart {
 interface RegionPlotProps {
   assemblyInfo: AssembyInfo;
   data: RegionResult[];
+  pvalScale: ScaleOrdinal<string, string, never>;
   selectedRegion: RegionResult;
   selector: string;
   var1: keyof RegionResult;
-  var1Color: string;
   var2: keyof RegionResult;
-  var2Color: string;
   width: number;
 }
 
 const RegionPlot: React.FC<RegionPlotProps> = ({
   assemblyInfo,
   data,
+  pvalScale,
   selectedRegion,
   selector,
   var1,
-  var1Color,
   var2,
-  var2Color,
   width,
 }) => {
   const [centerRegion, setCenterRegion] = useState(selectedRegion.region);
@@ -793,14 +766,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   //initial render
   useLayoutEffect(() => {
-    const Chart = new RegionChart(
-      selector,
-      var1,
-      var1Color,
-      var2,
-      var2Color,
-      width,
-    );
+    const Chart = new RegionChart(pvalScale, selector, var1, var2, width);
     setChart(Chart);
   }, []);
 
