@@ -595,6 +595,7 @@ class RegionChart {
       this.container,
       "region-p-line",
       yScalePval(-Math.log10(5e-6)),
+      yScalePval(-Math.log10(5e-6)),
       xScale.range()[0],
       xScale.range()[1],
     );
@@ -603,6 +604,7 @@ class RegionChart {
       drawDottedLine(
         this.container,
         "variant-p-line",
+        yScalePval(-Math.log10(5e-7)),
         yScalePval(-Math.log10(5e-7)),
         xScale.range()[0],
         xScale.range()[1],

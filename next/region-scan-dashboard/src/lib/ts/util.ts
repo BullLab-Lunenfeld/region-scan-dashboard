@@ -56,7 +56,7 @@ export const drawDottedLine = (
     .duration(500)
     .selection()
     .selectAll("path")
-    .data(coords.filter((_, i) => i % 2))
+    .data(coords.slice(1).filter((_, i) => i % 2))
     .join("path")
     .attr("d", (d) => lineGen(d))
     .attr("stroke", "grey");
@@ -64,3 +64,14 @@ export const drawDottedLine = (
 
 export const getEntries = <T extends Record<any, any>>(obj: T) =>
   Object.entries(obj) as [keyof T, T[keyof T]][];
+
+export const linspace = (
+  start: number,
+  stop: number,
+  num: number,
+  endpoint = true,
+) => {
+  const div = endpoint ? num - 1 : num;
+  const step = (stop - start) / div;
+  return Array.from({ length: num }, (_, i) => start + step * i);
+};

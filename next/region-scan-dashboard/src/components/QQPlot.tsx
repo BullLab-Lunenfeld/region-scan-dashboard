@@ -5,19 +5,18 @@ import { Box } from "@mui/material";
 import { select, Selection, BaseType } from "d3-selection";
 import { groups, quantile, range, extent, min, max } from "d3-array";
 import { line } from "d3-shape";
-import { randomUniform } from "d3-random";
+//import { randomUniform } from "d3-random";
 import { scaleLinear, ScaleOrdinal } from "d3-scale";
 import { axisBottom, axisLeft } from "d3-axis";
 import LoadingOverlay from "./LoadingOverlay";
 import { RegionResult } from "@/lib/ts/types";
-import { drawDottedLine, getEntries } from "@/lib/ts/util";
+import { drawDottedLine, getEntries, linspace } from "@/lib/ts/util";
 
 const marginBottom = 40;
 const yLabelMargin = 28;
 const yAxisMargin = 20;
 const marginLeft = yLabelMargin + yAxisMargin;
 const marginTop = 25;
-const marginRight = 15;
 
 const getQuantiles = (data: number[], qcount: number) => {
   if (qcount > data.length) {
@@ -44,7 +43,9 @@ const buildChart = (
   variables: (keyof RegionResult)[],
   width: number,
 ) => {
-  const height = 0.5 * width;
+  const mainWidth = width * 0.7;
+
+  const height = 0.75 * mainWidth;
 
   const grouped = groups(pvals, (p) => p.pValType);
 
@@ -54,8 +55,10 @@ const buildChart = (
     const [key, vals] = grouped[i];
     const pvals = vals.map((v) => v.value).sort((a, b) => (a < b ? -1 : 1));
     const quantiles = getQuantiles(pvals, min([250, vals.length]) as number);
-    const rv = randomUniform(max(pvals));
-    const refDist = range(20000).map(() => rv());
+    //const rv = randomUniform(max(pvals));
+    //const refDist = range(1000).map(() => rv());
+    const refDist = linspace(0, max(pvals) as number, 250);
+
     const refQuantiles = getQuantiles(
       refDist,
       min([250, vals.length]) as number,
@@ -71,7 +74,7 @@ const buildChart = (
   }
 
   const xScale = scaleLinear()
-    .range([marginLeft, width - marginRight])
+    .range([marginLeft, mainWidth])
     .domain(extent(chartData.flat().map((d) => d.x)) as [number, number]);
 
   const yScale = scaleLinear()
@@ -112,7 +115,7 @@ const buildChart = (
     .attr("stroke", (d) => pvalScale(d[0].test))
     .attr("stroke-width", 3)
     .style("fill", "none")
-    .attr("opacity", 0.75);
+    .attr("opacity", 0.6);
 
   container
     .selectAll<SVGGElement, number>("g.x-axis")
@@ -130,7 +133,7 @@ const buildChart = (
     .data([0])
     .join("g")
     .attr("class", "x-label")
-    .attr("transform", `translate(${width / 2},${height - 5})`)
+    .attr("transform", `translate(${mainWidth / 2},${height - 5})`)
     .selection()
     .selectAll<SVGGElement, string>("text")
     .data([1])
@@ -175,6 +178,31 @@ const buildChart = (
     xScale.range()[0],
     xScale.range()[1],
   );
+
+  const legendContainer = container
+    .selectAll("g.legend")
+    .data([1])
+    .join("g")
+    .attr("class", "legend")
+    .attr("transform", `translate(${mainWidth + 12},0)`);
+
+  legendContainer
+    .selectAll("rect")
+    .data(variables)
+    .join("rect")
+    .attr("width", 10)
+    .attr("height", 10)
+    .attr("x", 0)
+    .attr("y", (_, i) => 5 + i * 18)
+    .attr("fill", (d) => pvalScale(d));
+
+  legendContainer
+    .selectAll("text")
+    .data(variables)
+    .join("text")
+    .text((d) => d)
+    .attr("text-anchor", "right")
+    .attr("transform", (_, i) => `translate(15,${16 + i * 18})`);
 };
 
 interface DisplayPVal {

@@ -7,7 +7,14 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Grid2 as Grid, IconButton, MenuItem, TextField } from "@mui/material";
+import {
+  Checkbox,
+  FormControlLabel,
+  Grid2 as Grid,
+  IconButton,
+  MenuItem,
+  TextField,
+} from "@mui/material";
 import { schemeSet3 } from "d3-scale-chromatic";
 import { scaleOrdinal } from "d3-scale";
 import { groups } from "d3-array";
@@ -178,9 +185,23 @@ export default function Home() {
 
   useEffect(() => {
     setQqVariables(
-      [upperVariable, lowerVariable].filter(Boolean) as (keyof RegionResult)[],
+      ([upperVariable, lowerVariable].filter(Boolean) as (keyof RegionResult)[])
+        .concat(qqVariables)
+        .filter((v, i, a) => a.findIndex((_a) => _a === v) === i),
     );
   }, [upperVariable, lowerVariable]);
+
+  const pVars = useMemo(
+    () =>
+      [
+        ...new Set(
+          regionData.flatMap((r) =>
+            Object.keys(r).filter((k) => k.endsWith("_p")),
+          ),
+        ),
+      ] as (keyof RegionResult)[],
+    [regionData],
+  );
 
   const resetVisualizationVariables = () => {
     setRegionDetailData([]);
@@ -362,7 +383,7 @@ export default function Home() {
             )}
           </Grid>
         </Grid>
-        <Grid ref={chartContainerRef} size={{ xs: 8, lg: 10 }}>
+        <Grid ref={chartContainerRef} size={{ xs: 4, lg: 6 }}>
           {!!pvalScale &&
             !!upperVariable &&
             !!lowerVariable &&
@@ -383,18 +404,11 @@ export default function Home() {
               />
             )}
         </Grid>
-      </Grid>
-      <Grid
-        container
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-      >
-        <Grid container direction="column">
-          {!!pvalScale && (
-            <>
-              <Grid>
-                {!!(!!upperVariable || !!lowerVariable) && (
+        {!!pvalScale && (
+          <Grid size={{ xs: 4 }}>
+            {!!(!!upperVariable || !!lowerVariable) && (
+              <Grid direction="column" spacing={3}>
+                <Grid>
                   <QQPlot
                     pvalScale={pvalScale}
                     data={regionData}
@@ -402,11 +416,45 @@ export default function Home() {
                     variables={qqVariables}
                     width={400}
                   />
-                )}
+                </Grid>
+                <Grid direction="row" wrap="wrap">
+                  {pVars.map((v) => (
+                    <FormControlLabel
+                      key={v}
+                      label={v}
+                      control={
+                        <Checkbox
+                          sx={{
+                            color: pvalScale(v),
+                            "&.Mui-checked": {
+                              color: pvalScale(v),
+                            },
+                          }}
+                          value={v}
+                          checked={qqVariables.includes(v)}
+                          onChange={(_, checked) =>
+                            checked
+                              ? setQqVariables(qqVariables.concat(v))
+                              : setQqVariables(
+                                  qqVariables.filter((c) => c !== v),
+                                )
+                          }
+                        />
+                      }
+                    />
+                  ))}
+                </Grid>
               </Grid>
-            </>
-          )}
-        </Grid>
+            )}
+          </Grid>
+        )}
+      </Grid>
+      <Grid
+        container
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+      >
         {!!pvalScale &&
           !!regionDetailData.length &&
           !!upperVariable &&
