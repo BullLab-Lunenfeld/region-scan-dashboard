@@ -423,6 +423,14 @@ const buildChart = (
     width,
   );
 
+  container
+    .selectAll("text.title")
+    .data([1])
+    .join("text")
+    .attr("class", "title")
+    .text("Miami Plot")
+    .attr("transform", `translate(${width / 2}, 12)`);
+
   //append tooltip
   select("body")
     .selectAll("div.tooltip")
@@ -495,7 +503,7 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
           data,
           filter,
           filterCb,
-          0.4 * width,
+          0.6 * width,
           onCircleClick,
           pvalScale,
           selectedRegion,

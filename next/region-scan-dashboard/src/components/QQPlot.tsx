@@ -159,6 +159,14 @@ const buildChart = (
     .call(axisLeft(yScale))
     .selection();
 
+  container
+    .selectAll("text.title")
+    .data([1])
+    .join("text")
+    .attr("class", "title")
+    .text("QQ Plot")
+    .attr("transform", `translate(${mainWidth / 2}, 12)`);
+
   drawDottedLine(
     container,
     "true-line",
@@ -173,7 +181,7 @@ const buildChart = (
     .data([1])
     .join("g")
     .attr("class", "legend")
-    .attr("transform", `translate(${mainWidth + 12},0)`);
+    .attr("transform", `translate(${mainWidth + 12},${marginTop})`);
 
   legendContainer
     .selectAll("rect")
@@ -278,16 +286,14 @@ const QQPlot: React.FC<QQPlotProps> = ({
 
   useEffect(() => {
     if (!!visibleVariables.length && !!quantiles) {
-      Promise.resolve(
-        buildChart(
-          pvals,
-          pvalScale,
-          quantiles,
-          selector,
-          visibleVariables.filter(Boolean) as (keyof RegionResult)[],
-          width,
-        ),
-      ).finally(() => setLoading(false));
+      buildChart(
+        pvals,
+        pvalScale,
+        quantiles,
+        selector,
+        visibleVariables.filter(Boolean) as (keyof RegionResult)[],
+        width,
+      );
     }
   }, [
     pvalScale,

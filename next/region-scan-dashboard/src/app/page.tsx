@@ -405,9 +405,14 @@ export default function Home() {
             )}
         </Grid>
         {!!pvalScale && (
-          <Grid size={{ xs: 4 }} justifyContent="flex-end">
+          <Grid size={{ xs: 4 }} container>
             {!!regionData.length && (
-              <Grid direction="column" spacing={3} alignItems="flex-end">
+              <Grid
+                direction="column"
+                container
+                spacing={3}
+                alignItems="flex-end"
+              >
                 <Grid>
                   <QQPlot
                     pvalScale={pvalScale}
@@ -418,14 +423,22 @@ export default function Home() {
                     width={400}
                   />
                 </Grid>
-                <Grid container direction="row" wrap="wrap">
-                  {!!qqVariables.length &&
-                    pVars.map((v) => (
+
+                {!!qqVariables.length && (
+                  <Grid
+                    offset={3}
+                    container
+                    spacing={1}
+                    direction="row"
+                    wrap="wrap"
+                  >
+                    {pVars.map((v) => (
                       <Grid key={v}>
                         <FormControlLabel
                           label={v}
                           control={
                             <Checkbox
+                              size="small"
                               sx={{
                                 color: pvalScale(v),
                                 "&.Mui-checked": {
@@ -446,7 +459,8 @@ export default function Home() {
                         />
                       </Grid>
                     ))}
-                </Grid>
+                  </Grid>
+                )}
               </Grid>
             )}
           </Grid>
