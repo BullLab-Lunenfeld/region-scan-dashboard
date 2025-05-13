@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import "d3-transition"; // must be imported before selection
 import { cumsum, extent, sum } from "d3-array";
 import { axisBottom, axisLeft } from "d3-axis";
-import { brush, D3BrushEvent } from "d3-brush";
+import { brushX, D3BrushEvent } from "d3-brush";
 import { format } from "d3-format";
 import {
   ScaleLinear,
@@ -293,14 +293,15 @@ const buildChart = (
 
   //this should come before the tooltip events to prevent the overlay from capturing the mouseenter events
   circleContainer.call(
-    brush<number>().on(
-      "start brush end",
-      function (event: D3BrushEvent<number>) {
+    brushX<number>()
+      .extent([
+        [marginLeft, marginTop],
+        [width, height - marginBottom],
+      ])
+      .on("start brush end", function (event: D3BrushEvent<number>) {
+        if (!event.sourceEvent || !event.selection) return;
         if (event.selection) {
-          const [[x0], [x1]] = event.selection as [
-            [number, number],
-            [number, number],
-          ];
+          const [x0, x1] = event.selection as [number, number];
 
           if (event.type === "end") {
             const bp0 = allChrScale.invert(x0);
@@ -341,8 +342,7 @@ const buildChart = (
             event.target.clear(select(this));
           }
         }
-      },
-    ),
+      }),
   );
 
   circleContainer

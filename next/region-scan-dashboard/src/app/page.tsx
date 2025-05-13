@@ -136,13 +136,13 @@ export default function Home() {
         maxBp = selectedRegion.start_bp + 2500000;
       }
 
-      const regionDetailData = regionDisplayData.filter(
+      const regionDetailData = regionData.filter(
         (d) => d.end_bp < maxBp && d.start_bp >= minBp && d.chr == chr,
       );
 
       setRegionDetailData(regionDetailData);
     }
-  }, [regionDisplayData, regionRestartPoints, selectedRegion]);
+  }, [regionData, regionRestartPoints, selectedRegion]);
 
   useEffect(() => {
     setRegionDetailData([]);
