@@ -5,12 +5,12 @@ import { Box } from "@mui/material";
 import { select, Selection, BaseType } from "d3-selection";
 import { groups, quantile, range, extent, min, max } from "d3-array";
 import { line } from "d3-shape";
-//import { randomUniform } from "d3-random";
+import { randomUniform } from "d3-random";
 import { scaleLinear, ScaleOrdinal } from "d3-scale";
 import { axisBottom, axisLeft } from "d3-axis";
 import LoadingOverlay from "./LoadingOverlay";
 import { RegionResult } from "@/lib/ts/types";
-import { drawDottedLine, getEntries, linspace } from "@/lib/ts/util";
+import { drawDottedLine, getEntries } from "@/lib/ts/util";
 
 const marginBottom = 40;
 const yLabelMargin = 28;
@@ -39,6 +39,7 @@ type PvalLineData = {
 const buildChart = (
   pvals: DisplayPVal[],
   pvalScale: ScaleOrdinal<string, string, never>,
+  quantiles: QuantileResults,
   selector: string,
   variables: (keyof RegionResult)[],
   width: number,
@@ -47,31 +48,19 @@ const buildChart = (
 
   const height = 0.75 * mainWidth;
 
-  const grouped = groups(pvals, (p) => p.pValType);
-
   const chartData: PvalLineData[][] = [];
 
-  for (let i = 0; i < grouped.length; i++) {
-    const [key, vals] = grouped[i];
-    const pvals = vals.map((v) => v.value).sort((a, b) => (a < b ? -1 : 1));
-    const quantiles = getQuantiles(pvals, min([250, vals.length]) as number);
-    //const rv = randomUniform(max(pvals));
-    //const refDist = range(1000).map(() => rv());
-    const refDist = linspace(0, max(pvals) as number, 250);
-
-    const refQuantiles = getQuantiles(
-      refDist,
-      min([250, vals.length]) as number,
-    );
-
-    chartData.push(
-      refQuantiles.map((r, i) => ({
-        test: key,
-        x: Math.log10(r),
-        y: Math.log10(quantiles[i]),
-      })),
-    );
-  }
+  getEntries(quantiles).map(([k, v]) => {
+    if (variables.includes(k)) {
+      chartData.push(
+        v.ref.map((r, i) => ({
+          test: k,
+          x: Math.log10(r),
+          y: Math.log10(v.quan[i]),
+        })),
+      );
+    }
+  });
 
   const xScale = scaleLinear()
     .range([marginLeft, mainWidth])
@@ -210,11 +199,17 @@ interface DisplayPVal {
   value: number;
 }
 
+type QuantileResults = Record<
+  keyof RegionResult,
+  { ref: number[]; quan: number[] }
+>;
+
 interface QQPlotProps {
   data: RegionResult[];
   pvalScale: ScaleOrdinal<string, string, never>;
   selector: string;
   variables: (keyof RegionResult | "")[];
+  visibleVariables: (keyof RegionResult | "")[];
   width: number;
 }
 
@@ -223,16 +218,13 @@ const QQPlot: React.FC<QQPlotProps> = ({
   pvalScale,
   selector,
   variables,
+  visibleVariables,
   width,
 }) => {
   const [loading, setLoading] = useState(true);
 
   //we need a full tick and render to show the initial loading indicator
   const [renderFlag, setRenderFlag] = useState(false);
-
-  useEffect(() => {
-    setTimeout(() => setRenderFlag(true));
-  }, []);
 
   const pvals = useMemo(
     () =>
@@ -245,23 +237,71 @@ const QQPlot: React.FC<QQPlotProps> = ({
     [variables, data],
   );
 
+  //we want to wait a tick so we can show the loading indicator while calculating these
   useEffect(() => {
+    setTimeout(() => setRenderFlag(true));
+  }, []);
+
+  //we'll precompute these since they take a while
+  const quantiles: QuantileResults | undefined = useMemo(() => {
     if (renderFlag) {
+      const grouped = groups(pvals, (p) => p.pValType);
+
+      const quantileResults = {} as QuantileResults;
+
+      for (let i = 0; i < grouped.length; i++) {
+        const [key, vals] = grouped[i];
+        const pvals = vals.map((v) => v.value).sort((a, b) => (a < b ? -1 : 1));
+        const quantiles = getQuantiles(
+          pvals,
+          min([250, vals.length]) as number,
+        );
+        const rv = randomUniform(max(pvals));
+        const refDist = range(vals.length).map(() => rv());
+        //const refDist = range(1000).map(() => rv());
+        //const refDist = linspace(0, max(pvals) as number, 250);
+
+        const refQuantiles = getQuantiles(
+          refDist,
+          min([250, vals.length]) as number,
+        );
+
+        quantileResults[key] = {
+          ref: refQuantiles,
+          quan: quantiles,
+        };
+      }
+      setLoading(false);
+      return quantileResults;
+    }
+  }, [pvals, renderFlag]);
+
+  useEffect(() => {
+    if (!!visibleVariables.length && !!quantiles) {
       Promise.resolve(
         buildChart(
           pvals,
           pvalScale,
+          quantiles,
           selector,
-          variables.filter(Boolean) as (keyof RegionResult)[],
+          visibleVariables.filter(Boolean) as (keyof RegionResult)[],
           width,
         ),
-      ).then(() => setLoading(false));
+      ).finally(() => setLoading(false));
     }
-  }, [pvalScale, pvals, selector, variables, width, renderFlag]);
+  }, [
+    pvalScale,
+    pvals,
+    quantiles,
+    selector,
+    visibleVariables,
+    width,
+    renderFlag,
+  ]);
 
   return (
     <>
-      <Box className={selector} />
+      <Box className={selector} display="flex" />
       <LoadingOverlay open={loading} />
     </>
   );

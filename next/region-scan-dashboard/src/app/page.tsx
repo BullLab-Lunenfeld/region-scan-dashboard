@@ -405,44 +405,47 @@ export default function Home() {
             )}
         </Grid>
         {!!pvalScale && (
-          <Grid size={{ xs: 4 }}>
-            {!!(!!upperVariable || !!lowerVariable) && (
-              <Grid direction="column" spacing={3}>
+          <Grid size={{ xs: 4 }} justifyContent="flex-end">
+            {!!regionData.length && (
+              <Grid direction="column" spacing={3} alignItems="flex-end">
                 <Grid>
                   <QQPlot
                     pvalScale={pvalScale}
                     data={regionData}
                     selector="qq"
-                    variables={qqVariables}
+                    visibleVariables={qqVariables}
+                    variables={pVars}
                     width={400}
                   />
                 </Grid>
-                <Grid direction="row" wrap="wrap">
-                  {pVars.map((v) => (
-                    <FormControlLabel
-                      key={v}
-                      label={v}
-                      control={
-                        <Checkbox
-                          sx={{
-                            color: pvalScale(v),
-                            "&.Mui-checked": {
-                              color: pvalScale(v),
-                            },
-                          }}
-                          value={v}
-                          checked={qqVariables.includes(v)}
-                          onChange={(_, checked) =>
-                            checked
-                              ? setQqVariables(qqVariables.concat(v))
-                              : setQqVariables(
-                                  qqVariables.filter((c) => c !== v),
-                                )
+                <Grid container direction="row" wrap="wrap">
+                  {!!qqVariables.length &&
+                    pVars.map((v) => (
+                      <Grid key={v}>
+                        <FormControlLabel
+                          label={v}
+                          control={
+                            <Checkbox
+                              sx={{
+                                color: pvalScale(v),
+                                "&.Mui-checked": {
+                                  color: pvalScale(v),
+                                },
+                              }}
+                              value={v}
+                              checked={qqVariables.includes(v)}
+                              onChange={(_, checked) =>
+                                checked
+                                  ? setQqVariables(qqVariables.concat(v))
+                                  : setQqVariables(
+                                      qqVariables.filter((c) => c !== v),
+                                    )
+                              }
+                            />
                           }
                         />
-                      }
-                    />
-                  ))}
+                      </Grid>
+                    ))}
                 </Grid>
               </Grid>
             )}
