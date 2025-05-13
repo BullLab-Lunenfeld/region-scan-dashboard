@@ -28,7 +28,7 @@ import {
   UCSCRecombTrackResult,
   VariantResultRow,
 } from "@/lib/ts/types";
-import { LoadingOverlay, UploadButtonSingle } from "@/components";
+import { LoadingOverlay, PvarCheckbox, UploadButtonSingle } from "@/components";
 import { drawDottedLine, parseTsv } from "@/lib/ts/util";
 import { fetchGenes } from "@/util/fetchGenes";
 import { fetchRecomb } from "@/util/fetchRecomb";
@@ -137,7 +137,6 @@ const marginRight = 15;
 const geneRectHeight = 3;
 
 class RegionChart {
-  activeVariables: (keyof RegionResult)[];
   container: Selection<SVGGElement, number, SVGElement, unknown>;
   height: number;
   hiddenGeneLabels: string[];
@@ -163,7 +162,6 @@ class RegionChart {
     this.var1 = var1;
     this.var2 = var2;
     this.width = width;
-    this.activeVariables = [var1, var2];
     this.mainWidth = 0.8 * width;
     this.height = 0.5 * width;
     this.hiddenGeneLabels = [];
@@ -191,15 +189,6 @@ class RegionChart {
 
   resetHiddenGeneLabels = () => (this.hiddenGeneLabels = []);
 
-  updateActiveVariables = (variables: (keyof RegionResult)[]) =>
-    (this.activeVariables = variables);
-
-  getRectOpacity = (variable: keyof RegionResult) => {
-    if (this.activeVariables.includes(variable)) {
-      return 1;
-    } else return 0.4;
-  };
-
   render = (
     data: RegionResult[],
     variants: VariantResultRow[],
@@ -209,6 +198,7 @@ class RegionChart {
     regionRange: number[],
     recombData: UCSCRecombTrackResult[],
     geneLabelsVisible: boolean,
+    visiblePvars: (keyof RegionResult)[],
   ) => {
     const regionData = groups(data, (d) => d.region).flatMap(
       ([region, members]) => {
@@ -237,14 +227,6 @@ class RegionChart {
 
     const visibleGenes = genes.filter(
       (g) => g.end >= xScale.domain()[0] && g.start <= xScale.domain()[1],
-    );
-
-    const variables = [this.var1, this.var2].concat(
-      Object.keys(data[0]).filter(
-        (k) =>
-          ![this.var1, this.var2].includes(k as keyof RegionResult) &&
-          k.toLowerCase().endsWith("_p"),
-      ) as (keyof RegionResult)[],
     );
 
     const geneHeightMap = visibleGenes.reduce<Record<string, number>>(
@@ -337,7 +319,7 @@ class RegionChart {
     this.container
       .selectAll<SVGRectElement, RegionData>("rect.region")
       .data(
-        regionData.filter((d) => this.activeVariables.includes(d.variable)),
+        regionData.filter((d) => visiblePvars.includes(d.variable)),
         (d) => d.pvalue,
       )
       .join("rect")
@@ -350,7 +332,6 @@ class RegionChart {
       .attr("fill", (d) => this.pvalScale(d.variable))
       .transition()
       .duration(250)
-      .attr("opacity", (d) => this.getRectOpacity(d.variable))
       .attr("height", regionRectHeight)
       .attr("width", (d) => xScale(d.end) - xScale(d.start))
       .selection()
@@ -415,6 +396,7 @@ class RegionChart {
           regionRange,
           recombData,
           geneLabelsVisible,
+          visiblePvars,
         );
       });
 
@@ -547,39 +529,21 @@ class RegionChart {
       .data([1])
       .join("g")
       .attr("class", "legend")
-      .attr("transform", `translate(${this.mainWidth + 12},0)`);
+      .attr("transform", `translate(${this.mainWidth + 28}, ${marginTop})`);
 
     legendContainer
       .selectAll("rect")
-      .data(variables)
+      .data(visiblePvars)
       .join("rect")
       .attr("width", 10)
       .attr("height", 10)
       .attr("x", 0)
       .attr("y", (_, i) => 5 + i * 18)
-      .attr("fill", (d) => this.pvalScale(d))
-      .attr("opacity", (d) => this.getRectOpacity(d))
-      .on("click", (e: MouseEvent, d) => {
-        if (this.activeVariables.includes(d)) {
-          this.activeVariables = this.activeVariables.filter((a) => a !== d);
-        } else {
-          this.activeVariables = this.activeVariables.concat(d);
-        }
-        this.render(
-          data,
-          variants,
-          genes,
-          wheelCb,
-          setCenterRegion,
-          regionRange,
-          recombData,
-          geneLabelsVisible,
-        );
-      });
+      .attr("fill", (d) => this.pvalScale(d));
 
     legendContainer
       .selectAll("text")
-      .data(variables)
+      .data(visiblePvars)
       .join("text")
       .text((d) => d)
       .attr("text-anchor", "right")
@@ -619,6 +583,7 @@ interface RegionPlotProps {
   assemblyInfo: AssembyInfo;
   data: RegionResult[];
   pvalScale: ScaleOrdinal<string, string, never>;
+  pvars: (keyof RegionResult)[];
   selectedRegion: RegionResult;
   selector: string;
   var1: keyof RegionResult;
@@ -630,6 +595,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
   assemblyInfo,
   data,
   pvalScale,
+  pvars,
   selectedRegion,
   selector,
   var1,
@@ -661,6 +627,8 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
   const [variants, setVariants] = useState<VariantResultRow[]>([]);
 
   const [visibleData, setVisibleData] = useState<RegionResult[]>([]);
+
+  const [visiblePvars, setVisiblePvars] = useState<(keyof RegionResult)[]>([]);
 
   const [wheelTick, setWheelTick] = useState(10);
 
@@ -766,6 +734,12 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     [wheelTick, centerRegion, regionRange, visibleData],
   );
 
+  useEffect(() => {
+    setVisiblePvars([
+      ...new Set(visiblePvars.concat([var1, var2]).filter(Boolean)),
+    ]);
+  }, [var1, var2]);
+
   //initial render
   useLayoutEffect(() => {
     const Chart = new RegionChart(pvalScale, selector, var1, var2, width);
@@ -797,28 +771,27 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
         regionRange,
         visibleRecomb,
         geneLabelsVisible,
+        visiblePvars,
       );
     }
     setUploadKey(Math.random().toString(36).slice(2));
   }, [
     chart,
     geneLabelsVisible,
-    visibleGenes,
-    visibleVariants,
-    visibleData,
     updateRange,
     setCenterRegion,
     regionRange,
+    visibleData,
+    visibleGenes,
+    visiblePvars,
     visibleRecomb,
+    visibleVariants,
   ]);
 
   return (
-    <Grid container>
-      <Grid>
-        <Box ref={containerRef} className={selector} />
-      </Grid>
-      <Grid spacing={2} direction="column">
-        <Grid>
+    <Grid container spacing={2}>
+      <Grid container spacing={0} direction="column">
+        <Grid container>
           <UploadButtonSingle
             key={uploadKey}
             fileType="variant"
@@ -908,6 +881,25 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
             </Button>
           </Grid>
         )}
+      </Grid>
+      <Grid container>
+        <Box ref={containerRef} className={selector} />
+      </Grid>
+      <Grid container direction="column" spacing={0}>
+        {pvars.map((v) => (
+          <Grid key={v}>
+            <PvarCheckbox
+              checked={visiblePvars.includes(v)}
+              onChange={(_, checked) =>
+                checked
+                  ? setVisiblePvars(visiblePvars.concat(v))
+                  : setVisiblePvars(visiblePvars.filter((c) => c !== v))
+              }
+              pvalScale={pvalScale}
+              value={v}
+            />
+          </Grid>
+        ))}
       </Grid>
       <LoadingOverlay open={loading} />
     </Grid>

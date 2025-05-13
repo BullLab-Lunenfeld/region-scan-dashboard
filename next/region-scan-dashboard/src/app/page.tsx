@@ -7,14 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import {
-  Checkbox,
-  FormControlLabel,
-  Grid2 as Grid,
-  IconButton,
-  MenuItem,
-  TextField,
-} from "@mui/material";
+import { Grid2 as Grid, IconButton, MenuItem, TextField } from "@mui/material";
 import { schemeSet3 } from "d3-scale-chromatic";
 import { scaleOrdinal } from "d3-scale";
 import { groups } from "d3-array";
@@ -23,6 +16,7 @@ import {
   MiamiPlot,
   NumberInput,
   PaginatedTable,
+  PvarCheckbox,
   QQPlot,
   RegionPlot,
   UploadButtonMulti,
@@ -88,7 +82,7 @@ export default function Home() {
   const pvalScale = useMemo(() => {
     if (regionData.length) {
       return scaleOrdinal<string, string>()
-        .range(schemeSet3)
+        .range(schemeSet3.filter((c) => c !== "#ffffb3")) // this yellow is barely visible
         .domain(
           Object.keys(regionData[0])
             .filter((k) => k.toLowerCase().endsWith("_p"))
@@ -410,7 +404,7 @@ export default function Home() {
               <Grid
                 direction="column"
                 container
-                spacing={3}
+                spacing={1}
                 alignItems="flex-end"
               >
                 <Grid>
@@ -428,34 +422,23 @@ export default function Home() {
                   <Grid
                     offset={3}
                     container
-                    spacing={1}
+                    spacing={0}
                     direction="row"
                     wrap="wrap"
                   >
                     {pVars.map((v) => (
                       <Grid key={v}>
-                        <FormControlLabel
-                          label={v}
-                          control={
-                            <Checkbox
-                              size="small"
-                              sx={{
-                                color: pvalScale(v),
-                                "&.Mui-checked": {
-                                  color: pvalScale(v),
-                                },
-                              }}
-                              value={v}
-                              checked={qqVariables.includes(v)}
-                              onChange={(_, checked) =>
-                                checked
-                                  ? setQqVariables(qqVariables.concat(v))
-                                  : setQqVariables(
-                                      qqVariables.filter((c) => c !== v),
-                                    )
-                              }
-                            />
+                        <PvarCheckbox
+                          checked={qqVariables.includes(v)}
+                          onChange={(_, checked) =>
+                            checked
+                              ? setQqVariables(qqVariables.concat(v))
+                              : setQqVariables(
+                                  qqVariables.filter((c) => c !== v),
+                                )
                           }
+                          pvalScale={pvalScale}
+                          value={v}
                         />
                       </Grid>
                     ))}
@@ -482,6 +465,7 @@ export default function Home() {
                 assemblyInfo={assemblyInfo}
                 data={regionDetailData}
                 pvalScale={pvalScale}
+                pvars={pVars}
                 selector="region-plot"
                 selectedRegion={selectedRegion}
                 var1={upperVariable}
