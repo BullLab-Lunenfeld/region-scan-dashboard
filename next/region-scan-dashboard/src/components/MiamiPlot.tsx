@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import "d3-transition"; // must be imported before selection
+import { symbolDiamond, symbol } from "d3-shape";
 import { cumsum, extent, sum } from "d3-array";
 import { axisBottom, axisLeft } from "d3-axis";
 import { brushX, D3BrushEvent } from "d3-brush";
@@ -63,7 +64,7 @@ const marginTop = 25;
 const buildChart = (
   assemblyInfo: AssembyInfo,
   bottomCol: keyof RegionResult,
-  bottomThresh: number,
+  _bottomThresh: number,
   data: RegionResult[],
   filter: BrushFilter | undefined,
   filterCb: (filter: BrushFilter) => void,
@@ -73,9 +74,12 @@ const buildChart = (
   selectedRegion: RegionResult | undefined,
   selector: string,
   topCol: keyof RegionResult,
-  topThresh: number,
+  _topThresh: number,
   width: number,
 ) => {
+  const topThresh = -Math.log10(_topThresh);
+  const bottomThresh = Math.log10(_bottomThresh);
+
   // get unique chromosomes, convert to string, sort asc
   const chrs = data
     .map((d) => d.chr)
@@ -347,7 +351,10 @@ const buildChart = (
 
   circleContainer
     .selectAll<SVGCircleElement, RegionResult>("circle.upper")
-    .data(upperData, (d) => `${d.id === selectedRegion?.id}`)
+    .data(
+      upperData.filter((d) => !!d[topCol] && d[topCol] < topThresh),
+      (d) => `${d.id === selectedRegion?.id}`,
+    )
     .join("circle")
     .attr("class", "upper")
     .attr("r", circleWidthScale(transformedData.length))
@@ -358,49 +365,67 @@ const buildChart = (
         ? chrCumSumScale[d.chr.toString()](d.end_bp)
         : xScale(d.end_bp),
     )
-    .attr("stroke-width", 2)
-    .attr(
-      "stroke",
-      selectedRegion
-        ? (d) =>
-            //could be multiple regions
-            d.chr === selectedRegion.chr &&
-            d.start_bp === selectedRegion.start_bp
-              ? "black"
-              : "none"
-        : "none",
-    )
-    .attr("cy", (d) => yScale(d[topCol]!))
-    .selection()
-    .on("click", (_, d: RegionResult) => onCircleClick(d))
-    .on("mouseover", (e: MouseEvent, d: RegionResult) => showTooltip(d, e))
-    .on("mouseout", () => selectAll(".tooltip").style("visibility", "hidden"));
+    .attr("cy", (d) => yScale(d[topCol]!));
 
   circleContainer
     .selectAll("circle.lower")
-    .data(lowerData, (_, i) => `${i}-${topCol}`)
+    .data(
+      lowerData.filter((d) => !!d[bottomCol] && d[bottomCol] > bottomThresh),
+      (_, i) => `${i}-${topCol}`,
+    )
     .join("circle")
     .attr("class", "lower")
     .attr("r", circleWidthScale(transformedData.length))
     .attr("fill", pvalScale(bottomCol))
-    .attr("stroke-width", 2)
-    .attr(
-      "stroke",
-      selectedRegion
-        ? (d) =>
-            d.chr === selectedRegion.chr &&
-            d.start_bp === selectedRegion.start_bp
-              ? "black"
-              : "none"
-        : "none",
-    )
     .attr("opacity", 0.5)
     .attr("cx", (d) =>
       chrs.length > 1
         ? chrCumSumScale[d.chr.toString()](d.end_bp)
         : xScale(d.end_bp),
     )
-    .attr("cy", (d) => yScale(d[bottomCol] as number))
+    .attr("cy", (d) => yScale(d[bottomCol] as number));
+
+  circleContainer
+    .selectAll<SVGPathElement, RegionResult>("path.upper")
+    .data(upperData.filter((d) => !!d[topCol] && d[topCol] > topThresh))
+    .join("path")
+    .attr("class", "upper")
+    .attr("d", symbol(symbolDiamond))
+    .attr("opacity", 0.5)
+    .attr("fill", pvalScale(topCol))
+    .attr(
+      "transform",
+      (d) =>
+        `translate(${
+          chrs.length > 1
+            ? chrCumSumScale[d.chr.toString()](d.end_bp)
+            : xScale(d.end_bp)
+        }, ${yScale(d[topCol] as number)})`,
+    );
+
+  circleContainer
+    .selectAll("path.lower")
+    .data(
+      lowerData.filter((d) => !!d[bottomCol] && d[bottomCol] < bottomThresh),
+      (_, i) => `${i}-${topCol}`,
+    )
+    .join("path")
+    .attr("class", "lower")
+    .attr("opacity", 0.5)
+    .attr("d", symbol(symbolDiamond))
+    .attr("fill", pvalScale(bottomCol))
+    .attr(
+      "transform",
+      (d) =>
+        `translate(${
+          chrs.length > 1
+            ? chrCumSumScale[d.chr.toString()](d.end_bp)
+            : xScale(d.end_bp)
+        }, ${yScale(d[bottomCol] as number)})`,
+    );
+
+  circleContainer
+    .selectAll<BaseType, RegionResult>("circle, path")
     .on("click", (_, d: RegionResult) => onCircleClick(d))
     .on("mouseover", (e: MouseEvent, d: RegionResult) => showTooltip(d, e))
     .on("mouseout", () => selectAll(".tooltip").style("visibility", "hidden"));
@@ -408,8 +433,8 @@ const buildChart = (
   drawDottedLine(
     container,
     "top-thresh",
-    yScale(-Math.log10(topThresh)),
-    yScale(-Math.log10(topThresh)),
+    yScale(topThresh),
+    yScale(topThresh),
     marginLeft,
     width,
   );
@@ -417,8 +442,8 @@ const buildChart = (
   drawDottedLine(
     container,
     "bottom-thresh",
-    yScale(Math.log10(bottomThresh)),
-    yScale(Math.log10(bottomThresh)),
+    yScale(bottomThresh),
+    yScale(bottomThresh),
     marginLeft,
     width,
   );

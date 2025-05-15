@@ -37,7 +37,6 @@ type PvalLineData = {
 };
 
 const buildChart = (
-  pvals: DisplayPVal[],
   pvalScale: ScaleOrdinal<string, string, never>,
   quantiles: QuantileResults,
   selector: string,
@@ -287,7 +286,6 @@ const QQPlot: React.FC<QQPlotProps> = ({
   useEffect(() => {
     if (!!quantiles) {
       buildChart(
-        pvals,
         pvalScale,
         quantiles,
         selector,
