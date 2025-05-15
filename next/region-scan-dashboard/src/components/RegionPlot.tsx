@@ -692,22 +692,23 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   //set visible data depending on zoom and center
   useEffect(() => {
-    if (!!data.length && wheelTick !== null) {
-      const [_startReg, _endReg] = [
-        centerRegion - wheelTick,
-        centerRegion + wheelTick,
-      ];
+    if (!!data.length) {
+      if (wheelTick !== null) {
+        const [_startReg, _endReg] = [
+          centerRegion - wheelTick,
+          centerRegion + wheelTick,
+        ];
 
-      const visibleData = data.filter(
-        (d) => d.region >= _startReg && d.region <= _endReg,
-      );
+        const visibleData = data.filter(
+          (d) => d.region >= _startReg && d.region <= _endReg,
+        );
 
-      setVisibleData(visibleData);
-    } else if (!!data.length) {
-      setWheelTick(maxWheelTick);
-      setVisibleData(data);
+        setVisibleData(visibleData);
+      } else {
+        setWheelTick(maxWheelTick);
+      }
     }
-  }, [centerRegion, data, wheelTick]);
+  }, [centerRegion, data, wheelTick, maxWheelTick]);
 
   const updateRange = useCallback(
     (delta: number, pos: number) => {
@@ -745,8 +746,8 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
   );
 
   useEffect(() => {
-    setVisiblePvars([
-      ...new Set(visiblePvars.concat([var1, var2]).filter(Boolean)),
+    setVisiblePvars((pvars) => [
+      ...new Set(pvars.concat([var1, var2]).filter(Boolean)),
     ]);
   }, [var1, var2]);
 
@@ -758,12 +759,15 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   //new data
   useEffect(() => {
-    setVariants([]);
-    setGenes([]);
-    setWheelTick(null);
-    setVariantsVisible(true);
-    setCenterRegion(selectedRegionDetailData.region.region);
-  }, [selectedRegionDetailData, assemblyInfo, data]);
+    if (chart) {
+      setVariants([]);
+      setGenes([]);
+      setWheelTick(null);
+      setVariantsVisible(true);
+      setCenterRegion(selectedRegionDetailData.region.region);
+    }
+    /* only clear out if the chart exists */
+  }, [selectedRegionDetailData, assemblyInfo]);
 
   //update
   useEffect(() => {
