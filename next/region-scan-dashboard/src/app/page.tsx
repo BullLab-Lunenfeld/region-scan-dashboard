@@ -7,7 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Grid2 as Grid, IconButton, MenuItem, TextField } from "@mui/material";
+import { Grid2 as Grid, IconButton, MenuItem } from "@mui/material";
 import { schemeSet3 } from "d3-scale-chromatic";
 import { scaleOrdinal } from "d3-scale";
 import { groups } from "d3-array";
@@ -78,7 +78,9 @@ export default function Home() {
     "",
   );
 
-  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const miamiChartContainerRef = useRef<HTMLDivElement>(null);
+
+  const qqChartContainerRef = useRef<HTMLDivElement>(null);
 
   const pvalScale = useMemo(() => {
     if (regionData.length) {
@@ -180,9 +182,7 @@ export default function Home() {
 
   useEffect(() => {
     setQqVariables(
-      ([upperVariable, lowerVariable].filter(Boolean) as (keyof RegionResult)[])
-        .concat(qqVariables)
-        .filter((v, i, a) => a.findIndex((_a) => _a === v) === i),
+      [upperVariable, lowerVariable].filter(Boolean) as (keyof RegionResult)[],
     );
   }, [upperVariable, lowerVariable]);
 
@@ -211,9 +211,15 @@ export default function Home() {
   );
 
   return (
-    <Grid container direction="column" spacing={2}>
+    <Grid container direction="column" spacing={3}>
       <Grid container direction="row" spacing={2}>
-        <Grid size={{ xs: 4, lg: 2 }} direction="column" container spacing={2}>
+        {/* miami plot controls */}
+        <Grid
+          size={{ xs: 2, xl: 1.5 }}
+          direction="column"
+          container
+          spacing={2}
+        >
           <Grid>
             <UploadButtonMulti
               key={uploadKey}
@@ -377,11 +383,12 @@ export default function Home() {
             )}
           </Grid>
         </Grid>
-        <Grid ref={chartContainerRef} size={{ xs: 4, lg: 6 }}>
+        {/* Miami plot container */}
+        <Grid ref={miamiChartContainerRef} size={{ xs: 5, lg: 6, xl: 6.25 }}>
           {!!pvalScale &&
             !!upperVariable &&
             !!lowerVariable &&
-            !!chartContainerRef.current && (
+            !!miamiChartContainerRef.current && (
               <MiamiPlot
                 assemblyInfo={assemblyInfo}
                 pvalScale={pvalScale}
@@ -394,13 +401,18 @@ export default function Home() {
                 selectedRegion={selectedRegion}
                 topCol={upperVariable}
                 topThresh={upperThresh}
-                width={chartContainerRef.current.clientWidth}
+                width={miamiChartContainerRef.current.clientWidth}
               />
             )}
         </Grid>
+        {/* QQ Plot */}
         {!!pvalScale && (
-          <Grid size={{ xs: 4 }} container>
-            {!!regionData.length && (
+          <Grid
+            ref={qqChartContainerRef}
+            size={{ xs: 5, lg: 4, xl: 4.25 }}
+            container
+          >
+            {!!regionData.length && !!qqChartContainerRef.current && (
               <Grid
                 direction="column"
                 container
@@ -414,13 +426,13 @@ export default function Home() {
                     selector="qq"
                     visibleVariables={qqVariables}
                     variables={pVars}
-                    width={400}
+                    width={qqChartContainerRef.current.clientWidth}
                   />
                 </Grid>
 
                 {!!qqVariables.length && (
                   <Grid
-                    offset={3}
+                    offset={1}
                     container
                     spacing={0}
                     direction="row"
@@ -449,42 +461,36 @@ export default function Home() {
           </Grid>
         )}
       </Grid>
-      <Grid
-        container
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-      >
-        {!!pvalScale &&
-          !!regionDetailData.length &&
-          !!upperVariable &&
-          !!lowerVariable &&
-          !!selectedRegion && (
-            <Grid>
-              <RegionPlot
-                assemblyInfo={assemblyInfo}
-                data={regionDetailData}
-                pvalScale={pvalScale}
-                pvars={pVars}
-                selector="region-plot"
-                selectedRegion={selectedRegion}
-                var1={upperVariable}
-                var2={lowerVariable}
-                width={800}
-              />
-            </Grid>
-          )}
-      </Grid>
-      <Grid width="100%">
+      {!!pvalScale &&
+        !!miamiChartContainerRef.current &&
+        !!regionDetailData.length &&
+        !!upperVariable &&
+        !!lowerVariable &&
+        !!selectedRegion && (
+          <RegionPlot
+            assemblyInfo={assemblyInfo}
+            data={regionDetailData}
+            pvalScale={pvalScale}
+            pvars={pVars}
+            selector="region-plot"
+            selectedRegion={selectedRegion}
+            var1={upperVariable}
+            var2={lowerVariable}
+            mainWidth={miamiChartContainerRef.current.clientWidth}
+          />
+        )}
+      <Grid container width="100%">
         {/* Ideally we don't need controlled filters at all*/}
         {!!regionDisplayData.length && (
-          <PaginatedTable
-            cols={RegionResultCols}
-            data={regionDisplayData}
-            //filterModel={filterModel}
-            //onFilterModelChange={(m) => console.log(m)}
-            //onSelect={(m) => null}
-          />
+          <Grid>
+            <PaginatedTable
+              cols={RegionResultCols}
+              data={regionDisplayData}
+              //filterModel={filterModel}
+              //onFilterModelChange={(m) => console.log(m)}
+              //onSelect={(m) => null}
+            />
+          </Grid>
         )}
       </Grid>
     </Grid>

@@ -3,7 +3,6 @@ import React, {
   useEffect,
   useLayoutEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import { extent, groups, max } from "d3-array";
@@ -154,16 +153,16 @@ class RegionChart {
     selector: string,
     var1: keyof RegionResult,
     var2: keyof RegionResult,
-    width: number,
+    mainWidth: number,
   ) {
     //display properties
     this.pvalScale = pvalScale;
     this.selector = selector;
     this.var1 = var1;
     this.var2 = var2;
-    this.width = width;
-    this.mainWidth = 0.8 * width;
-    this.height = 0.5 * width;
+    this.mainWidth = mainWidth;
+    this.width = this.mainWidth + 130;
+    this.height = 0.5 * this.width;
     this.hiddenGeneLabels = [];
 
     this.svg = select(`.${this.selector}`)
@@ -588,7 +587,7 @@ interface RegionPlotProps {
   selector: string;
   var1: keyof RegionResult;
   var2: keyof RegionResult;
-  width: number;
+  mainWidth: number;
 }
 
 const RegionPlot: React.FC<RegionPlotProps> = ({
@@ -600,7 +599,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
   selector,
   var1,
   var2,
-  width,
+  mainWidth,
 }) => {
   const [centerRegion, setCenterRegion] = useState(selectedRegion.region);
 
@@ -631,8 +630,6 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
   const [visiblePvars, setVisiblePvars] = useState<(keyof RegionResult)[]>([]);
 
   const [wheelTick, setWheelTick] = useState(10);
-
-  const containerRef = useRef<HTMLDivElement | null>(null);
 
   const chr = useMemo(() => data[0].chr, [data]);
 
@@ -742,9 +739,9 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   //initial render
   useLayoutEffect(() => {
-    const Chart = new RegionChart(pvalScale, selector, var1, var2, width);
+    const Chart = new RegionChart(pvalScale, selector, var1, var2, mainWidth);
     setChart(Chart);
-  }, []);
+  }, [mainWidth, var1, var2]);
 
   //new data
   useEffect(() => {
@@ -786,12 +783,14 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     visiblePvars,
     visibleRecomb,
     visibleVariants,
+    mainWidth,
   ]);
 
   return (
-    <Grid container spacing={2}>
-      <Grid container spacing={0} direction="column">
-        <Grid container>
+    <Grid container spacing={2} direction="row" size={{ xs: 12 }}>
+      {/* Region controls */}
+      <Grid container size={{ xs: 2, xl: 1.5 }} spacing={0} direction="column">
+        <Grid>
           <UploadButtonSingle
             key={uploadKey}
             fileType="variant"
@@ -882,10 +881,18 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
           </Grid>
         )}
       </Grid>
-      <Grid container>
-        <Box ref={containerRef} className={selector} />
+      {/* Region plot */}
+      <Grid container size={{ xs: 8, xl: 6 }}>
+        <Box className={selector} />
       </Grid>
-      <Grid container direction="column" spacing={0}>
+      {/* Region line selector */}
+      <Grid
+        container
+        size={{ xs: 2, xl: 4 }}
+        direction="column"
+        spacing={0}
+        alignItems="flex-start"
+      >
         {pvars.map((v) => (
           <Grid key={v}>
             <PvarCheckbox

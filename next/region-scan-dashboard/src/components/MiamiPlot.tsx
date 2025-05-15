@@ -503,7 +503,7 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
           data,
           filter,
           filterCb,
-          0.6 * width,
+          0.5 * width,
           onCircleClick,
           pvalScale,
           selectedRegion,
