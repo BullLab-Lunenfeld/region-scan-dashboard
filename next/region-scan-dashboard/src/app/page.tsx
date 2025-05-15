@@ -430,7 +430,7 @@ export default function Home() {
                   />
                 </Grid>
 
-                {!!qqVariables.length && (
+                {!!regionData.length && (
                   <Grid
                     offset={1}
                     container

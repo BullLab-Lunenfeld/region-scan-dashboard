@@ -285,7 +285,7 @@ const QQPlot: React.FC<QQPlotProps> = ({
   }, [pvals, renderFlag]);
 
   useEffect(() => {
-    if (!!visibleVariables.length && !!quantiles) {
+    if (!!quantiles) {
       buildChart(
         pvals,
         pvalScale,
