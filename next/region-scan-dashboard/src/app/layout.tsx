@@ -38,7 +38,7 @@ export default function RootLayout({
         <AppRouterCacheProvider options={{ enableCssLayer: true }}>
           <ThemeProvider theme={theme}>
             <CssBaseline />
-            <Container /* maxWidth={false} */ maxWidth={"xl"}>
+            <Container maxWidth={false}>
               <AppBar
                 position="static"
                 color="primary"

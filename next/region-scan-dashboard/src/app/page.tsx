@@ -19,6 +19,7 @@ import {
   PvarCheckbox,
   QQPlot,
   RegionPlot,
+  ShortTextField,
   UploadButtonMulti,
 } from "@/components";
 import { getEntries, parseTsv } from "@/lib/ts/util";
@@ -273,9 +274,8 @@ export default function Home() {
           </Grid>
           {!!regionData.length && (
             <Grid>
-              <TextField
+              <ShortTextField
                 label="Assembly"
-                fullWidth={true}
                 select
                 value={assemblyInfo.assembly}
                 onChange={(e) =>
@@ -292,12 +292,12 @@ export default function Home() {
               >
                 <MenuItem value="GRCh37">GRCh37</MenuItem>
                 <MenuItem value="GRCh38">GRCh38</MenuItem>
-              </TextField>
+              </ShortTextField>
             </Grid>
           )}
           <Grid>
             {!!regionData.length && (
-              <TextField
+              <ShortTextField
                 fullWidth
                 onChange={(e) =>
                   setUpperVariable(e.target.value as keyof RegionResult)
@@ -318,12 +318,12 @@ export default function Home() {
                       {k}
                     </MenuItem>
                   ))}
-              </TextField>
+              </ShortTextField>
             )}
           </Grid>
           <Grid>
             {!!regionData.length && (
-              <TextField
+              <ShortTextField
                 fullWidth
                 value={lowerVariable}
                 onChange={(e) =>
@@ -340,7 +340,7 @@ export default function Home() {
                       {k}
                     </MenuItem>
                   ))}
-              </TextField>
+              </ShortTextField>
             )}
           </Grid>
           <Grid>

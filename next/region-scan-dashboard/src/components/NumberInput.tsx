@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { Button, Grid2 as Grid, TextField } from "@mui/material";
+import { Button, Grid2 as Grid } from "@mui/material";
+import ShortTextField from "./ShortTextField";
 
 interface NumberInputProps {
   label: string;
@@ -30,37 +31,19 @@ export const NumberInput: React.FC<NumberInputProps> = ({
       (!isNaN(+arg) && !isNaN(parseFloat(arg)))
     ) {
       setInternalValue(arg);
+      onChange(+arg);
     }
     //otherwise (e.g., input is not a number or number-like) do nothing
   }, []);
 
-  const submit = useCallback(
-    () => !!internalValue && onChange(+internalValue),
-    [internalValue, onChange],
-  );
-
   return (
     <Grid container wrap="nowrap" spacing={1} alignItems="center">
       <Grid>
-        <TextField
+        <ShortTextField
           onChange={(e) => localOnChange(e.currentTarget.value)}
           value={internalValue}
           label={label}
-          fullWidth
-          onKeyDown={(e) => e.key === "Enter" && submit()}
         />
-      </Grid>
-      <Grid>
-        <Button
-          disabled={
-            !internalValue ||
-            isNaN(+internalValue) ||
-            isNaN(parseFloat(internalValue.toString()))
-          }
-          onClick={submit}
-        >
-          Submit
-        </Button>
       </Grid>
     </Grid>
   );
