@@ -55,8 +55,8 @@ const buildChart = (
       chartData.push(
         v.ref.map((r, i) => ({
           test: k,
-          x: Math.log10(r),
-          y: Math.log10(v.quan[i]),
+          x: -Math.log10(r),
+          y: -Math.log10(v.quan[i]),
         })),
       );
     }
@@ -127,7 +127,7 @@ const buildChart = (
     .selectAll<SVGGElement, string>("text")
     .data([1])
     .join("text")
-    .text("Uniform dist (log10)")
+    .text("Uniform dist (-log10)")
     .attr("font-size", 12)
     .attr("text-anchor", "middle");
 
@@ -143,7 +143,7 @@ const buildChart = (
     .selectAll("text")
     .data(["pValue"])
     .join("text")
-    .text("pValue (log10)")
+    .text("pValue (-log10)")
     .attr("font-size", 12)
     .attr("transform", "rotate(90)")
     .attr("text-anchor", "middle");
