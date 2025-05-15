@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { Button, Grid2 as Grid } from "@mui/material";
+import { Grid2 as Grid } from "@mui/material";
 import ShortTextField from "./ShortTextField";
 
 interface NumberInputProps {

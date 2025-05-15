@@ -16,7 +16,11 @@ import {
 import { BaseType, select, selectAll, Selection } from "d3-selection";
 import { Box } from "@mui/material";
 import LoadingOverlay from "./LoadingOverlay";
-import { AssembyInfo, RegionResult } from "@/lib/ts/types";
+import {
+  AssembyInfo,
+  RegionResult,
+  SelectedRegionDetailData,
+} from "@/lib/ts/types";
 import { drawDottedLine, getEntries } from "@/lib/ts/util";
 
 const className = "miami-plot";
@@ -71,11 +75,11 @@ const buildChart = (
   height: number,
   onCircleClick: (d: RegionResult) => void,
   pvalScale: ScaleOrdinal<string, string, never>,
-  selectedRegion: RegionResult | undefined,
   selector: string,
   topCol: keyof RegionResult,
   _topThresh: number,
   width: number,
+  selectedRegionDetailData?: SelectedRegionDetailData,
 ) => {
   const topThresh = -Math.log10(_topThresh);
   const bottomThresh = Math.log10(_bottomThresh);
@@ -124,31 +128,42 @@ const buildChart = (
       {},
     );
 
-  const transformedData = data
-    .map((d) =>
-      Object.fromEntries(
-        getEntries(d)
-          .filter(([, v]) => !!v)
-          .map(([k, v]) => {
-            if (k === topCol) {
-              return [k, -1 * Math.log10(v as number)];
-            } else if (k === bottomCol) {
-              return [k, Math.log10(v as number)];
-            } else {
-              return [k, v];
-            }
-          }),
-      ),
-    )
-    .sort((a) =>
-      !!selectedRegion && a.region === selectedRegion.region ? 1 : -1,
-    ) as unknown as RegionResult[];
+  const transformedData = data.map((d) =>
+    Object.fromEntries(
+      getEntries(d)
+        .filter(([, v]) => !!v)
+        .map(([k, v]) => {
+          if (k === topCol) {
+            return [k, -1 * Math.log10(v as number)];
+          } else if (k === bottomCol) {
+            return [k, Math.log10(v as number)];
+          } else {
+            return [k, v];
+          }
+        }),
+    ),
+  ) as unknown as RegionResult[];
 
   const upperData = transformedData.filter((d) => !!d[topCol]);
 
   const lowerData = transformedData.filter((d) => !!d[bottomCol]);
 
-  const xScale =
+  const singleChrXScale = scaleLinear()
+    .range([marginLeft, width])
+    .domain(
+      extent(
+        upperData
+          .map((d) => d.start_bp)
+          .concat(lowerData.map((d) => d.start_bp)),
+      ) as [number, number],
+    );
+
+  const getPlottingXScale = (chr: string) =>
+    chrs.length > 1
+      ? chrCumSumScale[chr]
+      : (singleChrXScale as ScaleLinear<number, number, never>);
+
+  const xAxisScale =
     chrs.length > 1
       ? scaleThreshold()
           .range(
@@ -163,15 +178,7 @@ const buildChart = (
               .sort((a, b) => (+a[0] > +b[0] ? 1 : -1))
               .map(([k]) => +k),
           )
-      : scaleLinear()
-          .range([marginLeft, width])
-          .domain(
-            extent(
-              upperData
-                .map((d) => d.start_bp)
-                .concat(lowerData.map((d) => d.start_bp)),
-            ) as [number, number],
-          );
+      : singleChrXScale;
 
   const yScale = scaleLinear()
     .range([marginTop, height - marginBottom])
@@ -202,13 +209,13 @@ const buildChart = (
     .join("g")
     .attr("class", "container");
 
-  const xAxis = axisBottom(xScale).tickFormat((t) =>
+  const xAxis = axisBottom(xAxisScale).tickFormat((t) =>
     chrs.length > 1 ? "" : format(",")(t),
   );
 
   const xAxisSelection = container
     .selectAll<SVGGElement, number>("g.x-axis")
-    .data([1], () => xScale.range().toString())
+    .data([1], () => xAxisScale.range().toString())
     .join("g")
     .attr("class", "x-axis")
     .attr("transform", `translate(0,${height - marginBottom})`)
@@ -289,6 +296,25 @@ const buildChart = (
     .attr("transform", "rotate(90)")
     .attr("text-anchor", "middle");
 
+  const posRange = selectedRegionDetailData
+    ? selectedRegionDetailData.bpRange.map((d) =>
+        getPlottingXScale(selectedRegionDetailData.region.chr.toString())(d),
+      )
+    : null;
+
+  container
+    .selectAll("rect.selected")
+    .data([posRange])
+    .join("rect")
+    .attr("class", "selected")
+    .attr("width", (d) => !!d && d[1] - d[0])
+    .attr("x", () => posRange && posRange[0])
+    .attr("y", marginTop)
+    .attr("height", height - marginBottom - marginTop)
+    .attr("stroke", "orange")
+    .attr("fill", "none")
+    .attr("opacity", 0.5);
+
   const circleContainer = container
     .selectAll<SVGGElement, number>("g.circles")
     .data([1], () => allChrScale.range().toString())
@@ -322,11 +348,7 @@ const buildChart = (
               }
             });
 
-            const posScale =
-              chrs.length > 1
-                ? chrCumSumScale[chr0]
-                : (xScale as ScaleLinear<number, number, never>);
-
+            const posScale = getPlottingXScale(chr0);
             const pos0 = posScale.invert(x0);
             const pos1 = posScale.invert(x1);
 
@@ -351,20 +373,13 @@ const buildChart = (
 
   circleContainer
     .selectAll<SVGCircleElement, RegionResult>("circle.upper")
-    .data(
-      upperData.filter((d) => !!d[topCol] && d[topCol] < topThresh),
-      (d) => `${d.id === selectedRegion?.id}`,
-    )
+    .data(upperData.filter((d) => !!d[topCol] && d[topCol] < topThresh))
     .join("circle")
     .attr("class", "upper")
     .attr("r", circleWidthScale(transformedData.length))
     .attr("fill", pvalScale(topCol))
     .attr("opacity", 0.5)
-    .attr("cx", (d) =>
-      chrs.length > 1
-        ? chrCumSumScale[d.chr.toString()](d.end_bp)
-        : xScale(d.end_bp),
-    )
+    .attr("cx", (d) => getPlottingXScale(d.chr.toString())(d.end_bp))
     .attr("cy", (d) => yScale(d[topCol]!));
 
   circleContainer
@@ -378,11 +393,7 @@ const buildChart = (
     .attr("r", circleWidthScale(transformedData.length))
     .attr("fill", pvalScale(bottomCol))
     .attr("opacity", 0.5)
-    .attr("cx", (d) =>
-      chrs.length > 1
-        ? chrCumSumScale[d.chr.toString()](d.end_bp)
-        : xScale(d.end_bp),
-    )
+    .attr("cx", (d) => getPlottingXScale(d.chr.toString())(d.end_bp))
     .attr("cy", (d) => yScale(d[bottomCol] as number));
 
   circleContainer
@@ -396,11 +407,9 @@ const buildChart = (
     .attr(
       "transform",
       (d) =>
-        `translate(${
-          chrs.length > 1
-            ? chrCumSumScale[d.chr.toString()](d.end_bp)
-            : xScale(d.end_bp)
-        }, ${yScale(d[topCol] as number)})`,
+        `translate(${getPlottingXScale(d.chr.toString())(
+          d.end_bp,
+        )}, ${yScale(d[topCol] as number)})`,
     );
 
   circleContainer
@@ -417,11 +426,9 @@ const buildChart = (
     .attr(
       "transform",
       (d) =>
-        `translate(${
-          chrs.length > 1
-            ? chrCumSumScale[d.chr.toString()](d.end_bp)
-            : xScale(d.end_bp)
-        }, ${yScale(d[bottomCol] as number)})`,
+        `translate(${getPlottingXScale(d.chr.toString())(
+          d.end_bp,
+        )}, ${yScale(d[bottomCol] as number)})`,
     );
 
   circleContainer
@@ -487,7 +494,7 @@ interface MiamiPlotProps {
   filter?: BrushFilter;
   onCircleClick: (d: RegionResult) => void;
   pvalScale: ScaleOrdinal<string, string, never>;
-  selectedRegion?: RegionResult;
+  selectedRegionDetailData?: SelectedRegionDetailData;
   topThresh: number;
   topCol: keyof RegionResult;
   width: number;
@@ -502,7 +509,7 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
   filterCb,
   onCircleClick,
   pvalScale,
-  selectedRegion,
+  selectedRegionDetailData,
   topCol,
   topThresh,
   width,
@@ -531,11 +538,11 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
           0.5 * width,
           onCircleClick,
           pvalScale,
-          selectedRegion,
           `.${className}`,
           topCol,
           topThresh,
           _width,
+          selectedRegionDetailData,
         ),
       ).finally(() => setLoading(false));
     }
@@ -547,11 +554,12 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
     filter,
     filterCb,
     pvalScale,
-    selectedRegion,
+    selectedRegionDetailData,
     topCol,
     topThresh,
     width,
     renderFlag,
+    _width,
   ]);
 
   return (

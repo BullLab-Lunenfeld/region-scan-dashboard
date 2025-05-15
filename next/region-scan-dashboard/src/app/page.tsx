@@ -10,7 +10,7 @@ import React, {
 import { Grid2 as Grid, IconButton, MenuItem } from "@mui/material";
 import { schemeSet3 } from "d3-scale-chromatic";
 import { scaleOrdinal } from "d3-scale";
-import { groups } from "d3-array";
+import { extent, groups } from "d3-array";
 import { UndoSharp } from "@mui/icons-material";
 import {
   MiamiPlot,
@@ -29,6 +29,7 @@ import {
   RegionResultRaw,
   RegionResultRawNew,
   RegionResultRawOld,
+  SelectedRegionDetailData,
 } from "@/lib/ts/types";
 import { RegionResultCols } from "@/util/columnConfigs";
 import { BrushFilter } from "@/components/MiamiPlot";
@@ -62,7 +63,8 @@ export default function Home() {
   const [qqVariables, setQqVariables] = useState<(keyof RegionResult)[]>([]);
 
   const [regionData, setRegionData] = useState<RegionResult[]>([]);
-  const [regionDetailData, setRegionDetailData] = useState<RegionResult[]>([]);
+  const [selectedRegionDetailData, setSelectedRegionDetailData] =
+    useState<SelectedRegionDetailData>();
   const [regionDisplayData, setRegionDisplayData] = useState<RegionResult[]>(
     [],
   );
@@ -143,18 +145,25 @@ export default function Home() {
         (d) => d.end_bp < maxBp && d.start_bp >= minBp && d.chr == chr,
       );
 
-      setRegionDetailData(regionDetailData);
+      setSelectedRegionDetailData({
+        data: regionDetailData,
+        region: selectedRegion,
+        regions: [
+          ...new Set(regionDetailData.map((d) => d.region)),
+        ] as number[],
+        bpRange: extent(
+          regionDetailData.flatMap((d) => [d.start_bp, d.end_bp]),
+        ) as [number, number],
+      });
     }
   }, [regionData, regionRestartPoints, selectedRegion]);
 
   useEffect(() => {
-    setRegionDetailData([]);
+    setSelectedRegionDetailData(undefined);
   }, [upperVariable, lowerVariable]);
 
   useEffect(() => {
     if (upperVariable && lowerVariable) {
-      setRegionDetailData([]);
-
       if (!!brushFilterHistory.length) {
         const { x0Lim, x1Lim } =
           brushFilterHistory[brushFilterHistory.length - 1];
@@ -170,6 +179,21 @@ export default function Home() {
 
           return x0Pass && x1Pass;
         });
+
+        //only reset if we've zoomed out of range
+        if (selectedRegionDetailData) {
+          const { chr } = selectedRegionDetailData.region;
+          const { bpRange } = selectedRegionDetailData;
+          if (+x0Lim.chr > chr || +x1Lim.chr < chr) {
+            setSelectedRegionDetailData(undefined);
+          } else if (
+            +x0Lim.chr == +x1Lim.chr &&
+            +x1Lim.chr === chr &&
+            (x0Lim.pos > bpRange[0] || x1Lim.pos < bpRange[0])
+          ) {
+            setSelectedRegionDetailData(undefined);
+          }
+        }
 
         if (newDisplayData.length) {
           setRegionDisplayData(newDisplayData);
@@ -199,10 +223,9 @@ export default function Home() {
   );
 
   const resetVisualizationVariables = () => {
-    setRegionDetailData([]);
     setSelectedRegion(undefined);
     setBrushFilterHistory([]);
-    setRegionDetailData([]);
+    setSelectedRegionDetailData(undefined);
   };
 
   const filterCb = useCallback(
@@ -256,7 +279,7 @@ export default function Home() {
                             if (["MLCZ_p", "LCZ_p"].includes(k + "")) {
                               return false;
                             }
-                            //for now we'll filter out negative p values
+                            //for now we'll filter out negative p values as errors
                             //but we may want to correct them later
                             else if (
                               !!v &&
@@ -398,7 +421,7 @@ export default function Home() {
                 onCircleClick={(d) => setSelectedRegion(d)}
                 filter={brushFilterHistory[brushFilterHistory.length - 1]}
                 filterCb={filterCb}
-                selectedRegion={selectedRegion}
+                selectedRegionDetailData={selectedRegionDetailData}
                 topCol={upperVariable}
                 topThresh={upperThresh}
                 width={miamiChartContainerRef.current.clientWidth}
@@ -418,6 +441,7 @@ export default function Home() {
                 container
                 spacing={1}
                 alignItems="flex-end"
+                justifyContent="center"
               >
                 <Grid>
                   <QQPlot
@@ -463,17 +487,16 @@ export default function Home() {
       </Grid>
       {!!pvalScale &&
         !!miamiChartContainerRef.current &&
-        !!regionDetailData.length &&
+        !!selectedRegionDetailData &&
         !!upperVariable &&
         !!lowerVariable &&
         !!selectedRegion && (
           <RegionPlot
             assemblyInfo={assemblyInfo}
-            data={regionDetailData}
             pvalScale={pvalScale}
             pvars={pVars}
             selector="region-plot"
-            selectedRegion={selectedRegion}
+            selectedRegionDetailData={selectedRegionDetailData}
             var1={upperVariable}
             var2={lowerVariable}
             mainWidth={miamiChartContainerRef.current.clientWidth}

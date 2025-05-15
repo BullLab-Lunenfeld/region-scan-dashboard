@@ -24,6 +24,7 @@ import {
   AssembyInfo,
   EnsemblGeneResult,
   RegionResult,
+  SelectedRegionDetailData,
   UCSCRecombTrackResult,
   VariantResultRow,
 } from "@/lib/ts/types";
@@ -135,6 +136,9 @@ const marginTop = 25;
 const marginRight = 15;
 const geneRectHeight = 3;
 
+const getVisibleDataRange = (data: RegionResult[]) =>
+  extent(data.map((d) => d.region));
+
 class RegionChart {
   container: Selection<SVGGElement, number, SVGElement, unknown>;
   height: number;
@@ -194,7 +198,6 @@ class RegionChart {
     genes: EnsemblGeneResult[],
     wheelCb: (delta: number, pos: number) => void,
     setCenterRegion: (region: number) => void,
-    regionRange: number[],
     recombData: UCSCRecombTrackResult[],
     geneLabelsVisible: boolean,
     visiblePvars: (keyof RegionResult)[],
@@ -392,7 +395,6 @@ class RegionChart {
           genes,
           wheelCb,
           setCenterRegion,
-          regionRange,
           recombData,
           geneLabelsVisible,
           visiblePvars,
@@ -433,6 +435,8 @@ class RegionChart {
       .duration(500)
       .call(axisBottom(xScale).ticks(5));
 
+    const visibleDataRange = getVisibleDataRange(data);
+
     this.container
       .selectAll<SVGGElement, string>("g.x-label")
       .data([1])
@@ -441,13 +445,9 @@ class RegionChart {
       .attr("transform", `translate(${this.mainWidth / 2},${this.height - 3})`)
       .selection()
       .selectAll<SVGGElement, string>("text")
-      .data([1])
+      .data([1], () => `${visibleDataRange[0]}-${visibleDataRange[1]}`)
       .join("text")
-      .text(
-        `Chr${chr} Regions ${regionRange[0]}-${
-          regionRange[regionRange.length - 1]
-        }`,
-      )
+      .text(`Chr${chr} Regions ${visibleDataRange[0]}-${visibleDataRange[1]}`)
       .attr("font-size", 12)
       .attr("text-anchor", "middle");
 
@@ -580,10 +580,9 @@ class RegionChart {
 
 interface RegionPlotProps {
   assemblyInfo: AssembyInfo;
-  data: RegionResult[];
   pvalScale: ScaleOrdinal<string, string, never>;
   pvars: (keyof RegionResult)[];
-  selectedRegion: RegionResult;
+  selectedRegionDetailData: SelectedRegionDetailData;
   selector: string;
   var1: keyof RegionResult;
   var2: keyof RegionResult;
@@ -592,16 +591,17 @@ interface RegionPlotProps {
 
 const RegionPlot: React.FC<RegionPlotProps> = ({
   assemblyInfo,
-  data,
   pvalScale,
   pvars,
-  selectedRegion,
+  selectedRegionDetailData,
   selector,
   var1,
   var2,
   mainWidth,
 }) => {
-  const [centerRegion, setCenterRegion] = useState(selectedRegion.region);
+  const [centerRegion, setCenterRegion] = useState(
+    selectedRegionDetailData.region.region,
+  );
 
   const [chart, setChart] = useState<RegionChart>();
 
@@ -629,7 +629,12 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   const [visiblePvars, setVisiblePvars] = useState<(keyof RegionResult)[]>([]);
 
-  const [wheelTick, setWheelTick] = useState(10);
+  const [wheelTick, setWheelTick] = useState<number | null>(null);
+
+  const data = useMemo(
+    () => selectedRegionDetailData.data,
+    [selectedRegionDetailData],
+  );
 
   const chr = useMemo(() => data[0].chr, [data]);
 
@@ -662,6 +667,14 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     }
   }, [recombData, recombVisible]);
 
+  const maxWheelTick = useMemo(
+    () =>
+      max(
+        selectedRegionDetailData.regions.map((r) => Math.abs(r - centerRegion)),
+      ) as number,
+    [selectedRegionDetailData, centerRegion],
+  );
+
   useEffect(() => {
     // fetch the recomb rate data and merge with region data, this means only 1 api call per chart
     const [start, end] = posRange;
@@ -679,7 +692,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   //set visible data depending on zoom and center
   useEffect(() => {
-    if (!!data.length) {
+    if (!!data.length && wheelTick !== null) {
       const [_startReg, _endReg] = [
         centerRegion - wheelTick,
         centerRegion + wheelTick,
@@ -690,17 +703,15 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
       );
 
       setVisibleData(visibleData);
+    } else if (!!data.length) {
+      setWheelTick(maxWheelTick);
+      setVisibleData(data);
     }
   }, [centerRegion, data, wheelTick]);
 
-  const regionRange = useMemo(
-    () => [...new Set(data.map((d) => d.region))] as number[],
-    [data],
-  );
-
   const updateRange = useCallback(
     (delta: number, pos: number) => {
-      if (wheelTick <= 1 && delta < 0) {
+      if (wheelTick !== null && wheelTick <= 1 && delta < 0) {
         return;
       }
 
@@ -710,25 +721,27 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
       //maxwheeltick ("zoom out") is max distance from center region to most distant region
       //ensuring we can use the full frame
-      const maxWheelTick = max(
-        regionRange.map((r) => Math.abs(r - centerRegion)),
-      ) as number;
-
-      if (wheelTick > maxWheelTick && delta > 0) {
-        return;
-      } else {
-        if (targetRegion && centerRegion != targetRegion.region) {
-          if (targetRegion.region > centerRegion) {
-            setCenterRegion(centerRegion + 1);
-          } else {
-            setCenterRegion(centerRegion - 1);
+      if (wheelTick !== null) {
+        if (wheelTick > maxWheelTick && delta > 0) {
+          return;
+        } else {
+          if (targetRegion && wheelTick !== null) {
+            if (targetRegion.region > centerRegion) {
+              setCenterRegion(centerRegion + 1);
+            } else {
+              setCenterRegion(centerRegion - 1);
+            }
           }
-        }
 
-        setWheelTick((wt) => (delta > 0 ? wt + 1 : wt - 1));
+          setWheelTick((wt) => {
+            if (wt !== null) {
+              return delta > 0 ? wt + 1 : wt - 1;
+            } else return null;
+          });
+        }
       }
     },
-    [wheelTick, centerRegion, regionRange, visibleData],
+    [wheelTick, maxWheelTick, centerRegion, visibleData],
   );
 
   useEffect(() => {
@@ -745,14 +758,12 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   //new data
   useEffect(() => {
-    if (selectedRegion) {
-      setVariants([]);
-      setGenes([]);
-      setWheelTick(10);
-      setVariantsVisible(true);
-      setCenterRegion(selectedRegion.region);
-    }
-  }, [selectedRegion, assemblyInfo]);
+    setVariants([]);
+    setGenes([]);
+    setWheelTick(null);
+    setVariantsVisible(true);
+    setCenterRegion(selectedRegionDetailData.region.region);
+  }, [selectedRegionDetailData, assemblyInfo, data]);
 
   //update
   useEffect(() => {
@@ -765,7 +776,6 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
         visibleGenes,
         updateRange,
         setCenterRegion,
-        regionRange,
         visibleRecomb,
         geneLabelsVisible,
         visiblePvars,
@@ -777,7 +787,6 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     geneLabelsVisible,
     updateRange,
     setCenterRegion,
-    regionRange,
     visibleData,
     visibleGenes,
     visiblePvars,
@@ -808,7 +817,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
                 )
                 .filter(
                   (v) =>
-                    regionRange.includes(v.region) &&
+                    selectedRegionDetailData?.regions.includes(v.region) &&
                     v.start_bp > posRange[0] &&
                     v.end_bp < posRange[1],
                 );

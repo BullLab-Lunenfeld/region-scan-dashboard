@@ -152,3 +152,10 @@ export interface AssembyInfo {
   assembly: "GRCh37" | "GRCh38";
   lengths: Record<string, number>;
 }
+
+export interface SelectedRegionDetailData {
+  bpRange: [number, number];
+  data: RegionResult[];
+  region: RegionResult;
+  regions: number[];
+}
