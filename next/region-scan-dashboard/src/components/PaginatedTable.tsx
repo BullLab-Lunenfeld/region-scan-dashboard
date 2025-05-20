@@ -68,36 +68,34 @@ function PaginatedTable<T extends GridValidRowModel>({
   };
 
   return (
-    <Grid container direction="column" flexWrap="nowrap">
-      <DataGrid
-        columns={cols}
-        density="compact"
-        filterMode="client"
-        filterModel={filterModel}
-        initialState={{
-          columns: {
-            columnVisibilityModel,
-          },
-        }}
-        loading={loading}
-        onFilterModelChange={onFilterModelChange}
-        onPaginationModelChange={onPaginationModelChange}
-        onRowClick={(params) => (onSelect ? onSelect(params.row) : () => null)}
-        pageSizeOptions={[10, 20]}
-        paginationMode="client"
-        paginationModel={paginationModel}
-        resetPageOnSortFilter
-        rowCount={total}
-        rowHeight={32}
-        rows={data}
-        rowSelection={!!selected}
-        rowSelectionModel={selected ? [selected] : selected}
-        slots={{
-          toolbar: RSGridToolbar,
-        }}
-        sortingMode="client"
-      />
-    </Grid>
+    <DataGrid
+      columns={cols}
+      density="compact"
+      filterMode="client"
+      filterModel={filterModel}
+      initialState={{
+        columns: {
+          columnVisibilityModel,
+        },
+      }}
+      loading={loading}
+      onFilterModelChange={onFilterModelChange}
+      onPaginationModelChange={onPaginationModelChange}
+      onRowClick={(params) => (onSelect ? onSelect(params.row) : () => null)}
+      pageSizeOptions={[10, 20]}
+      paginationMode="client"
+      paginationModel={paginationModel}
+      resetPageOnSortFilter
+      rowCount={total}
+      rowHeight={32}
+      rows={data}
+      rowSelection={!!selected}
+      rowSelectionModel={selected ? [selected] : selected}
+      slots={{
+        toolbar: RSGridToolbar,
+      }}
+      sortingMode="client"
+    />
   );
 }
 

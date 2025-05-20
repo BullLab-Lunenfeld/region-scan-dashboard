@@ -305,7 +305,7 @@ const QQPlot: React.FC<QQPlotProps> = ({
 
   return (
     <>
-      <Box className={selector} display="flex" />
+      <Box className={selector} />
       <LoadingOverlay open={loading} />
     </>
   );

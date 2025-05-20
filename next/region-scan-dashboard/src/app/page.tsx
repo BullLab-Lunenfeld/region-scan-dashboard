@@ -234,7 +234,9 @@ export default function Home() {
   );
 
   return (
+    /* Main column container */
     <Grid container direction="column" spacing={3}>
+      {/* First row container */}
       <Grid container direction="row" spacing={2}>
         {/* miami plot controls */}
         <Grid
@@ -407,26 +409,32 @@ export default function Home() {
           </Grid>
         </Grid>
         {/* Miami plot container */}
-        <Grid ref={miamiChartContainerRef} size={{ xs: 5, lg: 6, xl: 6.25 }}>
-          {!!pvalScale &&
-            !!upperVariable &&
-            !!lowerVariable &&
-            !!miamiChartContainerRef.current && (
-              <MiamiPlot
-                assemblyInfo={assemblyInfo}
-                pvalScale={pvalScale}
-                bottomCol={lowerVariable}
-                bottomThresh={lowerThresh}
-                data={regionDisplayData}
-                onCircleClick={(d) => setSelectedRegion(d)}
-                filter={brushFilterHistory[brushFilterHistory.length - 1]}
-                filterCb={filterCb}
-                selectedRegionDetailData={selectedRegionDetailData}
-                topCol={upperVariable}
-                topThresh={upperThresh}
-                width={miamiChartContainerRef.current.clientWidth}
-              />
-            )}
+        <Grid
+          container
+          ref={miamiChartContainerRef}
+          size={{ xs: 5, lg: 6, xl: 6.25 }}
+        >
+          <Grid>
+            {!!pvalScale &&
+              !!upperVariable &&
+              !!lowerVariable &&
+              !!miamiChartContainerRef.current && (
+                <MiamiPlot
+                  assemblyInfo={assemblyInfo}
+                  pvalScale={pvalScale}
+                  bottomCol={lowerVariable}
+                  bottomThresh={lowerThresh}
+                  data={regionDisplayData}
+                  onCircleClick={(d) => setSelectedRegion(d)}
+                  filter={brushFilterHistory[brushFilterHistory.length - 1]}
+                  filterCb={filterCb}
+                  selectedRegionDetailData={selectedRegionDetailData}
+                  topCol={upperVariable}
+                  topThresh={upperThresh}
+                  width={miamiChartContainerRef.current.clientWidth}
+                />
+              )}
+          </Grid>
         </Grid>
         {/* QQ Plot */}
         {!!pvalScale && (
@@ -434,15 +442,12 @@ export default function Home() {
             ref={qqChartContainerRef}
             size={{ xs: 5, lg: 4, xl: 4.25 }}
             container
+            direction="column"
+            spacing={1}
+            justifyContent="center"
           >
             {!!regionData.length && !!qqChartContainerRef.current && (
-              <Grid
-                direction="column"
-                container
-                spacing={1}
-                alignItems="flex-end"
-                justifyContent="center"
-              >
+              <>
                 <Grid>
                   <QQPlot
                     pvalScale={pvalScale}
@@ -456,7 +461,7 @@ export default function Home() {
 
                 {!!regionData.length && (
                   <Grid
-                    offset={1}
+                    marginLeft={2}
                     container
                     spacing={0}
                     direction="row"
@@ -480,11 +485,12 @@ export default function Home() {
                     ))}
                   </Grid>
                 )}
-              </Grid>
+              </>
             )}
           </Grid>
         )}
       </Grid>
+      {/* Region polt row */}
       {!!pvalScale &&
         !!miamiChartContainerRef.current &&
         !!selectedRegionDetailData &&
@@ -502,10 +508,10 @@ export default function Home() {
             mainWidth={miamiChartContainerRef.current.clientWidth}
           />
         )}
-      <Grid container width="100%">
-        {/* Ideally we don't need controlled filters at all*/}
-        {!!regionDisplayData.length && (
-          <Grid>
+      {/* Ideally we don't need controlled filters at all*/}
+      {!!regionDisplayData.length && (
+        <Grid size={{ xs: 12 }} container flexWrap="nowrap">
+          <Grid sx={{ width: "100%" }}>
             <PaginatedTable
               cols={RegionResultCols}
               data={regionDisplayData}
@@ -514,8 +520,8 @@ export default function Home() {
               //onSelect={(m) => null}
             />
           </Grid>
-        )}
-      </Grid>
+        </Grid>
+      )}
     </Grid>
   );
 }

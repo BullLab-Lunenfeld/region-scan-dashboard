@@ -564,8 +564,8 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
 
   return (
     <>
-      <LoadingOverlay open={loading} />
       <Box className={className} />
+      <LoadingOverlay open={loading} />
     </>
   );
 };
