@@ -438,18 +438,14 @@ class RegionChart {
     const visibleDataRange = getVisibleDataRange(data);
 
     this.container
-      .selectAll<SVGGElement, string>("g.x-label")
-      .data([1])
-      .join("g")
-      .attr("class", "x-label")
-      .attr("transform", `translate(${this.mainWidth / 2},${this.height - 3})`)
-      .selection()
-      .selectAll<SVGGElement, string>("text")
+      .selectAll<SVGGElement, string>("text.title")
       .data([1], () => `${visibleDataRange[0]}-${visibleDataRange[1]}`)
       .join("text")
+      .attr("class", "title")
+      .attr("font-size", 14)
       .text(`Chr${chr} Regions ${visibleDataRange[0]}-${visibleDataRange[1]}`)
-      .attr("font-size", 12)
-      .attr("text-anchor", "middle");
+      .attr("text-anchor", "middle")
+      .attr("transform", `translate(${this.mainWidth / 2}, 12)`);
 
     this.container
       .selectAll<SVGGElement, number>("g.y-axis")
