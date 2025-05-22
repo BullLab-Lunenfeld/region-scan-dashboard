@@ -222,7 +222,8 @@ const buildChart = (
 
   const xAxis = axisBottom(xAxisScale)
     .tickFormat((t) => (chrs.length > 1 ? "" : format(",")(t)))
-    .tickSize(3);
+    .tickSize(3)
+    .ticks(chrs.length > 1 ? chrs.length : 7);
 
   const xAxisSelection = container
     .selectAll<SVGGElement, number>("g.x-axis")
@@ -490,10 +491,11 @@ const buildChart = (
 
   container
     .selectAll("text.title")
-    .data([1])
+    .data([1], () => chrs.toString())
     .join("text")
     .attr("class", "title")
-    .text("Miami Plot")
+    .text(`Miami Plot${chrs.length === 1 ? ` Chr ${chrs[0]}` : ""}`)
+    .attr("text-anchor", "middle")
     .attr("transform", `translate(${width / 2}, 12)`);
 
   //append tooltip

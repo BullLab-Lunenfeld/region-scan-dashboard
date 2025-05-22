@@ -132,13 +132,28 @@ export default function Home() {
         }
       }
 
-      //we have to have <= 5 mb for gene fetch API
+      // we have to have <= 5 mb for gene fetch API, so limit here
       if (selectedRegion.start_bp - minBp > 2500000) {
         minBp = selectedRegion.start_bp - 2500000;
       }
 
       if (maxBp - selectedRegion.start_bp > 2500000) {
         maxBp = selectedRegion.start_bp + 2500000;
+      }
+
+      // now limit based on the viewport, basically if we're already zoomed in to single chr, trim to that range
+      if (regionDisplayData.length) {
+        if ([...new Set([regionDisplayData.map((r) => r.chr)])].length === 1) {
+          const [minVisibleBp, maxVisibleBp] = extent(
+            regionDisplayData.flatMap((d) => [d.start_bp, d.end_bp]),
+          ) as [number, number];
+          if (maxVisibleBp < maxBp) {
+            maxBp = maxVisibleBp;
+          }
+          if (minVisibleBp > minBp) {
+            minBp = minVisibleBp;
+          }
+        }
       }
 
       const regionDetailData = regionData.filter(
@@ -156,7 +171,7 @@ export default function Home() {
         ) as [number, number],
       });
     }
-  }, [regionData, regionRestartPoints, selectedRegion]);
+  }, [regionData, regionDisplayData, regionRestartPoints, selectedRegion]);
 
   useEffect(() => {
     setSelectedRegionDetailData(undefined);
@@ -167,6 +182,8 @@ export default function Home() {
       if (!!brushFilterHistory.length) {
         const { x0Lim, x1Lim } =
           brushFilterHistory[brushFilterHistory.length - 1];
+
+        //
 
         const newDisplayData = regionData.filter((d) => {
           const x0Pass =
@@ -180,10 +197,11 @@ export default function Home() {
           return x0Pass && x1Pass;
         });
 
-        //only reset if we've zoomed out of range
+        //optionally reset region chart data if we've zoomed out of range
         if (selectedRegionDetailData) {
           const { chr } = selectedRegionDetailData.region;
           const { bpRange } = selectedRegionDetailData;
+          //if selected chr is no longer in view
           if (+x0Lim.chr > chr || +x1Lim.chr < chr) {
             setSelectedRegionDetailData(undefined);
           } else if (
