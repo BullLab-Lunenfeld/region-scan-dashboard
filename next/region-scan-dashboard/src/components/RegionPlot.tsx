@@ -166,7 +166,7 @@ class RegionChart {
     this.var2 = var2;
     this.mainWidth = mainWidth;
     this.width = this.mainWidth + 130;
-    this.height = 0.5 * this.width;
+    this.height = 0.4 * this.width;
     this.hiddenGeneLabels = [];
 
     this.svg = select(`.${this.selector}`)

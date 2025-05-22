@@ -59,6 +59,7 @@ export interface BrushFilter {
   };
 }
 
+const marginMiddle = 10;
 const marginBottom = 25;
 const yLabelMargin = 28;
 const yAxisMargin = 20;
@@ -82,7 +83,7 @@ const buildChart = (
   selectedRegionDetailData?: SelectedRegionDetailData,
 ) => {
   const topThresh = -Math.log10(_topThresh);
-  const bottomThresh = Math.log10(_bottomThresh);
+  const bottomThresh = -Math.log10(_bottomThresh);
 
   // get unique chromosomes, convert to string, sort asc
   const chrs = data
@@ -133,10 +134,8 @@ const buildChart = (
       getEntries(d)
         .filter(([, v]) => !!v)
         .map(([k, v]) => {
-          if (k === topCol) {
+          if ([topCol, bottomCol].includes(k)) {
             return [k, -1 * Math.log10(v as number)];
-          } else if (k === bottomCol) {
-            return [k, Math.log10(v as number)];
           } else {
             return [k, v];
           }
@@ -180,13 +179,25 @@ const buildChart = (
           )
       : singleChrXScale;
 
-  const yScale = scaleLinear()
-    .range([marginTop, height - marginBottom])
+  //todo: we need 2 yscales, one up, one down
+  //we don't need margin bottom, or we can bake in
+
+  const yScaleLower = scaleLinear()
+    .range([marginTop + height / 2 + marginMiddle, height - marginBottom])
     .domain(
-      extent([
-        ...(upperData.map((d) => d[topCol]) as number[]),
-        ...(lowerData.map((d) => d[bottomCol]) as number[]),
-      ]).reverse() as [number, number],
+      extent(upperData.map((d) => d[bottomCol]) as number[]) as [
+        number,
+        number,
+      ],
+    );
+
+  const yScaleUpper = scaleLinear()
+    .range([marginTop, height - height / 2 - marginMiddle])
+    .domain(
+      extent(upperData.map((d) => d[topCol]) as number[]).reverse() as [
+        number,
+        number,
+      ],
     );
 
   const svg = select(selector)
@@ -209,20 +220,25 @@ const buildChart = (
     .join("g")
     .attr("class", "container");
 
-  const xAxis = axisBottom(xAxisScale).tickFormat((t) =>
-    chrs.length > 1 ? "" : format(",")(t),
-  );
+  const xAxis = axisBottom(xAxisScale)
+    .tickFormat((t) => (chrs.length > 1 ? "" : format(",")(t)))
+    .tickSize(3);
 
   const xAxisSelection = container
     .selectAll<SVGGElement, number>("g.x-axis")
     .data([1], () => xAxisScale.range().toString())
     .join("g")
     .attr("class", "x-axis")
-    .attr("transform", `translate(0,${height - marginBottom})`)
+    .attr("transform", `translate(0,${height - height / 2 + marginMiddle})`)
     .transition()
     .duration(500)
-    .call(xAxis)
     .selection();
+
+  xAxisSelection.call(xAxis);
+
+  xAxisSelection
+    .selectAll(".tick line")
+    .attr("transform", `translate(0,${-2})`);
 
   const midpoints = Object.entries(chrCumSumScale)
     .sort((a, b) => (+a > +b ? 1 : -1))
@@ -244,23 +260,39 @@ const buildChart = (
     .attr("fill", "black")
     .text((d) => (chrs.length > 1 ? `Chr ${d.chr}` : ""));
 
-  const yAxis = axisLeft(yScale).tickFormat((t) => Math.abs(+t).toString());
+  const yAxisUpper = axisLeft(yScaleUpper)
+    .tickFormat((t) => Math.abs(+t).toString())
+    .ticks(7);
+  const yAxisLower = axisLeft(yScaleLower)
+    .tickFormat((t) => Math.abs(+t).toString())
+    .ticks(7);
 
   container
-    .selectAll<SVGGElement, number>("g.y-axis")
-    .data([1], () => yScale.range().toString())
+    .selectAll<SVGGElement, number>("g.y-axis-upper")
+    .data([1], () => yScaleUpper.range().toString())
     .join("g")
-    .attr("class", "y-axis")
+    .attr("class", "y-axis-upper")
     .attr("transform", `translate(${marginLeft},0)`)
     .transition()
     .duration(500)
-    .call(yAxis)
+    .call(yAxisUpper)
+    .selection();
+
+  container
+    .selectAll<SVGGElement, number>("g.y-axis-lower")
+    .data([1], () => yScaleLower.range().toString())
+    .join("g")
+    .attr("class", "y-axis-lower")
+    .attr("transform", `translate(${marginLeft},0)`)
+    .transition()
+    .duration(500)
+    .call(yAxisLower)
     .selection();
 
   // Add y axis labels
 
-  const upperMidPoint = (yScale.range()[0] + yScale(0)) / 2;
-  const lowerMidPoint = (yScale.range()[1] + yScale(0)) / 2;
+  const upperMidPoint = (yScaleUpper.range()[0] + yScaleUpper(0)) / 2;
+  const lowerMidPoint = (yScaleLower.range()[1] + yScaleLower(0)) / 2;
 
   container
     .selectAll("g.y-upper-label")
@@ -311,7 +343,8 @@ const buildChart = (
     .attr("x", () => posRange && posRange[0])
     .attr("y", marginTop)
     .attr("height", height - marginBottom - marginTop)
-    .attr("stroke", "orange")
+    .attr("stroke", "gold")
+    .attr("stroke-width", "3px")
     .attr("fill", "none")
     .attr("opacity", 0.5);
 
@@ -380,12 +413,12 @@ const buildChart = (
     .attr("fill", pvalScale(topCol))
     .attr("opacity", 0.5)
     .attr("cx", (d) => getPlottingXScale(d.chr.toString())(d.end_bp))
-    .attr("cy", (d) => yScale(d[topCol]!));
+    .attr("cy", (d) => yScaleUpper(d[topCol]!));
 
   circleContainer
     .selectAll("circle.lower")
     .data(
-      lowerData.filter((d) => !!d[bottomCol] && d[bottomCol] > bottomThresh),
+      lowerData.filter((d) => !!d[bottomCol] && d[bottomCol] < bottomThresh),
       (_, i) => `${i}-${topCol}`,
     )
     .join("circle")
@@ -394,7 +427,7 @@ const buildChart = (
     .attr("fill", pvalScale(bottomCol))
     .attr("opacity", 0.5)
     .attr("cx", (d) => getPlottingXScale(d.chr.toString())(d.end_bp))
-    .attr("cy", (d) => yScale(d[bottomCol] as number));
+    .attr("cy", (d) => yScaleLower(d[bottomCol]!));
 
   circleContainer
     .selectAll<SVGPathElement, RegionResult>("path.upper")
@@ -409,13 +442,13 @@ const buildChart = (
       (d) =>
         `translate(${getPlottingXScale(d.chr.toString())(
           d.end_bp,
-        )}, ${yScale(d[topCol] as number)})`,
+        )}, ${yScaleUpper(d[topCol] as number)})`,
     );
 
   circleContainer
     .selectAll("path.lower")
     .data(
-      lowerData.filter((d) => !!d[bottomCol] && d[bottomCol] < bottomThresh),
+      lowerData.filter((d) => !!d[bottomCol] && d[bottomCol] > bottomThresh),
       (_, i) => `${i}-${topCol}`,
     )
     .join("path")
@@ -428,7 +461,7 @@ const buildChart = (
       (d) =>
         `translate(${getPlottingXScale(d.chr.toString())(
           d.end_bp,
-        )}, ${yScale(d[bottomCol] as number)})`,
+        )}, ${yScaleLower(d[bottomCol] as number)})`,
     );
 
   circleContainer
@@ -440,8 +473,8 @@ const buildChart = (
   drawDottedLine(
     container,
     "top-thresh",
-    yScale(topThresh),
-    yScale(topThresh),
+    yScaleUpper(topThresh),
+    yScaleUpper(topThresh),
     marginLeft,
     width,
   );
@@ -449,8 +482,8 @@ const buildChart = (
   drawDottedLine(
     container,
     "bottom-thresh",
-    yScale(bottomThresh),
-    yScale(bottomThresh),
+    yScaleLower(bottomThresh),
+    yScaleLower(bottomThresh),
     marginLeft,
     width,
   );
