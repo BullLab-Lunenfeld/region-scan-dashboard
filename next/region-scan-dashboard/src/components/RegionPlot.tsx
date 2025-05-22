@@ -636,7 +636,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     [selectedRegionDetailData],
   );
 
-  const chr = useMemo(() => data[0].chr, [data]);
+  const chr = useMemo(() => (data.length ? data[0].chr : null), [data]);
 
   const posRange = useMemo(
     () => extent(data.map((d) => d.start_bp)) as [number, number],
@@ -679,15 +679,17 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     // fetch the recomb rate data and merge with region data, this means only 1 api call per chart
     const [start, end] = posRange;
 
-    fetchRecomb(chr, start, end, assemblyInfo.assembly).then((r) => {
-      if (r) {
-        r.sort((a, b) => (a.start < b.start ? -1 : 1));
-        setRecombData(r);
-      } else {
-        alert("Error fetching recombination data");
-        setRecombData([]);
-      }
-    });
+    if (chr && start !== end) {
+      fetchRecomb(chr, start, end, assemblyInfo.assembly).then((r) => {
+        if (r) {
+          r.sort((a, b) => (a.start < b.start ? -1 : 1));
+          setRecombData(r);
+        } else {
+          alert("Error fetching recombination data");
+          setRecombData([]);
+        }
+      });
+    }
   }, [data, assemblyInfo, chr, posRange]);
 
   //set visible data depending on zoom and center
@@ -848,23 +850,27 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
         <Grid>
           <Button
             onClick={async () => {
-              setLoading(true);
-              const _genes = await fetchGenes(
-                chr,
-                posRange[0],
-                posRange[1],
-                assemblyInfo.assembly,
-              );
-              if (_genes !== null) {
-                setGenes(_genes);
-                if (_genes.length === 0) {
-                  alert("No genes found for this region");
+              if (chr) {
+                setLoading(true);
+                const _genes = await fetchGenes(
+                  chr,
+                  posRange[0],
+                  posRange[1],
+                  assemblyInfo.assembly,
+                );
+                if (_genes !== null) {
+                  setGenes(_genes);
+                  if (_genes.length === 0) {
+                    alert("No genes found for this region");
+                  }
+                } else {
+                  alert(
+                    "there was an error fetching the genes for this region",
+                  );
+                  setGenes([]);
                 }
-              } else {
-                alert("there was an error fetching the genes for this region");
-                setGenes([]);
+                setLoading(false);
               }
-              setLoading(false);
             }}
           >
             Fetch genes
