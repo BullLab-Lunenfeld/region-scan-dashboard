@@ -73,7 +73,6 @@ export interface RegionResultRawOld extends RegionResultRawBase {
   "GATES.df": number;
 }
 
-// this is a union of the old and new types, the new will be a subset
 export type RegionResultRaw = (RegionResultRawOld | RegionResultRawNew) & {
   id?: number;
 };
@@ -114,38 +113,84 @@ export interface RegionResult {
   SKAT_p: number;
 }
 
-export interface VariantResultRow {
-  bin: number;
+interface VariantResultRawBase {
   chr: number;
-  end_bp: number;
-  glm_beta: number;
-  glm_pval: number;
-  glm_se: number;
-  glmbin_beta: number;
-  glmbin_pval: number;
-  glmbin_se: number;
+  region: number;
+  "start.bp": number;
+  "end.bp": number;
+  bin: number;
+  variant: string;
+  maf: number;
+  "major.allele": number;
+  "minor.allele": number;
+}
+
+export interface VariantResultRawOld extends VariantResultRawBase {
+  "glm.beta": number;
+  "glm.pval": number;
+  "glm.se": number;
+  "glmbin.beta": number;
+  "glmbin.pval": number;
+  "glmbin.se": number;
   LCBbin: number;
   LCBbin_glmByBin: number;
-  LCBbin_glmByBin_p: number;
-  LCBbin_p: number;
+  "LCBbin_glmByBin.p": number;
+  "LCBbin.p": number;
   LCZbin: number;
   LCZbin_glmByBin: number;
-  LCZbin_glmByBin_p: number;
-  LCZbin_p: number;
+  "LCZbin_glmByBin.p": number;
+  "LCZbin.p": number;
+  "MLC.flip": number;
+  multiallelicSNP: number;
+  pos: number;
+  "sg.beta": number;
+  "sg.pval": number;
+  "sg.se": number;
+  VIF: number;
+  vifbin: number;
+}
+
+export interface VariantResultRawNew extends VariantResultRawBase {
+  bp: number;
+  multiallelic: number;
+  "MLC.codechange": number;
+  "mglm.vif": number;
+  "mglm.beta": number;
+  "mglm.se": number;
+  "mglm.pvalue": number;
+  "sglm.beta": number;
+  "sglm.se": number;
+  "sglm.pvalue": number;
+  ref: string;
+  alt: string;
+  "LC.codechange": number;
+}
+
+export type VariantResultRaw = VariantResultRawNew | VariantResultRawOld;
+
+export interface VariantResult {
+  chr: number;
+  region: number;
+  start_bp: number;
+  end_bp: number;
+  bin: number;
+  variant: string;
   maf: number;
   major_allele: number;
   minor_allele: number;
-  MLC_flip: number;
-  multiallelicSNP: number;
-  pos: number;
-  region: number;
-  sg_beta: number;
-  sg_pval: number;
-  sg_se: number;
-  start_bp: number;
-  variant: string;
-  VIF: number;
-  vifbin: number;
+  bp: number;
+  multiallelic: number;
+  MLC_codechange: number;
+  mglm_vif: number;
+  mglm_beta: number;
+  mglm_se: number;
+  mglm_pvalue: number;
+  sglm_beta: number;
+  sglm_se: number;
+  sglm_pvalue: number;
+  ref?: string; //these are in old but not new
+  alt?: string;
+  LC_codechange?: number;
 }
 
 export interface AssembyInfo {

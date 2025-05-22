@@ -26,12 +26,44 @@ import {
   RegionResult,
   SelectedRegionDetailData,
   UCSCRecombTrackResult,
-  VariantResultRow,
+  VariantResult,
+  VariantResultRawNew,
+  VariantResultRawOld,
 } from "@/lib/ts/types";
 import { LoadingOverlay, PvarCheckbox, UploadButtonSingle } from "@/components";
 import { drawDottedLine, parseTsv } from "@/lib/ts/util";
 import { fetchGenes } from "@/util/fetchGenes";
 import { fetchRecomb } from "@/util/fetchRecomb";
+
+const renameMap: Partial<
+  Record<keyof VariantResultRawOld, keyof VariantResultRawNew>
+> = {
+  "sg.beta": "sglm.beta",
+  "sg.se": "sglm.se",
+  "sg.pval": "sglm.pvalue",
+  "MLC.flip": "MLC.codechange",
+  VIF: "mglm.vif",
+  "glm.beta": "mglm.beta",
+  "glm.se": "mglm.se",
+  "glm.pval": "mglm.pvalue",
+  pos: "bp",
+  multiallelicSNP: "multiallelic",
+};
+
+const varsToDrop = [
+  "LCBbin",
+  "LCBbin_p",
+  "LCZbin",
+  "LCZbin_p",
+  "vifbin",
+  "glmbin_beta",
+  "glmbin_se",
+  "glmbin_pval",
+  "LCBbin_glmByBin",
+  "LCBbin_glmByBin_p",
+  "LCZbin_glmByBin",
+  "LCZbin_glmByBin_p",
+];
 
 interface RegionData {
   region: number;
@@ -70,7 +102,7 @@ const showRegionTooltip = (data: RegionData, e: MouseEvent) => {
     .text((d) => d);
 };
 
-const showVariantTooltip = (data: VariantResultRow, e: MouseEvent) => {
+const showVariantTooltip = (data: VariantResult, e: MouseEvent) => {
   select(".tooltip")
     .style("left", `${e.pageX + 15}px`)
     .style("top", `${e.pageY - 15}px`)
@@ -81,8 +113,8 @@ const showVariantTooltip = (data: VariantResultRow, e: MouseEvent) => {
       [
         `Variant: ${data.variant}`,
         `Region: ${data.region}`,
-        `Pos: ${format(",")(data.pos)}`,
-        `sg pval: ${format(".5")(data.sg_pval)}`,
+        `Pos: ${format(",")(data.bp)}`,
+        `sglm pval: ${format(".5")(data.sglm_pvalue)}`,
       ],
       (d) => d,
     )
@@ -194,7 +226,7 @@ class RegionChart {
 
   render = (
     data: RegionResult[],
-    variants: VariantResultRow[],
+    variants: VariantResult[],
     genes: EnsemblGeneResult[],
     wheelCb: (delta: number, pos: number) => void,
     setCenterRegion: (region: number) => void,
@@ -288,7 +320,7 @@ class RegionChart {
             .map((d) => d.pvalue)
             .concat(
               filteredVariants
-                ? filteredVariants.map((v) => -Math.log10(v.sg_pval))
+                ? filteredVariants.map((v) => -Math.log10(v.sglm_pvalue))
                 : [],
             ),
         ) as number,
@@ -345,19 +377,19 @@ class RegionChart {
 
     // add variants
     this.container
-      .selectAll<SVGCircleElement, VariantResultRow>("circle.variant")
-      .data(filteredVariants, (v) => v.sg_pval)
+      .selectAll<SVGCircleElement, VariantResult>("circle.variant")
+      .data(filteredVariants, (v) => v.sglm_pvalue)
       .join("circle")
       .attr("class", "variant")
-      .attr("cx", (d) => xScale(d.pos))
-      .attr("cy", (d) => yScalePval(-Math.log10(d.sg_pval)))
+      .attr("cx", (d) => xScale(d.bp))
+      .attr("cy", (d) => yScalePval(-Math.log10(d.sglm_pvalue)))
       .attr("fill", (d) => variantColorScale((d.region % 2) + ""))
       .transition()
       .duration(300)
       .selection()
       .attr("opacity", 0.7)
       .attr("r", circleWidthScale(xScale.domain()[1] - xScale.domain()[0]))
-      .on("mouseover", (e: MouseEvent, d: VariantResultRow) =>
+      .on("mouseover", (e: MouseEvent, d: VariantResult) =>
         showVariantTooltip(d, e),
       )
       .on("mouseout", () =>
@@ -619,7 +651,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   const [variantsVisible, setVariantsVisible] = useState<boolean>(true);
 
-  const [variants, setVariants] = useState<VariantResultRow[]>([]);
+  const [variants, setVariants] = useState<VariantResult[]>([]);
 
   const [visibleData, setVisibleData] = useState<RegionResult[]>([]);
 
@@ -806,16 +838,29 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
             key={uploadKey}
             fileType="variant"
             onUpload={async (file) => {
-              const parsed = await parseTsv<VariantResultRow>(file);
+              const parsed = await parseTsv<VariantResult>(file);
               const mapped = parsed
                 .map(
                   (v) =>
                     Object.fromEntries(
-                      Object.entries(v).map(([k, v]) => [
-                        k.replace(".", "_"),
-                        k === "variant" ? v : +v,
-                      ]),
-                    ) as unknown as VariantResultRow,
+                      Object.entries(v)
+                        .map(([k, v]) => {
+                          let k_ =
+                            renameMap[k as keyof VariantResultRawOld] || k;
+                          k_ = k_.replaceAll(".", "_") as keyof VariantResult;
+                          return [
+                            k_,
+                            v
+                              ? v
+                                ? ["ref", "alt", "variant"].includes(k)
+                                  ? v
+                                  : +v
+                                : v
+                              : null,
+                          ];
+                        })
+                        .filter(([k]) => !varsToDrop.includes(k)),
+                    ) as unknown as VariantResult,
                 )
                 .filter(
                   (v) =>
