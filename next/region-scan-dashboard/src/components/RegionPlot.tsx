@@ -23,6 +23,7 @@ import {
 import {
   AssembyInfo,
   EnsemblGeneResult,
+  PlinkVariant,
   RegionResult,
   SelectedRegionDetailData,
   UCSCRecombTrackResult,
@@ -65,6 +66,73 @@ const varsToDrop = [
   "LCZbin_glmByBin_p",
 ];
 
+const processRegionVariants = async (
+  file: File,
+  posRange: [number, number],
+  selectedRegions?: number[],
+) => {
+  const parsed = await parseTsv<VariantResult>(file);
+  return parsed
+    .map(
+      (v) =>
+        Object.fromEntries(
+          Object.entries(v)
+            .map(([k, v]) => {
+              let k_ = renameMap[k as keyof VariantResultRawOld] || k;
+              k_ = k_.replaceAll(".", "_") as keyof VariantResult;
+              return [
+                k_,
+                v
+                  ? v
+                    ? ["ref", "alt", "variant"].includes(k)
+                      ? v
+                      : +v
+                    : v
+                  : null,
+              ];
+            })
+            .filter(([k]) => !varsToDrop.includes(k)),
+        ) as unknown as VariantResult,
+    )
+    .filter(
+      (v) =>
+        selectedRegions?.includes(v.region) &&
+        v.start_bp > posRange[0] &&
+        v.end_bp < posRange[1],
+    );
+};
+
+const processPlinkVariants = async (
+  file: File,
+  posRange: [number, number],
+): Promise<PlinkVariant[]> => {
+  const parsed = await parseTsv<PlinkVariant>(file);
+  return parsed
+    .map((v) =>
+      Object.fromEntries(
+        Object.entries(v)
+          .map(([k, v]) => {
+            const _k = k.toLowerCase().replace("#", "");
+            return [
+              _k.toLowerCase().replace("#", ""),
+              v !== "."
+                ? ["ref", "alt", "id", "a1", "test"].includes(_k)
+                  ? v
+                  : +v
+                : null,
+            ];
+          })
+          .filter(([k]) => !varsToDrop.includes(k)),
+      ),
+    )
+    .filter((v) => v.pos > posRange[0] && v.pos < posRange[1]);
+};
+
+interface ChartVariants {
+  plinkVariants: PlinkVariant[];
+  regionVariants: VariantResult[];
+}
+
 interface RegionData {
   region: number;
   start: number;
@@ -80,70 +148,17 @@ interface RecombLineData {
 
 const circleWidthScale = scaleLinear().range([1, 2.5]).domain([5e6, 5e4]);
 
-const showRegionTooltip = (data: RegionData, e: MouseEvent) => {
+const showToolTip = (e: MouseEvent, text: string[]) =>
   select(".tooltip")
     .style("left", `${e.pageX + 15}px`)
     .style("top", `${e.pageY - 15}px`)
     .style("visibility", "visible")
     .select<HTMLUListElement>("ul")
     .selectAll<HTMLLIElement, string>("li")
-    .data<string>(
-      [
-        `Variable: ${data.variable}`,
-        `Region: ${data.region}`,
-        `Start pos: ${format(",")(data.start)}`,
-        `End pos: ${format(",")(data.end)}`,
-        `Pval: ${format(".5")(data.pvalue)}`,
-      ],
-      (d) => d,
-    )
+    .data<string>(text, (d) => d)
     .join("li")
     .style("font-size", "15px")
     .text((d) => d);
-};
-
-const showVariantTooltip = (data: VariantResult, e: MouseEvent) => {
-  select(".tooltip")
-    .style("left", `${e.pageX + 15}px`)
-    .style("top", `${e.pageY - 15}px`)
-    .style("visibility", "visible")
-    .select<HTMLUListElement>("ul")
-    .selectAll<HTMLLIElement, string>("li")
-    .data<string>(
-      [
-        `Variant: ${data.variant}`,
-        `Region: ${data.region}`,
-        `Pos: ${format(",")(data.bp)}`,
-        `sglm pval: ${format(".5")(data.sglm_pvalue)}`,
-      ],
-      (d) => d,
-    )
-    .join("li")
-    .style("font-size", "15px")
-    .text((d) => d);
-};
-
-const showGeneTooltip = (data: EnsemblGeneResult, e: MouseEvent) => {
-  select(".tooltip")
-    .style("left", `${e.pageX + 15}px`)
-    .style("top", `${e.pageY - 15}px`)
-    .style("visibility", "visible")
-    .select<HTMLUListElement>("ul")
-    .selectAll<HTMLLIElement, string>("li")
-    .data<string>(
-      [
-        `Gene: ${data.external_name}`,
-        `Type: ${data.biotype}`,
-        `ID: ${data.gene_id}`,
-        `Start pos: ${format(",")(data.start)}`,
-        `End pos: ${format(",")(data.end)}`,
-      ],
-      (d) => d,
-    )
-    .join("li")
-    .style("font-size", "15px")
-    .text((d) => d);
-};
 
 const variantColorScale = scaleOrdinal<string>()
   .range(["teal", "orange"])
@@ -226,7 +241,7 @@ class RegionChart {
 
   render = (
     data: RegionResult[],
-    variants: VariantResult[],
+    { plinkVariants, regionVariants }: ChartVariants,
     genes: EnsemblGeneResult[],
     wheelCb: (delta: number, pos: number) => void,
     setCenterRegion: (region: number) => void,
@@ -308,8 +323,16 @@ class RegionChart {
 
     const chr = data[0].chr;
 
-    const filteredVariants = variants.filter(
+    const filteredRegionVariants = regionVariants.filter(
       (v) => v.start_bp >= xScale.domain()[0] && v.end_bp <= xScale.domain()[1],
+    );
+
+    const filteredPlinkVariants = plinkVariants.filter(
+      (v) =>
+        !!v.pos &&
+        !!v.p &&
+        v.pos >= xScale.domain()[0] &&
+        v.pos <= xScale.domain()[1],
     );
 
     const yScalePval = scaleLinear()
@@ -319,10 +342,9 @@ class RegionChart {
           regionData
             .map((d) => d.pvalue)
             .concat(
-              filteredVariants
-                ? filteredVariants.map((v) => -Math.log10(v.sglm_pvalue))
-                : [],
-            ),
+              filteredRegionVariants.map((v) => -Math.log10(v.sglm_pvalue)),
+            )
+            .concat(filteredPlinkVariants.map((v) => -Math.log10(v.p!))),
         ) as number,
         -0.05,
       ]);
@@ -370,17 +392,23 @@ class RegionChart {
       .attr("width", (d) => xScale(d.end) - xScale(d.start))
       .selection()
       .on("mouseover", (e: MouseEvent, d: RegionData) =>
-        showRegionTooltip(d, e),
+        showToolTip(e, [
+          `Variable: ${d.variable}`,
+          `Region: ${d.region}`,
+          `Start pos: ${format(",")(d.start)}`,
+          `End pos: ${format(",")(d.end)}`,
+          `Pval: ${format(".5")(d.pvalue)}`,
+        ]),
       )
       .on("mouseout", () => selectAll(".tooltip").style("visibility", "hidden"))
       .on("click", (e, d) => setCenterRegion(d.region));
 
-    // add variants
+    // add region variants
     this.container
-      .selectAll<SVGCircleElement, VariantResult>("circle.variant")
-      .data(filteredVariants, (v) => v.sglm_pvalue)
+      .selectAll<SVGCircleElement, VariantResult>("circle.region-variant")
+      .data(filteredRegionVariants, (v) => v.sglm_pvalue)
       .join("circle")
-      .attr("class", "variant")
+      .attr("class", "region-variant")
       .attr("cx", (d) => xScale(d.bp))
       .attr("cy", (d) => yScalePval(-Math.log10(d.sglm_pvalue)))
       .attr("fill", (d) => variantColorScale((d.region % 2) + ""))
@@ -390,7 +418,38 @@ class RegionChart {
       .attr("opacity", 0.7)
       .attr("r", circleWidthScale(xScale.domain()[1] - xScale.domain()[0]))
       .on("mouseover", (e: MouseEvent, d: VariantResult) =>
-        showVariantTooltip(d, e),
+        showToolTip(e, [
+          `Variant: ${d.variant}`,
+          `Region: ${d.region}`,
+          `Pos: ${format(",")(d.bp)}`,
+          `sglm pval: ${format(".5")(d.sglm_pvalue)}`,
+        ]),
+      )
+      .on("mouseout", () =>
+        selectAll(".tooltip").style("visibility", "hidden"),
+      );
+
+    // add plink variants
+    this.container
+      .selectAll<SVGCircleElement, PlinkVariant>("circle.variant")
+      .data(filteredPlinkVariants, (v) => v.p!)
+      .join("circle")
+      .attr("class", "variant")
+      .attr("cx", (d) => xScale(d.pos!))
+      .attr("cy", (d) => yScalePval(-Math.log10(d.p!)))
+      .attr("fill", () => "purple")
+      .transition()
+      .duration(300)
+      .selection()
+      .attr("opacity", 0.7)
+      .attr("r", circleWidthScale(xScale.domain()[1] - xScale.domain()[0]))
+      .on("mouseover", (e: MouseEvent, d: PlinkVariant) =>
+        showToolTip(e, [
+          `Pos: ${d.pos}`,
+          `Ref: ${d.ref}`,
+          `Alt: ${d.alt}`,
+          `P-values: ${d.p}`,
+        ]),
       )
       .on("mouseout", () =>
         selectAll(".tooltip").style("visibility", "hidden"),
@@ -409,7 +468,13 @@ class RegionChart {
       .attr("height", geneRectHeight)
       .attr("width", (d) => xScale(d.end) - xScale(d.start))
       .on("mouseover", (e: MouseEvent, d: EnsemblGeneResult) =>
-        showGeneTooltip(d, e),
+        showToolTip(e, [
+          `Gene: ${d.external_name}`,
+          `Type: ${d.biotype}`,
+          `ID: ${d.gene_id}`,
+          `Start pos: ${format(",")(d.start)}`,
+          `End pos: ${format(",")(d.end)}`,
+        ]),
       )
       .on("mouseout", () => selectAll(".tooltip").style("visibility", "hidden"))
       .on("click", (e, d) => {
@@ -423,7 +488,7 @@ class RegionChart {
 
         this.render(
           data,
-          variants,
+          { plinkVariants, regionVariants },
           genes,
           wheelCb,
           setCenterRegion,
@@ -451,7 +516,13 @@ class RegionChart {
       .style("font-size", 9)
       .style("text-anchor", "middle")
       .on("mouseover", (e: MouseEvent, d: EnsemblGeneResult) =>
-        showGeneTooltip(d, e),
+        showToolTip(e, [
+          `Gene: ${d.external_name}`,
+          `Type: ${d.biotype}`,
+          `ID: ${d.gene_id}`,
+          `Start pos: ${format(",")(d.start)}`,
+          `End pos: ${format(",")(d.end)}`,
+        ]),
       )
       .on("mouseout", () =>
         selectAll(".tooltip").style("visibility", "hidden"),
@@ -591,7 +662,7 @@ class RegionChart {
       xScale.range()[1],
     );
 
-    if (!!variants.length) {
+    if (!!regionVariants.length) {
       drawDottedLine(
         this.container,
         "variant-p-line",
@@ -639,6 +710,8 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   const [loading, setLoading] = useState(false);
 
+  const [plinkVariants, setPlinkVariants] = useState<PlinkVariant[]>([]);
+
   const [proteinGenesOnly, setProteinGenesOnly] = useState(true);
 
   const [recombData, setRecombData] = useState<UCSCRecombTrackResult[]>([]);
@@ -679,13 +752,13 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     }
   }, [genes, proteinGenesOnly]);
 
-  const visibleVariants = useMemo(() => {
+  const visibleVariants: ChartVariants = useMemo(() => {
     if (variantsVisible) {
-      return variants;
+      return { regionVariants: variants, plinkVariants: plinkVariants };
     } else {
-      return [];
+      return { regionVariants: [], plinkVariants: [] };
     }
-  }, [variants, variantsVisible]);
+  }, [plinkVariants, variants, variantsVisible]);
 
   const visibleRecomb = useMemo(() => {
     if (recombVisible) {
@@ -834,44 +907,39 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
       {/* Region controls */}
       <Grid container size={{ xs: 2, xl: 1.5 }} spacing={0} direction="column">
         <Grid>
+          {/* region variant upload */}
           <UploadButtonSingle
             key={uploadKey}
             fileType="variant"
             onUpload={async (file) => {
-              const parsed = await parseTsv<VariantResult>(file);
-              const mapped = parsed
-                .map(
-                  (v) =>
-                    Object.fromEntries(
-                      Object.entries(v)
-                        .map(([k, v]) => {
-                          let k_ =
-                            renameMap[k as keyof VariantResultRawOld] || k;
-                          k_ = k_.replaceAll(".", "_") as keyof VariantResult;
-                          return [
-                            k_,
-                            v
-                              ? v
-                                ? ["ref", "alt", "variant"].includes(k)
-                                  ? v
-                                  : +v
-                                : v
-                              : null,
-                          ];
-                        })
-                        .filter(([k]) => !varsToDrop.includes(k)),
-                    ) as unknown as VariantResult,
-                )
-                .filter(
-                  (v) =>
-                    selectedRegionDetailData?.regions.includes(v.region) &&
-                    v.start_bp > posRange[0] &&
-                    v.end_bp < posRange[1],
-                );
+              setLoading(true);
+              const mapped = await processRegionVariants(
+                file,
+                posRange,
+                selectedRegionDetailData.regions,
+              );
               if (mapped.length === 0) {
                 alert("no variants found for this region");
               }
+              setLoading(false);
               setVariants(mapped);
+            }}
+            variant="text"
+          />
+        </Grid>
+        <Grid>
+          {/* plink variant upload */}
+          <UploadButtonSingle
+            key={uploadKey}
+            fileType="plink variant"
+            onUpload={async (file) => {
+              setLoading(true);
+              const mapped = await processPlinkVariants(file, posRange);
+              if (mapped.length === 0) {
+                alert("no variants found for this region");
+              }
+              setLoading(false);
+              setPlinkVariants(mapped);
             }}
             variant="text"
           />

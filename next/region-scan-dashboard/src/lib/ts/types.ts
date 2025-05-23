@@ -1,4 +1,4 @@
-export type FileType = "region" | "bin" | "variant";
+export type FileType = "region" | "bin" | "variant" | "plink variant";
 
 export interface EnsemblGeneResult {
   end: number;
@@ -203,4 +203,21 @@ export interface SelectedRegionDetailData {
   data: RegionResult[];
   region: RegionResult;
   regions: number[];
+}
+
+//note here that `.` is NA, we'll convert to null at upload
+export interface PlinkVariant {
+  chrom: number;
+  pos: number | null;
+  id: string | null;
+  ref: string | null;
+  alt: string | null;
+  a1: string | null;
+  test: string | null;
+  obst_ct: number | null;
+  beta: number | null;
+  se: number | null;
+  t_stat: number | null;
+  p: number | null;
+  errcode: number | null;
 }
