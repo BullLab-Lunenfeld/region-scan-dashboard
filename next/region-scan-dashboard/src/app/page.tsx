@@ -13,6 +13,7 @@ import { scaleOrdinal } from "d3-scale";
 import { extent, groups } from "d3-array";
 import { UndoSharp } from "@mui/icons-material";
 import {
+  LoadingOverlay,
   MiamiPlot,
   NumberInput,
   PaginatedTable,
@@ -53,6 +54,8 @@ export default function Home() {
   const [brushFilterHistory, setBrushFilterHistory] = useState<BrushFilter[]>(
     [],
   );
+
+  const [loading, setLoading] = useState(false);
 
   //  const [filterModel, setFilterModel] = useState<GridFilterModel>();
   const [lowerThresh, setLowerThresh] = useState<number>(5e-6);
@@ -122,7 +125,7 @@ export default function Home() {
       let minBp = 0;
       let maxBp = Infinity;
 
-      // first trim, in case there's a half-chromosome cutoff
+      // first trim in case there's a nearby half-chromosome cutoff
       if (regionRestartPoints[chr]) {
         const chrPart = regionRestartPoints[chr];
         if (selectedRegion.end_bp < chrPart) {
@@ -132,7 +135,7 @@ export default function Home() {
         }
       }
 
-      // we have to have <= 5 mb for gene fetch API, so limit here
+      // we have to have <= 5 mb for gene fetch API, so trim there too
       if (selectedRegion.start_bp - minBp > 2500000) {
         minBp = selectedRegion.start_bp - 2500000;
       }
@@ -141,7 +144,7 @@ export default function Home() {
         maxBp = selectedRegion.start_bp + 2500000;
       }
 
-      // now limit based on the viewport, basically if we're already zoomed in to single chr, trim to that range
+      // finally, if we're already zoomed in to single chr, trim to that range
       if (regionDisplayData.length) {
         if ([...new Set([regionDisplayData.map((r) => r.chr)])].length === 1) {
           const [minVisibleBp, maxVisibleBp] = extent(
@@ -182,8 +185,6 @@ export default function Home() {
       if (!!brushFilterHistory.length) {
         const { x0Lim, x1Lim } =
           brushFilterHistory[brushFilterHistory.length - 1];
-
-        //
 
         const newDisplayData = regionData.filter((d) => {
           const x0Pass =
@@ -244,6 +245,9 @@ export default function Home() {
     setSelectedRegion(undefined);
     setBrushFilterHistory([]);
     setSelectedRegionDetailData(undefined);
+    setQqVariables([]);
+    setUpperVariable("");
+    setLowerVariable("");
   };
 
   const filterCb = useCallback(
@@ -270,6 +274,7 @@ export default function Home() {
               onUpload={async (files: File[]) => {
                 let results: RegionResult[] = [];
                 resetVisualizationVariables();
+                setLoading(true);
                 let i = 1;
                 for (const file of files) {
                   const parsed = await parseTsv<RegionResultRaw>(file);
@@ -316,7 +321,7 @@ export default function Home() {
                 }
 
                 setRegionData(results);
-                setRegionDisplayData(results);
+                setLoading(false);
                 setUploadKey(Math.random().toString(36).slice(2));
               }}
             />
@@ -540,6 +545,7 @@ export default function Home() {
           </Grid>
         </Grid>
       )}
+      <LoadingOverlay open={loading} />
     </Grid>
   );
 }
