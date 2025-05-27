@@ -28,79 +28,11 @@ import {
   SelectedRegionDetailData,
   UCSCRecombTrackResult,
   VariantResult,
-  VariantResultRawNew,
-  VariantResultRawOld,
 } from "@/lib/ts/types";
 import { LoadingOverlay, PvarCheckbox, UploadButtonSingle } from "@/components";
-import { drawDottedLine, parseTsv } from "@/lib/ts/util";
+import { drawDottedLine, parseTsv, processRegionVariants } from "@/lib/ts/util";
 import { fetchGenes } from "@/util/fetchGenes";
 import { fetchRecomb } from "@/util/fetchRecomb";
-
-const renameMap: Partial<
-  Record<keyof VariantResultRawOld, keyof VariantResultRawNew>
-> = {
-  "sg.beta": "sglm.beta",
-  "sg.se": "sglm.se",
-  "sg.pval": "sglm.pvalue",
-  "MLC.flip": "MLC.codechange",
-  VIF: "mglm.vif",
-  "glm.beta": "mglm.beta",
-  "glm.se": "mglm.se",
-  "glm.pval": "mglm.pvalue",
-  pos: "bp",
-  multiallelicSNP: "multiallelic",
-};
-
-const varsToDrop = [
-  "LCBbin",
-  "LCBbin_p",
-  "LCZbin",
-  "LCZbin_p",
-  "vifbin",
-  "glmbin_beta",
-  "glmbin_se",
-  "glmbin_pval",
-  "LCBbin_glmByBin",
-  "LCBbin_glmByBin_p",
-  "LCZbin_glmByBin",
-  "LCZbin_glmByBin_p",
-];
-
-const processRegionVariants = async (
-  file: File,
-  posRange: [number, number],
-  selectedRegions?: number[],
-) => {
-  const parsed = await parseTsv<VariantResult>(file);
-  return parsed
-    .map(
-      (v) =>
-        Object.fromEntries(
-          Object.entries(v)
-            .map(([k, v]) => {
-              let k_ = renameMap[k as keyof VariantResultRawOld] || k;
-              k_ = k_.replaceAll(".", "_") as keyof VariantResult;
-              return [
-                k_,
-                v
-                  ? v
-                    ? ["ref", "alt", "variant"].includes(k)
-                      ? v
-                      : +v
-                    : v
-                  : null,
-              ];
-            })
-            .filter(([k]) => !varsToDrop.includes(k)),
-        ) as unknown as VariantResult,
-    )
-    .filter(
-      (v) =>
-        selectedRegions?.includes(v.region) &&
-        v.start_bp > posRange[0] &&
-        v.end_bp < posRange[1],
-    );
-};
 
 const processPlinkVariants = async (
   file: File,
@@ -110,22 +42,22 @@ const processPlinkVariants = async (
   return parsed
     .map((v) =>
       Object.fromEntries(
-        Object.entries(v)
-          .map(([k, v]) => {
-            const _k = k.toLowerCase().replace("#", "");
-            return [
-              _k.toLowerCase().replace("#", ""),
-              v !== "."
-                ? ["ref", "alt", "id", "a1", "test"].includes(_k)
-                  ? v
-                  : +v
-                : null,
-            ];
-          })
-          .filter(([k]) => !varsToDrop.includes(k)),
+        Object.entries(v).map(([k, v]) => {
+          const _k = k.toLowerCase().replace("#", "");
+          return [
+            _k.toLowerCase().replace("#", ""),
+            v !== "."
+              ? ["ref", "alt", "id", "a1", "test"].includes(_k)
+                ? v
+                : +v
+              : null,
+          ];
+        }),
       ),
     )
-    .filter((v) => v.pos > posRange[0] && v.pos < posRange[1]);
+    .filter(
+      (v) => v.pos > posRange[0] && v.pos < posRange[1],
+    ) as PlinkVariant[];
 };
 
 interface ChartVariants {
@@ -915,6 +847,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
               setLoading(true);
               const mapped = await processRegionVariants(
                 file,
+                null,
                 posRange,
                 selectedRegionDetailData.regions,
               );

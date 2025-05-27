@@ -23,7 +23,7 @@ import {
   ShortTextField,
   UploadButtonMulti,
 } from "@/components";
-import { getEntries, parseTsv } from "@/lib/ts/util";
+import { getEntries, parseTsv, processRegionVariants } from "@/lib/ts/util";
 import {
   AssembyInfo,
   RegionResult,
@@ -31,6 +31,7 @@ import {
   RegionResultRawNew,
   RegionResultRawOld,
   SelectedRegionDetailData,
+  VariantResult,
 } from "@/lib/ts/types";
 import { RegionResultCols } from "@/util/columnConfigs";
 import { BrushFilter } from "@/components/MiamiPlot";
@@ -72,6 +73,8 @@ export default function Home() {
     [],
   );
 
+  const [regionVariants, setRegionVariants] = useState<VariantResult[]>([]);
+
   const [selectedRegion, setSelectedRegion] = useState<RegionResult>();
 
   const [uploadKey, setUploadKey] = useState(
@@ -100,7 +103,7 @@ export default function Home() {
     }
   }, [regionData]);
 
-  // save where the regions restart (centromeres)
+  // save where the regions restart (~centromeres)
   const regionRestartPoints = useMemo(() => {
     const mapping: Record<number, number> = {};
     if (regionData.length) {
@@ -117,6 +120,12 @@ export default function Home() {
 
     return mapping;
   }, [regionData]);
+
+  useEffect(() => {
+    if (regionVariants.length) {
+      alert(regionVariants.length);
+    }
+  }, [regionVariants]);
 
   // compute regionPlot data
   useEffect(() => {
@@ -326,6 +335,37 @@ export default function Home() {
               }}
             />
           </Grid>
+          {!!regionData.length && (
+            <Grid>
+              <UploadButtonMulti
+                key={uploadKey}
+                fileType="variant"
+                onUpload={async (files: File[]) => {
+                  setLoading(true);
+                  let results: VariantResult[] = [];
+                  const _chrs = [...new Set(regionData.map((r) => r.chr))];
+                  const chrs = _chrs.length === 1 ? null : _chrs;
+                  const range = chrs?.length
+                    ? null
+                    : (extent(
+                        regionData.flatMap((r) => [r.start_bp, r.end_bp]),
+                      ) as [number, number]);
+
+                  // we need chr and range
+                  for (const file of files) {
+                    const variants = await processRegionVariants(
+                      file,
+                      chrs,
+                      range,
+                    );
+                    results = results.concat(variants);
+                  }
+                  setLoading(false);
+                  setRegionVariants(results);
+                }}
+              />
+            </Grid>
+          )}
           {!!regionData.length && (
             <Grid>
               <ShortTextField

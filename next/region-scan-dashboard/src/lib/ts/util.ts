@@ -1,6 +1,11 @@
 import { Selection } from "d3-selection";
 import { line } from "d3-shape";
 import Papa from "papaparse";
+import {
+  VariantResult,
+  VariantResultRawNew,
+  VariantResultRawOld,
+} from "./types";
 
 export const parseTsv = <T extends Record<string, any>>(
   tsv: File,
@@ -74,4 +79,79 @@ export const linspace = (
   const div = endpoint ? num - 1 : num;
   const step = (stop - start) / div;
   return Array.from({ length: num }, (_, i) => start + step * i);
+};
+
+const regionVariantRenameMap: Partial<
+  Record<keyof VariantResultRawOld, keyof VariantResultRawNew>
+> = {
+  "sg.beta": "sglm.beta",
+  "sg.se": "sglm.se",
+  "sg.pval": "sglm.pvalue",
+  "MLC.flip": "MLC.codechange",
+  VIF: "mglm.vif",
+  "glm.beta": "mglm.beta",
+  "glm.se": "mglm.se",
+  "glm.pval": "mglm.pvalue",
+  pos: "bp",
+  multiallelicSNP: "multiallelic",
+};
+
+const regionVariantColsToDrop = [
+  "LCBbin",
+  "LCBbin_p",
+  "LCZbin",
+  "LCZbin_p",
+  "vifbin",
+  "glmbin_beta",
+  "glmbin_se",
+  "glmbin_pval",
+  "LCBbin_glmByBin",
+  "LCBbin_glmByBin_p",
+  "LCZbin_glmByBin",
+  "LCZbin_glmByBin_p",
+];
+
+export const processRegionVariants = async (
+  file: File,
+  chrs: number[] | null = null,
+  posRange: [number, number] | null = null,
+  selectedRegions: number[] | null = null,
+) => {
+  const parsed = await parseTsv<VariantResult>(file);
+  return parsed
+    .map(
+      (v) =>
+        Object.fromEntries(
+          Object.entries(v)
+            .map(([k, v]) => {
+              let k_ =
+                regionVariantRenameMap[k as keyof VariantResultRawOld] || k;
+              k_ = k_.replaceAll(".", "_") as keyof VariantResult;
+              return [
+                k_,
+                v
+                  ? v
+                    ? ["ref", "alt", "variant"].includes(k)
+                      ? v
+                      : +v
+                    : v
+                  : null,
+              ];
+            })
+            .filter(([k]) => !regionVariantColsToDrop.includes(k)),
+        ) as unknown as VariantResult,
+    )
+    .filter((v) => {
+      if (selectedRegions && !selectedRegions.includes(v.region)) {
+        return false;
+      }
+      if (posRange && (v.start_bp < posRange[0] || v.end_bp > posRange[1])) {
+        return false;
+      }
+      if (chrs && !chrs.includes(v.chr)) {
+        return false;
+      }
+
+      return true;
+    });
 };
