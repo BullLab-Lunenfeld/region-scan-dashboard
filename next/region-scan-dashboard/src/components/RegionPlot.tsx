@@ -126,23 +126,18 @@ class RegionChart {
   pvalScale: ScaleOrdinal<string, string, never>;
   selector: string;
   svg: Selection<SVGElement, number, BaseType, unknown>;
-  var1: keyof RegionResult;
-  var2: keyof RegionResult;
   width: number;
   xScale: ScaleLinear<number, number, never> | null = null;
 
   constructor(
     pvalScale: ScaleOrdinal<string, string, never>,
     selector: string,
-    var1: keyof RegionResult,
-    var2: keyof RegionResult,
+    regionVars: (keyof RegionResult)[],
     mainWidth: number,
   ) {
     //display properties
     this.pvalScale = pvalScale;
     this.selector = selector;
-    this.var1 = var1;
-    this.var2 = var2;
     this.mainWidth = mainWidth;
     this.width = this.mainWidth + 130;
     this.height = 0.4 * this.width;
@@ -615,8 +610,7 @@ interface RegionPlotProps {
   pvars: (keyof RegionResult)[];
   selectedRegionDetailData: SelectedRegionDetailData;
   selector: string;
-  var1: keyof RegionResult;
-  var2: keyof RegionResult;
+  regionVars: (keyof RegionResult)[];
   mainWidth: number;
 }
 
@@ -624,10 +618,9 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
   assemblyInfo,
   pvalScale,
   pvars,
+  regionVars,
   selectedRegionDetailData,
   selector,
-  var1,
-  var2,
   mainWidth,
 }) => {
   const [centerRegion, setCenterRegion] = useState(
@@ -782,15 +775,15 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   useEffect(() => {
     setVisiblePvars((pvars) => [
-      ...new Set(pvars.concat([var1, var2]).filter(Boolean)),
+      ...new Set(pvars.concat(regionVars).filter(Boolean)),
     ]);
-  }, [var1, var2]);
+  }, regionVars);
 
   //initial render
   useLayoutEffect(() => {
-    const Chart = new RegionChart(pvalScale, selector, var1, var2, mainWidth);
+    const Chart = new RegionChart(pvalScale, selector, regionVars, mainWidth);
     setChart(Chart);
-  }, [mainWidth, var1, var2]);
+  }, [mainWidth, regionVars]);
 
   //new data
   useEffect(() => {

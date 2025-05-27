@@ -18,12 +18,25 @@ import { Box } from "@mui/material";
 import LoadingOverlay from "./LoadingOverlay";
 import {
   AssembyInfo,
+  isRegionResult,
   RegionResult,
   SelectedRegionDetailData,
+  VariantResult,
 } from "@/lib/ts/types";
 import { drawDottedLine, getEntries } from "@/lib/ts/util";
 
 const className = "miami-plot";
+
+const getPVal = (
+  key: keyof VariantResult | keyof RegionResult,
+  obj: VariantResult | RegionResult,
+) => {
+  const val = isRegionResult(obj)
+    ? obj[key as keyof RegionResult]
+    : obj[key as keyof VariantResult];
+
+  return typeof val === "string" ? +val : val;
+};
 
 const showTooltip = (data: RegionResult, e: MouseEvent) => {
   select(".tooltip")
@@ -68,16 +81,16 @@ const marginTop = 25;
 
 const buildChart = (
   assemblyInfo: AssembyInfo,
-  bottomCol: keyof RegionResult,
+  bottomCol: keyof RegionResult | keyof VariantResult,
   _bottomThresh: number,
-  data: RegionResult[],
+  data: (RegionResult | VariantResult)[],
   filter: BrushFilter | undefined,
   filterCb: (filter: BrushFilter) => void,
   height: number,
   onCircleClick: (d: RegionResult) => void,
   pvalScale: ScaleOrdinal<string, string, never>,
   selector: string,
-  topCol: keyof RegionResult,
+  topCol: keyof RegionResult | keyof VariantResult,
   _topThresh: number,
   width: number,
   selectedRegionDetailData?: SelectedRegionDetailData,
@@ -141,11 +154,13 @@ const buildChart = (
           }
         }),
     ),
-  ) as unknown as RegionResult[];
+  ) as unknown as (RegionResult | VariantResult)[];
 
-  const upperData = transformedData.filter((d) => !!d[topCol]);
+  const upperData = transformedData.filter((d) => Object.hasOwn(d, topCol));
+  const upperIsRegion = !!upperData.length && isRegionResult(upperData[0]);
 
-  const lowerData = transformedData.filter((d) => !!d[bottomCol]);
+  const lowerData = transformedData.filter((d) => Object.hasOwn(d, bottomCol));
+  const lowerIsRegion = !!lowerData.length && isRegionResult(lowerData[0]);
 
   const singleChrXScale = scaleLinear()
     .range([marginLeft, width])
@@ -185,7 +200,7 @@ const buildChart = (
   const yScaleLower = scaleLinear()
     .range([marginTop + height / 2 + marginMiddle, height - marginBottom])
     .domain(
-      extent(upperData.map((d) => d[bottomCol]) as number[]) as [
+      extent(upperData.map((d) => getPVal(bottomCol, d)) as number[]) as [
         number,
         number,
       ],
@@ -194,10 +209,9 @@ const buildChart = (
   const yScaleUpper = scaleLinear()
     .range([marginTop, height - height / 2 - marginMiddle])
     .domain(
-      extent(upperData.map((d) => d[topCol]) as number[]).reverse() as [
-        number,
-        number,
-      ],
+      extent(
+        upperData.map((d) => getPVal(bottomCol, d)) as number[],
+      ).reverse() as [number, number],
     );
 
   const svg = select(selector)
@@ -405,34 +419,59 @@ const buildChart = (
       }),
   );
 
+  const circleDataUpper: (VariantResult | RegionResult)[] = [];
+  const circleDataLower: (VariantResult | RegionResult)[] = [];
+  const diamondDataUpper: (VariantResult | RegionResult)[] = [];
+  const diamondDataLower: (VariantResult | RegionResult)[] = [];
+
+  upperData.forEach((d) => {
+    const pval = getPVal(topCol, d);
+    if (!!pval) {
+      if (pval < topThresh) {
+        circleDataUpper.push(d);
+      } else {
+        diamondDataUpper.push(d);
+      }
+    }
+  });
+
+  lowerData.forEach((d) => {
+    const pval = getPVal(topCol, d);
+    if (!!pval) {
+      if (pval < bottomThresh) {
+        circleDataLower.push(d);
+      } else {
+        diamondDataLower.push(d);
+      }
+    }
+  });
+
   circleContainer
     .selectAll<SVGCircleElement, RegionResult>("circle.upper")
-    .data(upperData.filter((d) => !!d[topCol] && d[topCol] < topThresh))
+    .data(circleDataUpper)
     .join("circle")
     .attr("class", "upper")
     .attr("r", circleWidthScale(transformedData.length))
     .attr("fill", pvalScale(topCol))
     .attr("opacity", 0.5)
     .attr("cx", (d) => getPlottingXScale(d.chr.toString())(d.end_bp))
-    .attr("cy", (d) => yScaleUpper(d[topCol]!));
+    .attr("cy", (d) => yScaleUpper(getPVal(topCol, d)!));
 
   circleContainer
     .selectAll("circle.lower")
-    .data(
-      lowerData.filter((d) => !!d[bottomCol] && d[bottomCol] < bottomThresh),
-      (_, i) => `${i}-${topCol}`,
-    )
+    .data(circleDataLower)
     .join("circle")
     .attr("class", "lower")
     .attr("r", circleWidthScale(transformedData.length))
     .attr("fill", pvalScale(bottomCol))
     .attr("opacity", 0.5)
     .attr("cx", (d) => getPlottingXScale(d.chr.toString())(d.end_bp))
-    .attr("cy", (d) => yScaleLower(d[bottomCol]!));
+    .attr("cy", (d) => yScaleLower(getPVal(bottomCol, d)!));
 
+  //diamonds
   circleContainer
     .selectAll<SVGPathElement, RegionResult>("path.upper")
-    .data(upperData.filter((d) => !!d[topCol] && d[topCol] > topThresh))
+    .data(diamondDataUpper)
     .join("path")
     .attr("class", "upper")
     .attr("d", symbol(symbolDiamond))
@@ -443,15 +482,12 @@ const buildChart = (
       (d) =>
         `translate(${getPlottingXScale(d.chr.toString())(
           d.end_bp,
-        )}, ${yScaleUpper(d[topCol] as number)})`,
+        )}, ${yScaleUpper(getPVal(topCol, d) as number)})`,
     );
 
   circleContainer
     .selectAll("path.lower")
-    .data(
-      lowerData.filter((d) => !!d[bottomCol] && d[bottomCol] > bottomThresh),
-      (_, i) => `${i}-${topCol}`,
-    )
+    .data(diamondDataLower)
     .join("path")
     .attr("class", "lower")
     .attr("opacity", 0.5)
@@ -462,7 +498,7 @@ const buildChart = (
       (d) =>
         `translate(${getPlottingXScale(d.chr.toString())(
           d.end_bp,
-        )}, ${yScaleLower(d[bottomCol] as number)})`,
+        )}, ${yScaleLower(getPVal(bottomCol, d) as number)})`,
     );
 
   circleContainer
@@ -522,7 +558,7 @@ const buildChart = (
 
 interface MiamiPlotProps {
   assemblyInfo: AssembyInfo;
-  bottomCol: keyof RegionResult;
+  bottomCol: keyof RegionResult | keyof VariantResult;
   bottomThresh: number;
   data: RegionResult[];
   filterCb: (filter: BrushFilter) => void;
@@ -531,7 +567,7 @@ interface MiamiPlotProps {
   pvalScale: ScaleOrdinal<string, string, never>;
   selectedRegionDetailData?: SelectedRegionDetailData;
   topThresh: number;
-  topCol: keyof RegionResult;
+  topCol: keyof RegionResult | keyof VariantResult;
   width: number;
 }
 

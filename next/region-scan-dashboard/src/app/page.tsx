@@ -60,9 +60,9 @@ export default function Home() {
 
   //  const [filterModel, setFilterModel] = useState<GridFilterModel>();
   const [lowerThresh, setLowerThresh] = useState<number>(5e-6);
-  const [lowerVariable, setLowerVariable] = useState<keyof RegionResult | "">(
-    "",
-  );
+  const [lowerVariable, setLowerVariable] = useState<
+    keyof RegionResult | keyof VariantResult | ""
+  >("");
 
   const [qqVariables, setQqVariables] = useState<(keyof RegionResult)[]>([]);
 
@@ -82,9 +82,9 @@ export default function Home() {
   );
 
   const [upperThresh, setUpperThresh] = useState<number>(5e-6);
-  const [upperVariable, setUpperVariable] = useState<keyof RegionResult | "">(
-    "",
-  );
+  const [upperVariable, setUpperVariable] = useState<
+    keyof RegionResult | keyof VariantResult | ""
+  >("");
 
   const miamiChartContainerRef = useRef<HTMLDivElement>(null);
 
@@ -553,7 +553,12 @@ export default function Home() {
           </Grid>
         )}
       </Grid>
-      {/* Region polt row */}
+      {/* Region polt row not sure how to handle this, actually.... should we simply drop the inner variant upload? Or allow only one var (why 2?)
+          Well, what we can do is have variant argument here, which will be the variant that the user has uploaded, then drop the upload button in the region plot
+          Then we'll just filter in the component
+          Then we'll just change var1 and var2 to regionVars, it will be an array, and we'll filter
+
+      */}
       {!!pvalScale &&
         !!miamiChartContainerRef.current &&
         !!selectedRegionDetailData &&
@@ -566,8 +571,11 @@ export default function Home() {
             pvars={pVars}
             selector="region-plot"
             selectedRegionDetailData={selectedRegionDetailData}
-            var1={upperVariable}
-            var2={lowerVariable}
+            regionVars={
+              [upperVariable, lowerVariable].filter(
+                (k) => !!regionData.length && Object.hasOwn(regionData[0], k),
+              ) as (keyof RegionResult)[]
+            }
             mainWidth={miamiChartContainerRef.current.clientWidth}
           />
         )}

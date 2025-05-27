@@ -221,3 +221,7 @@ export interface PlinkVariant {
   p: number | null;
   errcode: number | null;
 }
+
+export const isRegionResult = (
+  obj: RegionResult | VariantResult,
+): obj is RegionResult => !!(obj as RegionResult).region;
