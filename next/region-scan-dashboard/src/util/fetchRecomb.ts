@@ -9,7 +9,7 @@ interface UCSCResult {
   end: number;
   genome: string;
   itemsReturned: number;
-  recomb1000GAvg: Record<string, UCSCRecombTrackResult[]>;
+  recombAvg: Record<string, UCSCRecombTrackResult[]>;
 }
 
 /**
@@ -30,13 +30,13 @@ export const fetchRecomb = async (
   let result: null | UCSCResult = null;
   try {
     const response = await fetch(
-      `https://api.genome.ucsc.edu/getData/track?genome=${assemblyArg}&track=recomb1000GAvg&chrom=${chr}&start=${start}&end=${end}`,
+      `https://api.genome.ucsc.edu/getData/track?genome=${assemblyArg}&track=recombAvg&chrom=${chr}&start=${start}&end=${end}`,
       { headers: { Accept: "application/json" } },
     );
 
     result = await (response.json() as Promise<UCSCResult>);
 
-    return result.recomb1000GAvg[`chr${chr}`];
+    return result.recombAvg[`chr${chr}`];
   } catch (e) {
     console.error(e);
     return null;
