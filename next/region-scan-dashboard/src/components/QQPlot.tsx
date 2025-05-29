@@ -9,7 +9,7 @@ import { randomUniform } from "d3-random";
 import { scaleLinear, ScaleOrdinal } from "d3-scale";
 import { axisBottom, axisLeft } from "d3-axis";
 import LoadingOverlay from "./LoadingOverlay";
-import { RegionResult } from "@/lib/ts/types";
+import { RegionResult, VariantResult } from "@/lib/ts/types";
 import { drawDottedLine, getEntries } from "@/lib/ts/util";
 
 const marginBottom = 40;
@@ -212,11 +212,11 @@ type QuantileResults = Record<
 >;
 
 interface QQPlotProps {
-  data: RegionResult[];
+  data: (RegionResult | VariantResult)[];
   pvalScale: ScaleOrdinal<string, string, never>;
   selector: string;
-  variables: (keyof RegionResult | "")[];
-  visibleVariables: (keyof RegionResult | "")[];
+  variables: (keyof RegionResult | keyof VariantResult | "")[];
+  visibleVariables: (keyof RegionResult | keyof VariantResult | "")[];
   width: number;
 }
 

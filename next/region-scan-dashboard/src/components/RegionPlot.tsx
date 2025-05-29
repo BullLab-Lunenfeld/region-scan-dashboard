@@ -10,7 +10,7 @@ import { axisBottom, axisLeft, axisRight } from "d3-axis";
 import { format } from "d3-format";
 import "d3-transition"; // must be imported before selection
 import { BaseType, pointer, select, selectAll, Selection } from "d3-selection";
-import { ScaleLinear, scaleLinear, ScaleOrdinal, scaleOrdinal } from "d3-scale";
+import { ScaleLinear, scaleLinear, ScaleOrdinal } from "d3-scale";
 import { line } from "d3-shape";
 import {
   Box,
@@ -30,7 +30,12 @@ import {
   VariantResult,
 } from "@/lib/ts/types";
 import { LoadingOverlay, PvarCheckbox, UploadButtonSingle } from "@/components";
-import { drawDottedLine, parseTsv } from "@/lib/ts/util";
+import {
+  drawDottedLine,
+  formatComma,
+  parseTsv,
+  showToolTip,
+} from "@/lib/ts/util";
 import { fetchGenes } from "@/util/fetchGenes";
 import { fetchRecomb } from "@/util/fetchRecomb";
 
@@ -80,22 +85,6 @@ interface RecombLineData {
 
 const circleWidthScale = scaleLinear().range([1, 2.5]).domain([5e6, 5e4]);
 
-const showToolTip = (e: MouseEvent, text: string[]) =>
-  select(".tooltip")
-    .style("left", `${e.pageX + 15}px`)
-    .style("top", `${e.pageY - 15}px`)
-    .style("visibility", "visible")
-    .select<HTMLUListElement>("ul")
-    .selectAll<HTMLLIElement, string>("li")
-    .data<string>(text, (d) => d)
-    .join("li")
-    .style("font-size", "15px")
-    .text((d) => d);
-
-const variantColorScale = scaleOrdinal<string>()
-  .range(["teal", "orange"])
-  .domain(["0", "1"]);
-
 const getGeneLabelXCoord = (
   gene: EnsemblGeneResult,
   xScale: ScaleLinear<number, number, number>,
@@ -132,14 +121,13 @@ class RegionChart {
   constructor(
     pvalScale: ScaleOrdinal<string, string, never>,
     selector: string,
-    regionVars: (keyof RegionResult)[],
     mainWidth: number,
   ) {
     //display properties
     this.pvalScale = pvalScale;
     this.selector = selector;
     this.mainWidth = mainWidth;
-    this.width = this.mainWidth + 130;
+    this.width = this.mainWidth + 140;
     this.height = 0.4 * this.width;
     this.hiddenGeneLabels = [];
 
@@ -147,9 +135,9 @@ class RegionChart {
       .selectAll<SVGElement, number>("svg")
       .data([1])
       .join("svg")
-      .attr("viewBox", [0, 0, this.width, this.height])
-      .attr("width", this.width)
-      .attr("height", this.height)
+      .attr("viewBox", [0, 0, this.width + "px", this.height + "px"])
+      .attr("width", this.width + "px")
+      .attr("height", this.height + "px")
       .attr("style", "max-width: 100%; height: auto;") as Selection<
       SVGElement,
       number,
@@ -322,8 +310,8 @@ class RegionChart {
         showToolTip(e, [
           `Variable: ${d.variable}`,
           `Region: ${d.region}`,
-          `Start pos: ${format(",")(d.start)}`,
-          `End pos: ${format(",")(d.end)}`,
+          `Start pos: ${formatComma(d.start)}`,
+          `End pos: ${formatComma(d.end)}`,
           `Pval: ${format(".5")(d.pvalue)}`,
         ]),
       )
@@ -338,7 +326,7 @@ class RegionChart {
       .attr("class", "region-variant")
       .attr("cx", (d) => xScale(d.bp))
       .attr("cy", (d) => yScalePval(-Math.log10(d.sglm_pvalue)))
-      .attr("fill", (d) => variantColorScale((d.region % 2) + ""))
+      .attr("fill", this.pvalScale("sglm_pvalue"))
       .transition()
       .duration(300)
       .selection()
@@ -348,7 +336,7 @@ class RegionChart {
         showToolTip(e, [
           `Variant: ${d.variant}`,
           `Region: ${d.region}`,
-          `Pos: ${format(",")(d.bp)}`,
+          `Pos: ${formatComma(d.bp)}`,
           `sglm pval: ${format(".5")(d.sglm_pvalue)}`,
         ]),
       )
@@ -364,11 +352,11 @@ class RegionChart {
       .attr("class", "variant")
       .attr("cx", (d) => xScale(d.pos!))
       .attr("cy", (d) => yScalePval(-Math.log10(d.p!)))
-      .attr("fill", () => "purple")
+      .attr("fill", () => "gray")
       .transition()
       .duration(300)
       .selection()
-      .attr("opacity", 0.7)
+      .attr("opacity", 0.3)
       .attr("r", circleWidthScale(xScale.domain()[1] - xScale.domain()[0]))
       .on("mouseover", (e: MouseEvent, d: PlinkVariant) =>
         showToolTip(e, [
@@ -399,8 +387,8 @@ class RegionChart {
           `Gene: ${d.external_name}`,
           `Type: ${d.biotype}`,
           `ID: ${d.gene_id}`,
-          `Start pos: ${format(",")(d.start)}`,
-          `End pos: ${format(",")(d.end)}`,
+          `Start pos: ${formatComma(d.start)}`,
+          `End pos: ${formatComma(d.end)}`,
         ]),
       )
       .on("mouseout", () => selectAll(".tooltip").style("visibility", "hidden"))
@@ -447,8 +435,8 @@ class RegionChart {
           `Gene: ${d.external_name}`,
           `Type: ${d.biotype}`,
           `ID: ${d.gene_id}`,
-          `Start pos: ${format(",")(d.start)}`,
-          `End pos: ${format(",")(d.end)}`,
+          `Start pos: ${formatComma(d.start)}`,
+          `End pos: ${formatComma(d.end)}`,
         ]),
       )
       .on("mouseout", () =>
@@ -504,32 +492,37 @@ class RegionChart {
       .attr("transform", "rotate(90)")
       .attr("text-anchor", "middle");
 
-    this.container
-      .selectAll<SVGGElement, number>("g.y-axis-r")
-      .data([1])
-      .join("g")
-      .attr("class", "y-axis-r")
-      .attr("transform", `translate(${this.mainWidth - marginRight},0)`)
-      .transition()
-      .duration(500)
-      .call(axisRight(yScaleRecomb));
+    if (filteredRecomb.length) {
+      this.container
+        .selectAll<SVGGElement, number>("g.y-axis-r")
+        .data([1])
+        .join("g")
+        .attr("class", "y-axis-r")
+        .attr("transform", `translate(${this.mainWidth - marginRight},0)`)
+        .transition()
+        .duration(500)
+        .call(axisRight(yScaleRecomb));
 
-    this.container
-      .selectAll("g.y-label-r")
-      .data([1])
-      .join("g")
-      .attr("class", "y-label-r")
-      .transition()
-      .duration(500)
-      .attr("transform", `translate(${this.mainWidth + 12},${this.height / 2})`)
-      .selection()
-      .selectAll("text")
-      .data([1])
-      .join("text")
-      .text("Recombination Rate")
-      .attr("font-size", 12)
-      .attr("transform", "rotate(90)")
-      .attr("text-anchor", "middle");
+      this.container
+        .selectAll("g.y-label-r")
+        .data([1])
+        .join("g")
+        .attr("class", "y-label-r")
+        .transition()
+        .duration(500)
+        .attr(
+          "transform",
+          `translate(${this.mainWidth + 18},${this.height / 2})`,
+        )
+        .selection()
+        .selectAll("text")
+        .data([1])
+        .join("text")
+        .text("Recombination Rate")
+        .attr("font-size", 12)
+        .attr("transform", "rotate(90)")
+        .attr("text-anchor", "middle");
+    }
 
     const recombLineData = filteredRecomb.flatMap((d) => [
       { recomb: d.value, x: d.start },
@@ -567,12 +560,47 @@ class RegionChart {
       .attr("fill", (d) => this.pvalScale(d));
 
     legendContainer
-      .selectAll("text")
+      .selectAll("text.region")
       .data(visiblePvars)
       .join("text")
       .text((d) => d)
+      .attr("class", "region")
       .attr("text-anchor", "right")
       .attr("transform", (_, i) => `translate(15,${16 + i * 18})`);
+
+    const lowest = (visiblePvars.length - 1) * 18 + 5;
+    const variantLegendData = ([] as ({ text: string; color: string } | null)[])
+      .concat(
+        filteredPlinkVariants.length ? { text: "ADD_p", color: "gray" } : null,
+      )
+      .concat(
+        filteredRegionVariants.length
+          ? { text: "sglm_p", color: this.pvalScale("sglm_pvalue") }
+          : null,
+      )
+      .filter(Boolean);
+
+    legendContainer
+      .selectAll("circle.variant")
+      .data(variantLegendData)
+      .join("circle")
+      .attr("class", "variant")
+      .attr("r", 5)
+      .attr("cx", 5)
+      .attr("cy", (_, i) => lowest + 5 + (i + 1) * 18)
+      .attr("fill", (d) => d!.color);
+
+    legendContainer
+      .selectAll("text.variant")
+      .data(variantLegendData)
+      .join("text")
+      .text((d) => d!.text)
+      .attr("class", "variant")
+      .attr("text-anchor", "right")
+      .attr(
+        "transform",
+        (_, i) => `translate(15,${lowest + 10 + (i + 1) * 18})`,
+      );
 
     this.svg.on("wheel", function (e: WheelEvent) {
       e.preventDefault();
@@ -786,9 +814,9 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   //initial render
   useLayoutEffect(() => {
-    const Chart = new RegionChart(pvalScale, selector, regionVars, mainWidth);
+    const Chart = new RegionChart(pvalScale, selector, mainWidth);
     setChart(Chart);
-  }, [mainWidth, regionVars]);
+  }, [mainWidth]);
 
   //new data
   useEffect(() => {
@@ -900,6 +928,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
                 label="Protein Coding Only"
                 control={
                   <Checkbox
+                    size="small"
                     onChange={() => setProteinGenesOnly(!proteinGenesOnly)}
                     checked={proteinGenesOnly}
                     title="Protein Coding only"
@@ -918,13 +947,13 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
         )}
       </Grid>
       {/* Region plot */}
-      <Grid container size={{ xs: 8, xl: 6 }}>
+      <Grid container size={{ xs: 9, lg: 7.5, xl: 7.5 }}>
         <Box className={selector} />
       </Grid>
       {/* Region line selector */}
       <Grid
         container
-        size={{ xs: 2, xl: 4 }}
+        size={{ xs: 1, lg: 1.5, xl: 2 }}
         direction="column"
         spacing={0}
         alignItems="flex-start"

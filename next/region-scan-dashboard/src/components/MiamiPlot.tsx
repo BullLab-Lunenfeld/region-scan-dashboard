@@ -23,9 +23,43 @@ import {
   SelectedRegionDetailData,
   VariantResult,
 } from "@/lib/ts/types";
-import { drawDottedLine, getEntries } from "@/lib/ts/util";
+import {
+  drawDottedLine,
+  formatComma,
+  getEntries,
+  showToolTip,
+} from "@/lib/ts/util";
 
 const className = "miami-plot";
+
+const getVariantOrRegionLocation = (datum: VariantResult | RegionResult) => {
+  if (isRegionResult(datum)) {
+    return (datum.end_bp + datum.start_bp) / 2;
+  } else {
+    return datum.bp;
+  }
+};
+
+const showMiamiTooltip = (d: VariantResult | RegionResult, e: MouseEvent) => {
+  const sharedText = [`Region: ${d.region}`, `Chr: ${d.chr}`];
+
+  const regionText = [
+    `Start: ${formatComma(d.start_bp)}`,
+    `End: ${formatComma(d.end_bp)}`,
+  ];
+
+  const varText = [
+    `Pos: ${formatComma((d as VariantResult).bp)}`,
+    `Mglm_p: ${format(".5")((d as VariantResult).mglm_pvalue)}`,
+    `Variant: ${(d as VariantResult).variant}`,
+  ];
+
+  const text = isRegionResult(d)
+    ? sharedText.concat(regionText)
+    : sharedText.concat(varText);
+
+  return showToolTip(e, text);
+};
 
 const getPVal = (
   key: keyof VariantResult | keyof RegionResult,
@@ -36,27 +70,6 @@ const getPVal = (
     : obj[key as keyof VariantResult];
 
   return typeof val === "string" ? +val : val;
-};
-
-const showTooltip = (data: RegionResult, e: MouseEvent) => {
-  select(".tooltip")
-    .style("left", `${e.pageX + 15}px`)
-    .style("top", `${e.pageY - 15}px`)
-    .style("visibility", "visible")
-    .select<HTMLUListElement>("ul")
-    .selectAll<HTMLLIElement, string>("li")
-    .data<string>(
-      [
-        `Chromosome: ${data.chr}`,
-        `Start pos: ${format(",")(data.start_bp)}`,
-        `End pos: ${format(",")(data.end_bp)}`,
-        `Region: ${data.region}`,
-      ],
-      (d) => d,
-    )
-    .join("li")
-    .style("font-size", "15px")
-    .text((d) => d);
 };
 
 const circleWidthScale = scaleLinear().range([1, 5]).domain([80000, 1]);
@@ -87,7 +100,7 @@ const buildChart = (
   filter: BrushFilter | undefined,
   filterCb: (filter: BrushFilter) => void,
   height: number,
-  onCircleClick: (d: RegionResult) => void,
+  onCircleClick: (d: RegionResult | VariantResult) => void,
   pvalScale: ScaleOrdinal<string, string, never>,
   selector: string,
   topCol: keyof RegionResult | keyof VariantResult,
@@ -142,33 +155,37 @@ const buildChart = (
       {},
     );
 
-  const transformedData = data.map((d) =>
-    Object.fromEntries(
-      getEntries(d)
-        .filter(([, v]) => !!v)
-        .map(([k, v]) => {
-          if ([topCol, bottomCol].includes(k)) {
-            return [k, -1 * Math.log10(v as number)];
-          } else {
-            return [k, v];
-          }
-        }),
-    ),
-  ) as unknown as (RegionResult | VariantResult)[];
+  const transformedData = data
+    .filter(
+      (d) =>
+        !!new Set(Object.keys(d)).intersection(new Set([topCol, bottomCol]))
+          .size,
+    )
+    .map((d) =>
+      Object.fromEntries(
+        getEntries(d)
+          .filter(([, v]) => !!v)
+          .map(([k, v]) => {
+            if ([topCol, bottomCol].includes(k)) {
+              return [k, -1 * Math.log10(v as number)];
+            } else {
+              return [k, v];
+            }
+          }),
+      ),
+    ) as unknown as (RegionResult | VariantResult)[];
 
   const upperData = transformedData.filter((d) => Object.hasOwn(d, topCol));
-  const upperIsRegion = !!upperData.length && isRegionResult(upperData[0]);
 
   const lowerData = transformedData.filter((d) => Object.hasOwn(d, bottomCol));
-  const lowerIsRegion = !!lowerData.length && isRegionResult(lowerData[0]);
 
   const singleChrXScale = scaleLinear()
     .range([marginLeft, width])
     .domain(
       extent(
         upperData
-          .map((d) => d.start_bp)
-          .concat(lowerData.map((d) => d.start_bp)),
+          .flatMap((d) => [d.start_bp, d.end_bp])
+          .concat(lowerData.flatMap((d) => [d.start_bp, d.end_bp])),
       ) as [number, number],
     );
 
@@ -197,7 +214,7 @@ const buildChart = (
   const yScaleLower = scaleLinear()
     .range([marginTop + height / 2 + marginMiddle, height - marginBottom])
     .domain(
-      extent(upperData.map((d) => getPVal(bottomCol, d)) as number[]) as [
+      extent(lowerData.map((d) => getPVal(bottomCol, d)) as number[]) as [
         number,
         number,
       ],
@@ -207,7 +224,7 @@ const buildChart = (
     .range([marginTop, height - height / 2 - marginMiddle])
     .domain(
       extent(
-        upperData.map((d) => getPVal(bottomCol, d)) as number[],
+        upperData.map((d) => getPVal(topCol, d)) as number[],
       ).reverse() as [number, number],
     );
 
@@ -232,7 +249,7 @@ const buildChart = (
     .attr("class", "container");
 
   const xAxis = axisBottom(xAxisScale)
-    .tickFormat((t) => (chrs.length > 1 ? "" : format(",")(t)))
+    .tickFormat((t) => (chrs.length > 1 ? "" : formatComma(t)))
     .tickSize(3)
     .ticks(chrs.length > 1 ? chrs.length : 7);
 
@@ -275,6 +292,7 @@ const buildChart = (
   const yAxisUpper = axisLeft(yScaleUpper)
     .tickFormat((t) => Math.abs(+t).toString())
     .ticks(7);
+
   const yAxisLower = axisLeft(yScaleLower)
     .tickFormat((t) => Math.abs(+t).toString())
     .ticks(7);
@@ -433,7 +451,7 @@ const buildChart = (
   });
 
   lowerData.forEach((d) => {
-    const pval = getPVal(topCol, d);
+    const pval = getPVal(bottomCol, d);
     if (!!pval) {
       if (pval < bottomThresh) {
         circleDataLower.push(d);
@@ -451,7 +469,9 @@ const buildChart = (
     .attr("r", circleWidthScale(transformedData.length))
     .attr("fill", pvalScale(topCol))
     .attr("opacity", 0.5)
-    .attr("cx", (d) => getPlottingXScale(d.chr.toString())(d.end_bp))
+    .attr("cx", (d) =>
+      getPlottingXScale(d.chr.toString())(getVariantOrRegionLocation(d)),
+    )
     .attr("cy", (d) => yScaleUpper(getPVal(topCol, d)!));
 
   circleContainer
@@ -462,7 +482,9 @@ const buildChart = (
     .attr("r", circleWidthScale(transformedData.length))
     .attr("fill", pvalScale(bottomCol))
     .attr("opacity", 0.5)
-    .attr("cx", (d) => getPlottingXScale(d.chr.toString())(d.end_bp))
+    .attr("cx", (d) =>
+      getPlottingXScale(d.chr.toString())(getVariantOrRegionLocation(d)),
+    )
     .attr("cy", (d) => yScaleLower(getPVal(bottomCol, d)!));
 
   //diamonds
@@ -471,14 +493,17 @@ const buildChart = (
     .data(diamondDataUpper)
     .join("path")
     .attr("class", "upper")
-    .attr("d", symbol(symbolDiamond))
+    .attr(
+      "d",
+      symbol(symbolDiamond, circleWidthScale(transformedData.length) * 15),
+    )
     .attr("opacity", 0.5)
     .attr("fill", pvalScale(topCol))
     .attr(
       "transform",
       (d) =>
         `translate(${getPlottingXScale(d.chr.toString())(
-          d.end_bp,
+          getVariantOrRegionLocation(d),
         )}, ${yScaleUpper(getPVal(topCol, d) as number)})`,
     );
 
@@ -488,20 +513,23 @@ const buildChart = (
     .join("path")
     .attr("class", "lower")
     .attr("opacity", 0.5)
-    .attr("d", symbol(symbolDiamond))
+    .attr(
+      "d",
+      symbol(symbolDiamond, circleWidthScale(transformedData.length) * 15),
+    )
     .attr("fill", pvalScale(bottomCol))
     .attr(
       "transform",
       (d) =>
         `translate(${getPlottingXScale(d.chr.toString())(
-          d.end_bp,
+          getVariantOrRegionLocation(d),
         )}, ${yScaleLower(getPVal(bottomCol, d) as number)})`,
     );
 
   circleContainer
     .selectAll<BaseType, RegionResult>("circle, path")
     .on("click", (_, d: RegionResult) => onCircleClick(d))
-    .on("mouseover", (e: MouseEvent, d: RegionResult) => showTooltip(d, e))
+    .on("mouseover", (e: MouseEvent, d: RegionResult) => showMiamiTooltip(d, e))
     .on("mouseout", () => selectAll(".tooltip").style("visibility", "hidden"));
 
   drawDottedLine(
@@ -557,10 +585,10 @@ interface MiamiPlotProps {
   assemblyInfo: AssembyInfo;
   bottomCol: keyof RegionResult | keyof VariantResult;
   bottomThresh: number;
-  data: RegionResult[];
+  data: (RegionResult | VariantResult)[];
   filterCb: (filter: BrushFilter) => void;
   filter?: BrushFilter;
-  onCircleClick: (d: RegionResult) => void;
+  onCircleClick: (d: RegionResult | VariantResult) => void;
   pvalScale: ScaleOrdinal<string, string, never>;
   selectedRegionDetailData?: SelectedRegionDetailData;
   topThresh: number;

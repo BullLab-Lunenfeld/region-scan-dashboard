@@ -1,5 +1,6 @@
-import { Selection } from "d3-selection";
+import { select, Selection } from "d3-selection";
 import { line } from "d3-shape";
+import { format } from "d3-format";
 import Papa from "papaparse";
 import {
   VariantResult,
@@ -163,3 +164,17 @@ export const processRegionVariants = async (
       return true;
     });
 };
+
+export const showToolTip = (e: MouseEvent, text: string[]) =>
+  select(".tooltip")
+    .style("left", `${e.pageX + 15}px`)
+    .style("top", `${e.pageY - 15}px`)
+    .style("visibility", "visible")
+    .select<HTMLUListElement>("ul")
+    .selectAll<HTMLLIElement, string>("li")
+    .data<string>(text, (d) => d)
+    .join("li")
+    .style("font-size", "15px")
+    .text((d) => d);
+
+export const formatComma = format(",");

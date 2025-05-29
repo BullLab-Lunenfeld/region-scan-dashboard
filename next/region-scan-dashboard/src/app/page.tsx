@@ -8,7 +8,7 @@ import React, {
   useState,
 } from "react";
 import { Grid2 as Grid, IconButton, MenuItem } from "@mui/material";
-import { schemeSet3 } from "d3-scale-chromatic";
+import { schemeTableau10 } from "d3-scale-chromatic";
 import { scaleOrdinal } from "d3-scale";
 import { extent, groups } from "d3-array";
 import { UndoSharp } from "@mui/icons-material";
@@ -31,6 +31,8 @@ import {
 } from "@/lib/ts/util";
 import {
   AssembyInfo,
+  isKeyOfRegionResult,
+  isRegionResult,
   RegionResult,
   RegionResultRaw,
   RegionResultRawNew,
@@ -71,18 +73,23 @@ export default function Home() {
     keyof RegionResult | keyof VariantResult | ""
   >("");
 
-  const [qqVariables, setQqVariables] = useState<(keyof RegionResult)[]>([]);
+  const [qqVariables, setQqVariables] = useState<
+    (keyof RegionResult | keyof VariantResult)[]
+  >([]);
 
   const [regionData, setRegionData] = useState<RegionResult[]>([]);
   const [selectedRegionDetailData, setSelectedRegionDetailData] =
     useState<SelectedRegionDetailData>();
-  const [regionDisplayData, setRegionDisplayData] = useState<RegionResult[]>(
+
+  const [miamiData, setMiamiData] = useState<(RegionResult | VariantResult)[]>(
     [],
   );
 
   const [regionVariants, setRegionVariants] = useState<VariantResult[]>([]);
 
-  const [selectedRegion, setSelectedRegion] = useState<RegionResult>();
+  const [selectedRegion, setSelectedRegion] = useState<
+    RegionResult | VariantResult
+  >();
 
   const [uploadKey, setUploadKey] = useState(
     Math.random().toString(36).slice(2),
@@ -100,15 +107,16 @@ export default function Home() {
   const pvalScale = useMemo(() => {
     if (regionData.length) {
       return scaleOrdinal<string, string>()
-        .range(schemeSet3.filter((c) => c !== "#ffffb3")) // this yellow is barely visible
+        .range(schemeTableau10)
         .domain(
           Object.keys(regionData[0])
+            .concat(regionVariants.length ? "sglm_pvalue" : [])
             .filter((k) => k.toLowerCase().endsWith("_p"))
             .map((k) => k)
             .filter((k, i, a) => a.findIndex((d) => d === k) === i) as string[],
         );
     }
-  }, [regionData]);
+  }, [regionData, regionVariants]);
 
   // save where the regions restart (~centromeres)
   const regionRestartPoints = useMemo(() => {
@@ -134,7 +142,7 @@ export default function Home() {
     }
   }, [regionVariants]);
 
-  // compute regionPlot data
+  // compute regionPlot data, which is a subset of the data currently visible in the MiamiPlot
   useEffect(() => {
     if (selectedRegion && regionRestartPoints) {
       const chr = selectedRegion.chr;
@@ -161,10 +169,13 @@ export default function Home() {
       }
 
       // finally, if we're already zoomed in to single chr, trim to that range
-      if (regionDisplayData.length) {
-        if (unique(regionDisplayData, "chr").length === 1) {
+      if (miamiData.length) {
+        if (
+          unique<RegionResult | VariantResult, "chr">(miamiData, "chr")
+            .length === 1
+        ) {
           const [minVisibleBp, maxVisibleBp] = extent(
-            regionDisplayData.flatMap((d) => [d.start_bp, d.end_bp]),
+            miamiData.flatMap((d) => [d.start_bp, d.end_bp]),
           ) as [number, number];
           if (maxVisibleBp < maxBp) {
             maxBp = maxVisibleBp;
@@ -175,9 +186,13 @@ export default function Home() {
         }
       }
 
-      const regionDetailData = regionData.filter(
-        (d) => d.end_bp < maxBp && d.start_bp >= minBp && d.chr == chr,
-      );
+      const regionDetailData = miamiData.filter(
+        (d) =>
+          isRegionResult(d) &&
+          d.end_bp < maxBp &&
+          d.start_bp >= minBp &&
+          d.chr == chr,
+      ) as RegionResult[];
 
       setSelectedRegionDetailData({
         data: regionDetailData,
@@ -188,19 +203,23 @@ export default function Home() {
         ) as [number, number],
       });
     }
-  }, [regionData, regionDisplayData, regionRestartPoints, selectedRegion]);
+  }, [miamiData, regionRestartPoints, selectedRegion]);
 
   useEffect(() => {
     setSelectedRegionDetailData(undefined);
   }, [upperVariable, lowerVariable]);
 
+  //compute region display data, which is the data for the MiamiPlot
   useEffect(() => {
     if (upperVariable && lowerVariable) {
+      let newMiamiData = (
+        regionData as (RegionResult | VariantResult)[]
+      ).concat(regionVariants);
       if (!!brushFilterHistory.length) {
         const { x0Lim, x1Lim } =
           brushFilterHistory[brushFilterHistory.length - 1];
 
-        const newDisplayData = regionData.filter((d) => {
+        newMiamiData = newMiamiData.filter((d) => {
           const x0Pass =
             d.chr > +x0Lim.chr ||
             (d.chr === +x0Lim.chr && d.start_bp >= x0Lim.pos);
@@ -227,15 +246,16 @@ export default function Home() {
             setSelectedRegionDetailData(undefined);
           }
         }
-
-        if (newDisplayData.length) {
-          setRegionDisplayData(newDisplayData);
-        }
-      } else {
-        setRegionDisplayData(regionData);
       }
+      setMiamiData(newMiamiData);
     }
-  }, [brushFilterHistory, upperVariable, lowerVariable, regionData]);
+  }, [
+    brushFilterHistory,
+    upperVariable,
+    lowerVariable,
+    regionData,
+    regionVariants,
+  ]);
 
   useEffect(() => {
     setQqVariables(
@@ -251,8 +271,11 @@ export default function Home() {
             Object.keys(r).filter((k) => k.endsWith("_p")),
           ),
         ),
-      ] as (keyof RegionResult)[],
-    [regionData],
+      ].concat(regionVariants.length ? "sglm_pvalue" : []) as (
+        | keyof RegionResult
+        | keyof VariantResult
+      )[],
+    [regionData, regionVariants],
   );
 
   const resetVisualizationVariables = () => {
@@ -494,7 +517,7 @@ export default function Home() {
                   pvalScale={pvalScale}
                   bottomCol={lowerVariable}
                   bottomThresh={lowerThresh}
-                  data={regionDisplayData}
+                  data={miamiData}
                   onCircleClick={(d) => setSelectedRegion(d)}
                   filter={brushFilterHistory[brushFilterHistory.length - 1]}
                   filterCb={filterCb}
@@ -560,22 +583,16 @@ export default function Home() {
           </Grid>
         )}
       </Grid>
-      {/* Region polt row not sure how to handle this, actually.... should we simply drop the inner variant upload? Or allow only one var (why 2?)
-          Well, what we can do is have variant argument here, which will be the variant that the user has uploaded, then drop the upload button in the region plot
-          Then we'll just filter in the component
-          Then we'll just change var1 and var2 to regionVars, it will be an array, and we'll filter
-
-      */}
       {!!pvalScale &&
         !!miamiChartContainerRef.current &&
-        !!selectedRegionDetailData &&
+        !!selectedRegionDetailData?.data.length &&
         !!upperVariable &&
         !!lowerVariable &&
         !!selectedRegion && (
           <RegionPlot
             assemblyInfo={assemblyInfo}
             pvalScale={pvalScale}
-            pvars={pVars}
+            pvars={pVars.filter((p) => isKeyOfRegionResult(p))}
             selector="region-plot"
             selectedRegionDetailData={selectedRegionDetailData}
             regionVars={
@@ -588,12 +605,12 @@ export default function Home() {
           />
         )}
       {/* Ideally we don't need controlled filters at all*/}
-      {!!regionDisplayData.length && (
+      {!!miamiData.length && (
         <Grid size={{ xs: 12 }} container flexWrap="nowrap">
           <Grid sx={{ width: "100%" }}>
             <PaginatedTable
               cols={RegionResultCols}
-              data={regionDisplayData}
+              data={miamiData.filter((d) => isRegionResult(d))}
               //filterModel={filterModel}
               //onFilterModelChange={(m) => console.log(m)}
               //onSelect={(m) => null}

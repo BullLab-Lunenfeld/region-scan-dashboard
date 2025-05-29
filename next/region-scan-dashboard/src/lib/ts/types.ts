@@ -176,8 +176,8 @@ export interface VariantResult {
   bin: number;
   variant: string;
   maf: number;
-  major_allele: number;
-  minor_allele: number;
+  major_allele?: number;
+  minor_allele?: number;
   bp: number;
   multiallelic: number;
   MLC_codechange: number;
@@ -188,7 +188,7 @@ export interface VariantResult {
   sglm_beta: number;
   sglm_se: number;
   sglm_pvalue: number;
-  ref?: string; //these are in old but not new
+  ref?: string; //these are in new but not old
   alt?: string;
   LC_codechange?: number;
 }
@@ -201,7 +201,7 @@ export interface AssembyInfo {
 export interface SelectedRegionDetailData {
   bpRange: [number, number];
   data: RegionResult[];
-  region: RegionResult;
+  region: RegionResult | VariantResult;
   regions: number[];
 }
 
@@ -224,4 +224,43 @@ export interface PlinkVariant {
 
 export const isRegionResult = (
   obj: RegionResult | VariantResult,
-): obj is RegionResult => !!(obj as RegionResult).region;
+): obj is RegionResult => !!(obj as RegionResult).id;
+
+const regionKeys: (keyof RegionResult)[] = [
+  "id",
+  "chr",
+  "end_bp",
+  "GATES_p",
+  "LCB",
+  "LCB_df",
+  "LCB_p",
+  "LCZ",
+  "LCZ_df",
+  "LCZ_p",
+  "maxVIF",
+  "MLCB",
+  "MLCB_df",
+  "MLCB_p",
+  "MLCZ",
+  "MLCZ_df",
+  "MLCZ_p",
+  "nSNPs",
+  "nSNPs_kept",
+  "PC80",
+  "PC80_df",
+  "PC80_p",
+  "region",
+  "simpleM_p",
+  "simpleM_df",
+  "single_Wald_p",
+  "SKATO_p",
+  "start_bp",
+  "Wald",
+  "Wald_df",
+  "Wald_p",
+  "SKAT_p",
+];
+
+export const isKeyOfRegionResult = (
+  key: keyof RegionResult | keyof VariantResult,
+): key is keyof RegionResult => regionKeys.includes(key as keyof RegionResult);
