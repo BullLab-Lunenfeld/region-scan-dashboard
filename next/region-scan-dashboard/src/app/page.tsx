@@ -130,7 +130,7 @@ export default function Home() {
 
   useEffect(() => {
     if (regionVariants.length) {
-      alert(regionVariants.length);
+      //do something
     }
   }, [regionVariants]);
 
@@ -584,6 +584,7 @@ export default function Home() {
               ) as (keyof RegionResult)[]
             }
             mainWidth={miamiChartContainerRef.current.clientWidth}
+            variants={regionVariants}
           />
         )}
       {/* Ideally we don't need controlled filters at all*/}

@@ -30,7 +30,7 @@ import {
   VariantResult,
 } from "@/lib/ts/types";
 import { LoadingOverlay, PvarCheckbox, UploadButtonSingle } from "@/components";
-import { drawDottedLine, parseTsv, processRegionVariants } from "@/lib/ts/util";
+import { drawDottedLine, parseTsv } from "@/lib/ts/util";
 import { fetchGenes } from "@/util/fetchGenes";
 import { fetchRecomb } from "@/util/fetchRecomb";
 
@@ -606,12 +606,13 @@ class RegionChart {
 
 interface RegionPlotProps {
   assemblyInfo: AssembyInfo;
+  mainWidth: number;
   pvalScale: ScaleOrdinal<string, string, never>;
   pvars: (keyof RegionResult)[];
+  regionVars: (keyof RegionResult)[];
   selectedRegionDetailData: SelectedRegionDetailData;
   selector: string;
-  regionVars: (keyof RegionResult)[];
-  mainWidth: number;
+  variants: VariantResult[];
 }
 
 const RegionPlot: React.FC<RegionPlotProps> = ({
@@ -622,6 +623,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
   selectedRegionDetailData,
   selector,
   mainWidth,
+  variants,
 }) => {
   const [centerRegion, setCenterRegion] = useState(
     selectedRegionDetailData.region.region,
@@ -647,9 +649,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     Math.random().toString(36).slice(2),
   );
 
-  const [variantsVisible, setVariantsVisible] = useState<boolean>(true);
-
-  const [variants, setVariants] = useState<VariantResult[]>([]);
+  const [variantsVisible, setVariantsVisible] = useState<boolean>(false);
 
   const [visibleData, setVisibleData] = useState<RegionResult[]>([]);
 
@@ -669,6 +669,11 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     [data],
   );
 
+  const filteredVariants = useMemo(
+    () => variants.filter((v) => v.bp >= posRange[0] && v.bp <= posRange[1]),
+    [variants, posRange],
+  );
+
   const visibleGenes = useMemo(() => {
     if (proteinGenesOnly) {
       return genes.filter((g) => g.biotype === "protein_coding");
@@ -679,11 +684,11 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   const visibleVariants: ChartVariants = useMemo(() => {
     if (variantsVisible) {
-      return { regionVariants: variants, plinkVariants: plinkVariants };
+      return { regionVariants: filteredVariants, plinkVariants: plinkVariants };
     } else {
       return { regionVariants: [], plinkVariants: [] };
     }
-  }, [plinkVariants, variants, variantsVisible]);
+  }, [plinkVariants, filteredVariants, variantsVisible]);
 
   const visibleRecomb = useMemo(() => {
     if (recombVisible) {
@@ -777,7 +782,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     setVisiblePvars((pvars) => [
       ...new Set(pvars.concat(regionVars).filter(Boolean)),
     ]);
-  }, regionVars);
+  }, [regionVars]);
 
   //initial render
   useLayoutEffect(() => {
@@ -788,7 +793,6 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
   //new data
   useEffect(() => {
     if (chart) {
-      setVariants([]);
       setGenes([]);
       setWheelTick(null);
       setVariantsVisible(true);
@@ -832,28 +836,6 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
       {/* Region controls */}
       <Grid container size={{ xs: 2, xl: 1.5 }} spacing={0} direction="column">
         <Grid>
-          {/* region variant upload */}
-          <UploadButtonSingle
-            key={uploadKey}
-            fileType="variant"
-            onUpload={async (file) => {
-              setLoading(true);
-              const mapped = await processRegionVariants(
-                file,
-                null,
-                posRange,
-                selectedRegionDetailData.regions,
-              );
-              if (mapped.length === 0) {
-                alert("no variants found for this region");
-              }
-              setLoading(false);
-              setVariants(mapped);
-            }}
-            variant="text"
-          />
-        </Grid>
-        <Grid>
           {/* plink variant upload */}
           <UploadButtonSingle
             key={uploadKey}
@@ -871,7 +853,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
           />
         </Grid>
         <Grid>
-          {!!variants.length && (
+          {(!!filteredVariants.length || !!plinkVariants.length) && (
             <Button onClick={() => setVariantsVisible(!variantsVisible)}>
               {variantsVisible ? "Hide " : " Show"} Variants
             </Button>
