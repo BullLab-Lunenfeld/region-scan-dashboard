@@ -19,6 +19,14 @@ export const parseTsv = <T extends Record<string, any>>(
   );
 };
 
+export const unique = <
+  T extends Record<string | number, any>,
+  K extends keyof T,
+>(
+  arr: T[],
+  k: K,
+): T[K][] => [...new Set(arr.map((d) => d[k]))];
+
 export const drawDottedLine = (
   container: Selection<SVGGElement, number, SVGElement, number>,
   cls: string,

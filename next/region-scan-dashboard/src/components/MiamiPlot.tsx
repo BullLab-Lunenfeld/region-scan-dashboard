@@ -194,9 +194,6 @@ const buildChart = (
           )
       : singleChrXScale;
 
-  //todo: we need 2 yscales, one up, one down
-  //we don't need margin bottom, or we can bake in
-
   const yScaleLower = scaleLinear()
     .range([marginTop + height / 2 + marginMiddle, height - marginBottom])
     .domain(

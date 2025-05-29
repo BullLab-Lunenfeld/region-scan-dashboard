@@ -23,7 +23,12 @@ import {
   ShortTextField,
   UploadButtonMulti,
 } from "@/components";
-import { getEntries, parseTsv, processRegionVariants } from "@/lib/ts/util";
+import {
+  getEntries,
+  parseTsv,
+  processRegionVariants,
+  unique,
+} from "@/lib/ts/util";
 import {
   AssembyInfo,
   RegionResult,
@@ -36,6 +41,8 @@ import {
 import { RegionResultCols } from "@/util/columnConfigs";
 import { BrushFilter } from "@/components/MiamiPlot";
 import { chromLengths37, chromLengths38 } from "@/util/chromLengths";
+
+const VARIANT_PVAL: keyof VariantResult = "sglm_pvalue";
 
 const colMap: Partial<
   Record<keyof RegionResultRawOld, keyof RegionResultRawNew>
@@ -155,7 +162,7 @@ export default function Home() {
 
       // finally, if we're already zoomed in to single chr, trim to that range
       if (regionDisplayData.length) {
-        if ([...new Set([regionDisplayData.map((r) => r.chr)])].length === 1) {
+        if (unique(regionDisplayData, "chr").length === 1) {
           const [minVisibleBp, maxVisibleBp] = extent(
             regionDisplayData.flatMap((d) => [d.start_bp, d.end_bp]),
           ) as [number, number];
@@ -175,9 +182,7 @@ export default function Home() {
       setSelectedRegionDetailData({
         data: regionDetailData,
         region: selectedRegion,
-        regions: [
-          ...new Set(regionDetailData.map((d) => d.region)),
-        ] as number[],
+        regions: unique(regionDetailData, "region"),
         bpRange: extent(
           regionDetailData.flatMap((d) => [d.start_bp, d.end_bp]),
         ) as [number, number],
@@ -343,7 +348,7 @@ export default function Home() {
                 onUpload={async (files: File[]) => {
                   setLoading(true);
                   let results: VariantResult[] = [];
-                  const _chrs = [...new Set(regionData.map((r) => r.chr))];
+                  const _chrs = unique(regionData, "chr");
                   const chrs = _chrs.length === 1 ? null : _chrs;
                   const range = chrs?.length
                     ? null
@@ -402,6 +407,7 @@ export default function Home() {
               >
                 {Object.keys(regionData[0])
                   .filter((k) => k.endsWith("_p"))
+                  .concat(!!regionVariants.length ? VARIANT_PVAL : [])
                   .filter((k) => k !== lowerVariable)
                   .map((k) => (
                     <MenuItem
@@ -428,6 +434,7 @@ export default function Home() {
               >
                 {Object.keys(regionData[0])
                   .filter((k) => k.endsWith("_p"))
+                  .concat(!!regionVariants.length ? VARIANT_PVAL : [])
                   .filter((k) => k !== upperVariable)
                   .map((k) => (
                     <MenuItem value={k} key={k}>

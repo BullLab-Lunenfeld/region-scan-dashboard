@@ -56,7 +56,7 @@ const processPlinkVariants = async (
       ),
     )
     .filter(
-      (v) => v.pos > posRange[0] && v.pos < posRange[1],
+      (v) => v.pos > posRange[0] && v.pos < posRange[1] && v.test === "ADD",
     ) as PlinkVariant[];
 };
 
@@ -641,7 +641,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   const [recombData, setRecombData] = useState<UCSCRecombTrackResult[]>([]);
 
-  const [recombVisible, setRecombVisible] = useState(true);
+  const [recombVisible, setRecombVisible] = useState(false);
 
   const [uploadKey, setUploadKey] = useState<string>(
     Math.random().toString(36).slice(2),
