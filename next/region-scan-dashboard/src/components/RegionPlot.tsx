@@ -492,37 +492,32 @@ class RegionChart {
       .attr("transform", "rotate(90)")
       .attr("text-anchor", "middle");
 
-    if (filteredRecomb.length) {
-      this.container
-        .selectAll<SVGGElement, number>("g.y-axis-r")
-        .data([1])
-        .join("g")
-        .attr("class", "y-axis-r")
-        .attr("transform", `translate(${this.mainWidth - marginRight},0)`)
-        .transition()
-        .duration(500)
-        .call(axisRight(yScaleRecomb));
+    this.container
+      .selectAll<SVGGElement, number>("g.y-axis-r")
+      .data([filteredRecomb.length].filter(Boolean))
+      .join("g")
+      .attr("class", "y-axis-r")
+      .attr("transform", `translate(${this.mainWidth - marginRight},0)`)
+      .transition()
+      .duration(500)
+      .call(axisRight(yScaleRecomb));
 
-      this.container
-        .selectAll("g.y-label-r")
-        .data([1])
-        .join("g")
-        .attr("class", "y-label-r")
-        .transition()
-        .duration(500)
-        .attr(
-          "transform",
-          `translate(${this.mainWidth + 18},${this.height / 2})`,
-        )
-        .selection()
-        .selectAll("text")
-        .data([1])
-        .join("text")
-        .text("Recombination Rate")
-        .attr("font-size", 12)
-        .attr("transform", "rotate(90)")
-        .attr("text-anchor", "middle");
-    }
+    this.container
+      .selectAll("g.y-label-r")
+      .data([filteredRecomb.length].filter(Boolean))
+      .join("g")
+      .attr("class", "y-label-r")
+      .attr("transform", `translate(${this.mainWidth + 18},${this.height / 2})`)
+      .selection()
+      .selectAll("text")
+      .data([1])
+      .join("text")
+      .text("Recombination Rate")
+      .transition()
+      .duration(500)
+      .attr("font-size", 12)
+      .attr("transform", "rotate(90)")
+      .attr("text-anchor", "middle");
 
     const recombLine = line<LocalRecombData>()
       .x((d) => xScale(d.pos))
