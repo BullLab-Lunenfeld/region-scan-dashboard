@@ -23,10 +23,10 @@ import {
 import {
   AssembyInfo,
   EnsemblGeneResult,
+  LocalRecombData,
   PlinkVariant,
   RegionResult,
   SelectedRegionDetailData,
-  UCSCRecombTrackResult,
   VariantResult,
 } from "@/lib/ts/types";
 import { LoadingOverlay, PvarCheckbox, UploadButtonSingle } from "@/components";
@@ -37,7 +37,6 @@ import {
   showToolTip,
 } from "@/lib/ts/util";
 import { fetchGenes } from "@/util/fetchGenes";
-import { fetchRecomb } from "@/util/fetchRecomb";
 
 const processPlinkVariants = async (
   file: File,
@@ -76,11 +75,6 @@ interface RegionData {
   end: number;
   variable: keyof RegionResult;
   pvalue: number;
-}
-
-interface RecombLineData {
-  x: number;
-  recomb: number;
 }
 
 const circleWidthScale = scaleLinear().range([1, 2.5]).domain([5e6, 5e4]);
@@ -160,7 +154,7 @@ class RegionChart {
     genes: EnsemblGeneResult[],
     wheelCb: (delta: number, pos: number) => void,
     setCenterRegion: (region: number) => void,
-    recombData: UCSCRecombTrackResult[],
+    recombData: LocalRecombData[],
     geneLabelsVisible: boolean,
     visiblePvars: (keyof RegionResult)[],
   ) => {
@@ -272,7 +266,7 @@ class RegionChart {
       .domain([geneHeightCount ? geneHeightCount + 1 : geneHeightCount, 1]); // add an extra for padding
 
     const filteredRecomb = recombData.filter(
-      (r) => r.end <= xScale.domain()[1] && r.start >= xScale.domain()[0],
+      (r) => r.pos <= xScale.domain()[1] && r.pos >= xScale.domain()[0],
     );
 
     const yScaleRecomb = scaleLinear()
@@ -280,10 +274,16 @@ class RegionChart {
       .domain(
         !filteredRecomb.length
           ? [0, 0]
-          : (extent(filteredRecomb.map((d) => d.value)).reverse() as [
+          : /* (extent(filteredRecomb.map((d) => d.recomb_rate)).reverse() as [
               number,
               number,
-            ]),
+            ]), */ [
+              max([
+                120,
+                max(filteredRecomb.map((f) => f.recomb_rate))!,
+              ]) as number,
+              0,
+            ], //observed max is 1100 but this appears to be an outlier, there are a few higher than 120, so we'll be dynamic only as needed
       );
 
     //draw region rectangles
@@ -524,18 +524,13 @@ class RegionChart {
         .attr("text-anchor", "middle");
     }
 
-    const recombLineData = filteredRecomb.flatMap((d) => [
-      { recomb: d.value, x: d.start },
-      { recomb: d.value, x: d.end },
-    ]);
-
-    const recombLine = line<RecombLineData>()
-      .x((d) => xScale(d.x))
-      .y((d) => yScaleRecomb(d.recomb));
+    const recombLine = line<LocalRecombData>()
+      .x((d) => xScale(d.pos))
+      .y((d) => yScaleRecomb(d.recomb_rate));
 
     this.container
       .selectAll("path.recomb")
-      .data([recombLineData], () => recombLineData.length)
+      .data([recombData], () => recombData.length)
       .join("path")
       .attr("class", "recomb")
       .style("fill", "none")
@@ -669,7 +664,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   const [proteinGenesOnly, setProteinGenesOnly] = useState(true);
 
-  const [recombData, setRecombData] = useState<UCSCRecombTrackResult[]>([]);
+  const [recombData, setRecombData] = useState<LocalRecombData[]>([]);
 
   const [recombVisible, setRecombVisible] = useState(false);
 
@@ -718,14 +713,6 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     }
   }, [plinkVariants, filteredVariants, variantsVisible]);
 
-  const visibleRecomb = useMemo(() => {
-    if (recombVisible) {
-      return recombData;
-    } else {
-      return [];
-    }
-  }, [recombData, recombVisible]);
-
   const maxWheelTick = useMemo(
     () =>
       max(
@@ -735,21 +722,42 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
   );
 
   useEffect(() => {
-    // fetch the recomb rate data and merge with region data, this means only 1 api call per chart
-    const [start, end] = posRange;
-
-    if (chr && start !== end) {
-      fetchRecomb(chr, start, end, assemblyInfo.assembly).then((r) => {
-        if (r) {
-          r.sort((a, b) => (a.start < b.start ? -1 : 1));
-          setRecombData(r);
-        } else {
-          alert("Error fetching recombination data");
-          setRecombData([]);
-        }
-      });
+    if (chr) {
+      fetch(`${process.env.NEXT_PUBLIC_APP_URL}/recomb/chr${chr}`).then((d) =>
+        d.json().then((d) => setRecombData(d)),
+      );
     }
-  }, [data, assemblyInfo, chr, posRange]);
+  }, [chr]);
+
+  const filteredRecombData = useMemo(
+    () => recombData.filter((d) => d.pos > posRange[0] && d.pos < posRange[1]),
+    [recombData, posRange],
+  );
+
+  const visibleRecomb = useMemo(() => {
+    if (recombVisible) {
+      return filteredRecombData;
+    } else {
+      return [];
+    }
+  }, [filteredRecombData, recombVisible]);
+
+  // useEffect(() => {
+  //   // fetch the recomb rate data and merge with region data, this means only 1 api call per chart
+  //   const [start, end] = posRange;
+
+  //   if (chr && start !== end) {
+  //     fetchRecomb(chr, start, end, assemblyInfo.assembly).then((r) => {
+  //       if (r) {
+  //         r.sort((a, b) => (a.start < b.start ? -1 : 1));
+  //         setRecombData(r);
+  //       } else {
+  //         alert("Error fetching recombination data");
+  //         setRecombData([]);
+  //       }
+  //     });
+  //   }
+  // }, [data, assemblyInfo, chr, posRange]);
 
   //set visible data depending on zoom and center
   useEffect(() => {

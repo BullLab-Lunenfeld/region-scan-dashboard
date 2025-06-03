@@ -24,6 +24,12 @@ export interface UCSCRecombTrackResult {
   value: number;
 }
 
+export interface LocalRecombData {
+  chrom: string;
+  pos: number;
+  recomb_rate: number;
+}
+
 //fields common to both
 export interface RegionResultRawBase {
   chr: number;
