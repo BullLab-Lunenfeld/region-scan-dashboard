@@ -516,6 +516,7 @@ class RegionChart {
       .transition()
       .duration(500)
       .attr("font-size", 12)
+      .selection()
       .attr("transform", "rotate(90)")
       .attr("text-anchor", "middle");
 
