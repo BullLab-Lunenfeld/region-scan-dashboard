@@ -137,14 +137,14 @@ const buildChart = (
     .attr("class", "y-label")
     .transition()
     .duration(500)
-    .attr("transform", `translate(5,${height / 2})`)
+    .attr("transform", `translate(15,${height / 2})`)
     .selection()
     .selectAll("text")
     .data(["pValue"])
-    .join("text")
+    .text("p-value (-log 10)")
+    .attr("transform", "rotate(-90)")
     .text("pValue (-log10)")
     .attr("font-size", 12)
-    .attr("transform", "rotate(90)")
     .attr("text-anchor", "middle");
 
   container

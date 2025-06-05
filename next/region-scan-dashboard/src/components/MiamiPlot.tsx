@@ -331,13 +331,13 @@ const buildChart = (
     .attr("class", "y-upper-label")
     .transition()
     .duration(500)
-    .attr("transform", `translate(5,${upperMidPoint})`)
+    .attr("transform", `translate(20,${upperMidPoint})`)
     .selection()
     .selectAll("text")
     .data([1])
     .join("text")
-    .text("-log10 P")
-    .attr("transform", "rotate(90)")
+    .text("p-value (-log 10)")
+    .attr("transform", "rotate(-90)")
     .attr("font-size", 12)
     .attr("text-anchor", "middle");
 
@@ -348,14 +348,14 @@ const buildChart = (
     .attr("class", "y-lower-label")
     .transition()
     .duration(500)
-    .attr("transform", `translate(5,${lowerMidPoint})`)
+    .attr("transform", `translate(20,${lowerMidPoint})`)
     .selection()
     .selectAll("text")
     .data([1])
     .join("text")
-    .text("-log10 P")
+    .text("p-value (-log 10)")
+    .attr("transform", "rotate(-90)")
     .attr("font-size", 12)
-    .attr("transform", "rotate(90)")
     .attr("text-anchor", "middle");
 
   const posRange = selectedRegionDetailData

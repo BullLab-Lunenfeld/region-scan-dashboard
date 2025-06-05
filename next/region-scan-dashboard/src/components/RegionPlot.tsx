@@ -5,7 +5,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { extent, groups, max } from "d3-array";
+import { extent, groups, max, bisector } from "d3-array";
 import { axisBottom, axisLeft, axisRight } from "d3-axis";
 import { format } from "d3-format";
 import "d3-transition"; // must be imported before selection
@@ -37,6 +37,49 @@ import {
   showToolTip,
 } from "@/lib/ts/util";
 import { fetchGenes } from "@/util/fetchGenes";
+
+//so these need to return pixel values, like a char is 6px, so how many bp is that?
+//we habe to take the wider width
+
+const getEndPos = (
+  gene: EnsemblGeneResult,
+  labelVisible: boolean,
+  charWidthInBp: number,
+) => {
+  if (
+    !labelVisible ||
+    !gene.external_name ||
+    gene.end - gene.start > charWidthInBp * gene.external_name?.length ||
+    0
+  ) {
+    return gene.end;
+  } else {
+    return (
+      (gene.end + gene.start) / 2 +
+        (charWidthInBp * gene.external_name?.length) / 2 || 0
+    );
+  }
+};
+
+const getStartPos = (
+  gene: EnsemblGeneResult,
+  labelVisible: boolean,
+  charWidthInBp: number,
+) => {
+  if (
+    !labelVisible ||
+    !gene.external_name ||
+    gene.end - gene.start > charWidthInBp * gene.external_name?.length ||
+    0
+  ) {
+    return gene.start;
+  } else {
+    return (
+      (gene.end + gene.start) / 2 -
+        (charWidthInBp * gene.external_name?.length) / 2 || 0
+    );
+  }
+};
 
 const processPlinkVariants = async (
   file: File,
@@ -165,7 +208,11 @@ class RegionChart {
         ) as [number, number];
 
         return Object.entries(members[0])
-          .filter(([k]) => k.toLowerCase().endsWith("_p"))
+          .filter(
+            ([k, v]) =>
+              k.toLowerCase().endsWith("_p") &&
+              -Math.log10(v) < Number.MAX_VALUE, //some are smaller than the max and get converted to infinity...
+          )
           .map(([variable, pvalue]) => ({
             region,
             start,
@@ -190,33 +237,57 @@ class RegionChart {
     const geneHeightMap = visibleGenes.reduce<Record<string, number>>(
       (acc, curr) => ({
         ...acc,
-        [curr.id]: 0,
+        [curr.id]: 1,
       }),
       {},
     );
 
+    const charWidthInBp =
+      Math.round(xScale.invert(xScale.range()[0] + 10)) - xScale.domain()[0];
+
     if (visibleGenes.length) {
-      const sorted = visibleGenes.sort((a, b) => (a.start < b.start ? -1 : 1));
+      const sorted = visibleGenes.sort((a, b) =>
+        getStartPos(a, geneLabelsVisible, charWidthInBp) <
+        getStartPos(b, geneLabelsVisible, charWidthInBp)
+          ? -1
+          : 1,
+      );
+
+      // we'll iterate through each gene, lifting the ones that overlap,
+      // then checking if the gene itself has been lifted and can be dropped into a lower position
       sorted.forEach((outerG, i) => {
-        for (let j = i; j < sorted.length; j++) {
-          if (outerG.end > sorted[j].start) {
-            let height = geneHeightMap[outerG.id] + 1;
+        for (let j = i + 1; j < sorted.length; j++) {
+          if (
+            getEndPos(outerG, geneLabelsVisible, charWidthInBp) >
+            getStartPos(sorted[j], geneLabelsVisible, charWidthInBp)
+          ) {
+            geneHeightMap[sorted[j].id] = geneHeightMap[sorted[j].id] + 1;
+
             if (geneHeightMap[outerG.id] > 1) {
               const covered = sorted
-                .slice(0, i)
-                .sort((a, b) => (a.end < b.end ? -1 : 1));
-              for (let k = geneHeightMap[outerG.id]; k > 0; k--) {
-                for (let l = i - 1; l >= 0; l--) {
+                .slice(0, j)
+                .sort((a, b) =>
+                  getEndPos(a, geneLabelsVisible, charWidthInBp) >
+                  getEndPos(b, geneLabelsVisible, charWidthInBp)
+                    ? -1
+                    : 1,
+                );
+
+              for (let k = 1; k < geneHeightMap[outerG.id]; k++) {
+                for (let l = 0; l < covered.length; l++) {
                   if (geneHeightMap[covered[l].id] === k) {
-                    if (covered[l].end < sorted[j].start) {
-                      height = k;
+                    if (
+                      getEndPos(covered[l], geneLabelsVisible, charWidthInBp) <
+                      getStartPos(outerG, geneLabelsVisible, charWidthInBp)
+                    ) {
+                      geneHeightMap[outerG.id] = k;
+                      break;
                     }
                     break;
                   }
                 }
               }
             }
-            geneHeightMap[visibleGenes[j].id] = height;
           }
         }
       });
@@ -245,7 +316,10 @@ class RegionChart {
     );
 
     const yScalePval = scaleLinear()
-      .range([marginTop, this.height - marginBottom - geneSpace])
+      .range([
+        marginTop,
+        this.height - marginBottom - geneSpace - 0.5 * regionRectHeight,
+      ])
       .domain([
         max(
           regionData
@@ -274,10 +348,7 @@ class RegionChart {
       .domain(
         !filteredRecomb.length
           ? [0, 0]
-          : /* (extent(filteredRecomb.map((d) => d.recomb_rate)).reverse() as [
-              number,
-              number,
-            ]), */ [
+          : [
               max([
                 120,
                 max(filteredRecomb.map((f) => f.recomb_rate))!,
@@ -482,14 +553,14 @@ class RegionChart {
       .attr("class", "y-label")
       .transition()
       .duration(500)
-      .attr("transform", `translate(5,${this.height / 2})`)
+      .attr("transform", `translate(15,${(this.height - geneSpace) / 2})`)
       .selection()
       .selectAll("text")
       .data([1])
       .join("text")
-      .text("-log p-value")
+      .text("p-value (-log 10)")
       .attr("font-size", 12)
-      .attr("transform", "rotate(90)")
+      .attr("transform", "rotate(-90)")
       .attr("text-anchor", "middle");
 
     this.container
@@ -507,7 +578,10 @@ class RegionChart {
       .data([filteredRecomb.length].filter(Boolean))
       .join("g")
       .attr("class", "y-label-r")
-      .attr("transform", `translate(${this.mainWidth + 18},${this.height / 2})`)
+      .attr(
+        "transform",
+        `translate(${this.mainWidth + 18},${(this.height - geneSpace) / 2})`,
+      )
       .selection()
       .selectAll("text")
       .data([1])
@@ -517,7 +591,6 @@ class RegionChart {
       .duration(500)
       .attr("font-size", 12)
       .selection()
-      .attr("transform", "rotate(90)")
       .attr("text-anchor", "middle");
 
     const recombLine = line<LocalRecombData>()
