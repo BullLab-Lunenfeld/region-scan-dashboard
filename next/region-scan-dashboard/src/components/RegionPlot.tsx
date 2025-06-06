@@ -729,10 +729,6 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
   mainWidth,
   variants,
 }) => {
-  const [centerRegion, setCenterRegion] = useState(
-    selectedRegionDetailData.region.region,
-  );
-
   const [chart, setChart] = useState<RegionChart>();
 
   const [genes, setGenes] = useState<EnsemblGeneResult[]>([]);
@@ -755,11 +751,11 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   const [variantsVisible, setVariantsVisible] = useState<boolean>(false);
 
-  const [visibleData, setVisibleData] = useState<RegionResult[]>([]);
+  const [visibleData, setVisibleData] = useState<RegionResult[]>(
+    selectedRegionDetailData.data,
+  );
 
   const [visiblePvars, setVisiblePvars] = useState<(keyof RegionResult)[]>([]);
-
-  const [wheelTick, setWheelTick] = useState<number | null>(null);
 
   const data = useMemo(
     () => selectedRegionDetailData.data,
@@ -794,14 +790,6 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     }
   }, [plinkVariants, filteredVariants, variantsVisible]);
 
-  const maxWheelTick = useMemo(
-    () =>
-      max(
-        selectedRegionDetailData.regions.map((r) => Math.abs(r - centerRegion)),
-      ) as number,
-    [selectedRegionDetailData, centerRegion],
-  );
-
   useEffect(() => {
     if (chr) {
       fetch(`${process.env.NEXT_PUBLIC_APP_URL}/recomb/chr${chr}`).then((d) =>
@@ -823,40 +811,44 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     }
   }, [filteredRecombData, recombVisible]);
 
-  //todo: not sure this works? It doesn't
-  //but basically we'll have external filters that when they change, we'll
-  //reset the zoom and then filter the visible data and set the center region ourselves
-  const resetZoom = (newCenterRegion?: number) => {
-    setWheelTick(null);
-    setCenterRegion(newCenterRegion || selectedRegionDetailData.region.region);
-  };
+  const setCenterRegion = useCallback(
+    (newCenterRegion: number) => {
+      const [selectedRegionStart, selectedRegionEnd] =
+        getRegionResultRange(data);
+      const visibleRegionFlankSize = Math.round(
+        (selectedRegionEnd - selectedRegionStart - 1) / 2,
+      );
 
-  // set visible data depending on zoom and center
-  // chart callback handles changes to wheeltick and center region,
-  // while this handles the actual data changes
-  useEffect(() => {
-    if (!!data.length) {
-      if (wheelTick !== null) {
-        const [_startReg, _endReg] = [
-          centerRegion - wheelTick,
-          centerRegion + wheelTick,
-        ];
+      const newStart =
+        newCenterRegion - visibleRegionFlankSize < selectedRegionStart
+          ? selectedRegionStart
+          : newCenterRegion - visibleRegionFlankSize;
 
-        const visibleData = data.filter(
-          (d) => d.region >= _startReg && d.region <= _endReg,
-        );
+      const newEnd =
+        newCenterRegion + visibleRegionFlankSize > selectedRegionEnd
+          ? selectedRegionEnd
+          : newCenterRegion + visibleRegionFlankSize;
 
-        setVisibleData(visibleData);
-      } else {
-        setWheelTick(maxWheelTick);
-      }
-    }
-  }, [centerRegion, data, wheelTick, maxWheelTick]);
+      setVisibleData(
+        data.filter((d) => isWithinRegions(newStart, newEnd, d.region)),
+      );
+    },
+    [data],
+  );
 
-  // callback that fires on wheel spin in chart
   const updateRange = useCallback(
     (delta: number, pos: number) => {
-      if (wheelTick !== null && wheelTick <= 1 && delta < 0) {
+      const [visibleStart, visibleEnd] = getRegionResultRange(visibleData);
+      const visibleRange = visibleEnd - visibleStart;
+      const visibleCenter = Math.round((visibleEnd + visibleStart) / 2);
+      const [totalStart, totalEnd] = getRegionResultRange(data);
+      const totalRange = totalEnd - totalStart;
+
+      let [newVisibleStart, newVisibleEnd] = [visibleStart, visibleEnd];
+
+      if (visibleRange <= 1 && delta < 0) {
+        return;
+      } else if (visibleRange === totalRange && delta > 0) {
         return;
       }
 
@@ -864,29 +856,64 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
         (d) => pos >= d.start_bp && pos <= d.end_bp,
       );
 
-      //maxwheeltick ("zoom out") is max distance from center region to most distant region
-      //ensuring we can use the full frame
-      if (wheelTick !== null) {
-        if (wheelTick > maxWheelTick && delta > 0) {
-          return;
-        } else {
-          if (targetRegion) {
-            if (targetRegion.region > centerRegion) {
-              setCenterRegion(centerRegion + 1);
-            } else {
-              setCenterRegion(centerRegion - 1);
+      //target region is not in center, limit this or that side and zoom in, until it becomes the center or we run out of room
+      let zoomed = false;
+      if (targetRegion) {
+        if (targetRegion.region > visibleCenter) {
+          //zoom in rhs
+          if (delta < 0) {
+            if (visibleStart < totalEnd) {
+              newVisibleStart++;
+              zoomed = true;
             }
           }
-
-          setWheelTick((wt) => {
-            if (wt !== null) {
-              return delta > 0 ? wt + 1 : wt - 1;
-            } else return null;
-          });
+          // zoom out rhs
+          else if (visibleStart < totalStart) {
+            newVisibleStart--;
+            zoomed = true;
+          }
+        } else if (targetRegion.region < visibleCenter) {
+          //zoom in lhs
+          if (delta < 0) {
+            if (visibleEnd > visibleStart + 1) {
+              newVisibleEnd--;
+              zoomed = true;
+            }
+          } else if (visibleEnd < totalEnd) {
+            // zoom out lhs
+            newVisibleEnd++;
+            zoomed = true;
+          }
         }
       }
+
+      if (!zoomed) {
+        //zooming in
+        if (delta < 0) {
+          if (newVisibleStart < totalEnd) {
+            newVisibleStart++;
+          }
+          if (newVisibleEnd < newVisibleStart) {
+            newVisibleEnd--;
+          }
+        } else if (delta > 0) {
+          //zooming out
+          if (newVisibleStart > totalStart) {
+            newVisibleStart--;
+          }
+          if (newVisibleEnd < totalEnd) {
+            newVisibleEnd++;
+          }
+        }
+      }
+
+      setVisibleData(
+        data.filter((d) =>
+          isWithinRegions(newVisibleStart, newVisibleEnd, d.region),
+        ),
+      );
     },
-    [wheelTick, maxWheelTick, centerRegion, visibleData],
+    [data, visibleData],
   );
 
   useEffect(() => {
@@ -905,9 +932,8 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
   useEffect(() => {
     if (chart) {
       setGenes([]);
-      setWheelTick(null);
       setVariantsVisible(true);
-      setCenterRegion(selectedRegionDetailData.region.region);
+      setVisibleData(selectedRegionDetailData.data);
     }
     /* only clear out if the chart exists */
   }, [selectedRegionDetailData, assemblyInfo]);
@@ -922,7 +948,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
         visibleVariants,
         visibleGenes,
         updateRange,
-        setCenterRegion,
+        setCenterRegion, //this should be dynamic --- look at the span of the current view and shift so this is in the middle, then reset
         visibleRecomb,
         geneLabelsVisible,
         visiblePvars,
