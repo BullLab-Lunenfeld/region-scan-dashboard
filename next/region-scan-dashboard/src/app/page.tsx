@@ -67,6 +67,10 @@ export default function Home() {
 
   const [loading, setLoading] = useState(false);
 
+  const [miamiData, setMiamiData] = useState<(RegionResult | VariantResult)[]>(
+    [],
+  );
+
   //  const [filterModel, setFilterModel] = useState<GridFilterModel>();
   const [lowerThresh, setLowerThresh] = useState<number>(5e-6);
   const [lowerVariable, setLowerVariable] = useState<
@@ -78,18 +82,13 @@ export default function Home() {
   >([]);
 
   const [regionData, setRegionData] = useState<RegionResult[]>([]);
-  const [selectedRegionDetailData, setSelectedRegionDetailData] =
-    useState<SelectedRegionDetailData>();
-
-  const [miamiData, setMiamiData] = useState<(RegionResult | VariantResult)[]>(
-    [],
-  );
-
   const [regionVariants, setRegionVariants] = useState<VariantResult[]>([]);
 
   const [selectedRegion, setSelectedRegion] = useState<
     RegionResult | VariantResult
   >();
+  const [selectedRegionDetailData, setSelectedRegionDetailData] =
+    useState<SelectedRegionDetailData>();
 
   const [uploadKey, setUploadKey] = useState(
     Math.random().toString(36).slice(2),

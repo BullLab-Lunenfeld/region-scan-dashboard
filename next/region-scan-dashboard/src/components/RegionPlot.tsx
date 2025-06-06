@@ -5,7 +5,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { extent, groups, max, bisector } from "d3-array";
+import { extent, groups, max } from "d3-array";
 import { axisBottom, axisLeft, axisRight } from "d3-axis";
 import { format } from "d3-format";
 import "d3-transition"; // must be imported before selection
@@ -29,7 +29,12 @@ import {
   SelectedRegionDetailData,
   VariantResult,
 } from "@/lib/ts/types";
-import { LoadingOverlay, PvarCheckbox, UploadButtonSingle } from "@/components";
+import {
+  LoadingOverlay,
+  NumberInput,
+  PvarCheckbox,
+  UploadButtonSingle,
+} from "@/components";
 import {
   drawDottedLine,
   formatComma,
@@ -141,8 +146,14 @@ const marginTop = 25;
 const marginRight = 15;
 const geneRectHeight = 3;
 
-const getVisibleDataRange = (data: RegionResult[]) =>
-  extent(data.map((d) => d.region));
+const getRegionResultRange = (data: RegionResult[]) =>
+  extent(data.map((d) => d.region)) as [number, number];
+
+const isWithinRegions = (
+  startRegion: number,
+  endRegion: number,
+  region: number,
+) => region >= startRegion && region <= endRegion;
 
 class RegionChart {
   container: Selection<SVGGElement, number, SVGElement, unknown>;
@@ -524,7 +535,7 @@ class RegionChart {
       .duration(500)
       .call(axisBottom(xScale).ticks(5));
 
-    const visibleDataRange = getVisibleDataRange(data);
+    const visibleDataRange = getRegionResultRange(data);
 
     this.container
       .selectAll<SVGGElement, string>("text.title")
@@ -812,24 +823,17 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     }
   }, [filteredRecombData, recombVisible]);
 
-  // useEffect(() => {
-  //   // fetch the recomb rate data and merge with region data, this means only 1 api call per chart
-  //   const [start, end] = posRange;
+  //todo: not sure this works? It doesn't
+  //but basically we'll have external filters that when they change, we'll
+  //reset the zoom and then filter the visible data and set the center region ourselves
+  const resetZoom = (newCenterRegion?: number) => {
+    setWheelTick(null);
+    setCenterRegion(newCenterRegion || selectedRegionDetailData.region.region);
+  };
 
-  //   if (chr && start !== end) {
-  //     fetchRecomb(chr, start, end, assemblyInfo.assembly).then((r) => {
-  //       if (r) {
-  //         r.sort((a, b) => (a.start < b.start ? -1 : 1));
-  //         setRecombData(r);
-  //       } else {
-  //         alert("Error fetching recombination data");
-  //         setRecombData([]);
-  //       }
-  //     });
-  //   }
-  // }, [data, assemblyInfo, chr, posRange]);
-
-  //set visible data depending on zoom and center
+  // set visible data depending on zoom and center
+  // chart callback handles changes to wheeltick and center region,
+  // while this handles the actual data changes
   useEffect(() => {
     if (!!data.length) {
       if (wheelTick !== null) {
@@ -849,6 +853,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     }
   }, [centerRegion, data, wheelTick, maxWheelTick]);
 
+  // callback that fires on wheel spin in chart
   const updateRange = useCallback(
     (delta: number, pos: number) => {
       if (wheelTick !== null && wheelTick <= 1 && delta < 0) {
@@ -865,7 +870,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
         if (wheelTick > maxWheelTick && delta > 0) {
           return;
         } else {
-          if (targetRegion && wheelTick !== null) {
+          if (targetRegion) {
             if (targetRegion.region > centerRegion) {
               setCenterRegion(centerRegion + 1);
             } else {
@@ -940,7 +945,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
   return (
     <Grid container spacing={2} direction="row" size={{ xs: 12 }}>
       {/* Region controls */}
-      <Grid container size={{ xs: 2, xl: 1.5 }} spacing={0} direction="column">
+      <Grid container size={{ xs: 2, xl: 1.5 }} spacing={2} direction="column">
         <Grid>
           {/* plink variant upload */}
           <UploadButtonSingle
@@ -958,13 +963,13 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
             variant="text"
           />
         </Grid>
-        <Grid>
-          {(!!filteredVariants.length || !!plinkVariants.length) && (
+        {(!!filteredVariants.length || !!plinkVariants.length) && (
+          <Grid>
             <Button onClick={() => setVariantsVisible(!variantsVisible)}>
               {variantsVisible ? "Hide " : " Show"} Variants
             </Button>
-          )}
-        </Grid>
+          </Grid>
+        )}
         <Grid>
           <Button onClick={() => setRecombVisible(!recombVisible)}>
             {recombVisible ? "Hide " : " Show"} Recombination
@@ -1023,6 +1028,20 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
             </Button>
           </Grid>
         )}
+        <Grid>
+          <RegionRangeInputStart
+            allData={data}
+            setVisibleData={setVisibleData}
+            visibleData={visibleData}
+          />
+        </Grid>
+        <Grid>
+          <RegionRangeInputEnd
+            allData={data}
+            setVisibleData={setVisibleData}
+            visibleData={visibleData}
+          />
+        </Grid>
       </Grid>
       {/* Region plot */}
       <Grid container size={{ xs: 9, lg: 7.5, xl: 7.5 }}>
@@ -1057,3 +1076,76 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 };
 
 export default RegionPlot;
+
+interface RegionRangeInputProps {
+  allData: RegionResult[];
+  setVisibleData: (data: RegionResult[]) => void;
+  visibleData: RegionResult[];
+}
+
+const RegionRangeInputStart: React.FC<RegionRangeInputProps> = ({
+  allData,
+  setVisibleData,
+  visibleData,
+}) => {
+  const [error, setError] = useState("");
+
+  const onChange = useCallback(
+    (v: number) => {
+      setError("");
+      const [outerStart, outerEnd] = getRegionResultRange(allData);
+      const currentEnd = getRegionResultRange(visibleData)[1];
+      if (isWithinRegions(outerStart, outerEnd, v) && v < currentEnd) {
+        setVisibleData(
+          allData.filter((d) => isWithinRegions(v, currentEnd, d.region)),
+        );
+      } else {
+        setError("Invalid value");
+      }
+    },
+    [allData, visibleData, setVisibleData],
+  );
+
+  return (
+    <NumberInput
+      label="Start Region"
+      error={error}
+      value={getRegionResultRange(visibleData)[0] || 0}
+      onChange={onChange}
+    />
+  );
+};
+
+const RegionRangeInputEnd: React.FC<RegionRangeInputProps> = ({
+  allData,
+  setVisibleData,
+  visibleData,
+}) => {
+  const [error, setError] = useState("");
+
+  const onChange = useCallback(
+    (v: number) => {
+      setError("");
+      const [outerStart, outerEnd] = getRegionResultRange(allData);
+      const [currentStart] = getRegionResultRange(visibleData);
+
+      if (isWithinRegions(outerStart, outerEnd, v) && v > currentStart) {
+        setVisibleData(
+          allData.filter((d) => isWithinRegions(currentStart, v, d.region)),
+        );
+      } else {
+        setError("Invalid value");
+      }
+    },
+    [allData, visibleData, setVisibleData],
+  );
+
+  return (
+    <NumberInput
+      label="End Region"
+      error={error}
+      value={getRegionResultRange(visibleData)[1] || 0}
+      onChange={onChange}
+    />
+  );
+};
