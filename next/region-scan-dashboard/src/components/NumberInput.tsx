@@ -9,6 +9,7 @@ interface NumberInputProps {
   label: string;
   onChange: (arg: number) => void;
   value: number;
+  width?: string;
 }
 
 export const NumberInput: React.FC<NumberInputProps> = ({
@@ -16,6 +17,7 @@ export const NumberInput: React.FC<NumberInputProps> = ({
   label,
   onChange,
   value,
+  width,
 }) => {
   const [internalValue, setInternalValue] = useState<
     number | string | undefined
@@ -52,6 +54,7 @@ export const NumberInput: React.FC<NumberInputProps> = ({
           label={label}
           error={!!error}
           helperText={error}
+          width={width}
         />
       </Grid>
     </Grid>

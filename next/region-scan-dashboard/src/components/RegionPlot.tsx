@@ -19,6 +19,7 @@ import {
   FormControl,
   FormControlLabel,
   Grid2 as Grid,
+  Typography,
 } from "@mui/material";
 import {
   AssembyInfo,
@@ -1068,6 +1069,11 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
             visibleData={visibleData}
           />
         </Grid>
+        <Grid>
+          <Typography>
+            Max range: {getRegionResultRange(data).join("-")}
+          </Typography>
+        </Grid>
       </Grid>
       {/* Region plot */}
       <Grid container size={{ xs: 9, lg: 7.5, xl: 7.5 }}>
@@ -1138,6 +1144,7 @@ const RegionRangeInputStart: React.FC<RegionRangeInputProps> = ({
       error={error}
       value={getRegionResultRange(visibleData)[0] || 0}
       onChange={onChange}
+      width="100px"
     />
   );
 };
@@ -1172,6 +1179,7 @@ const RegionRangeInputEnd: React.FC<RegionRangeInputProps> = ({
       error={error}
       value={getRegionResultRange(visibleData)[1] || 0}
       onChange={onChange}
+      width="100px"
     />
   );
 };
