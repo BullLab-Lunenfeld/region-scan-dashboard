@@ -15,7 +15,7 @@ import {
 } from "d3-scale";
 import { BaseType, select, selectAll, Selection } from "d3-selection";
 import { Box } from "@mui/material";
-import LoadingOverlay from "./LoadingOverlay";
+import { LoadingOverlay, PlotDownloadButton } from "@/components";
 import {
   AssembyInfo,
   isRegionResult,
@@ -29,6 +29,8 @@ import {
   getEntries,
   showToolTip,
 } from "@/lib/ts/util";
+import { downloadSvg } from "@/lib/ts/export";
+import useDownloadPlot from "@/lib/hooks/useDownloadPlot";
 
 const className = "miami-plot";
 
@@ -615,6 +617,9 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
   //we need a full tick and render to show the loading indicator
   const [renderFlag, setRenderFlag] = useState(false);
 
+  const { anchorEl, buttonRef, handlePopoverOpen, handlePopoverClose } =
+    useDownloadPlot();
+
   const _width = useMemo(() => width, [width]);
 
   useEffect(() => {
@@ -660,7 +665,16 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
 
   return (
     <>
-      <Box className={className} />
+      <Box
+        className={className}
+        onMouseEnter={handlePopoverOpen}
+        onMouseLeave={handlePopoverClose}
+      />
+      <PlotDownloadButton
+        anchorEl={anchorEl}
+        buttonRef={buttonRef}
+        download={() => downloadSvg(`.${className}`, "miami-plot-export.svg")}
+      />
       <LoadingOverlay open={loading} />
     </>
   );

@@ -33,6 +33,7 @@ import {
 import {
   LoadingOverlay,
   NumberInput,
+  PlotDownloadButton,
   PvarCheckbox,
   UploadButtonSingle,
 } from "@/components";
@@ -43,6 +44,8 @@ import {
   showToolTip,
 } from "@/lib/ts/util";
 import { fetchGenes } from "@/util/fetchGenes";
+import useDownloadPlot from "@/lib/hooks/useDownloadPlot";
+import { downloadSvg } from "@/lib/ts/export";
 
 //so these need to return pixel values, like a char is 6px, so how many bp is that?
 //we habe to take the wider width
@@ -184,9 +187,9 @@ class RegionChart {
       .selectAll<SVGElement, number>("svg")
       .data([1])
       .join("svg")
-      .attr("viewBox", [0, 0, this.width + "px", this.height + "px"])
-      .attr("width", this.width + "px")
-      .attr("height", this.height + "px")
+      .attr("viewBox", [0, 0, this.width, this.height])
+      .attr("width", this.width)
+      .attr("height", this.height)
       .attr("style", "max-width: 100%; height: auto;") as Selection<
       SVGElement,
       number,
@@ -758,6 +761,9 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   const [visiblePvars, setVisiblePvars] = useState<(keyof RegionResult)[]>([]);
 
+  const { anchorEl, buttonRef, handlePopoverOpen, handlePopoverClose } =
+    useDownloadPlot();
+
   const data = useMemo(
     () => selectedRegionDetailData.data,
     [selectedRegionDetailData],
@@ -1077,7 +1083,11 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
       </Grid>
       {/* Region plot */}
       <Grid container size={{ xs: 9, lg: 7.5, xl: 7.5 }}>
-        <Box className={selector} />
+        <Box
+          className={selector}
+          onMouseEnter={handlePopoverOpen}
+          onMouseLeave={handlePopoverClose}
+        />
       </Grid>
       {/* Region line selector */}
       <Grid
@@ -1102,6 +1112,11 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
           </Grid>
         ))}
       </Grid>
+      <PlotDownloadButton
+        anchorEl={anchorEl}
+        buttonRef={buttonRef}
+        download={() => downloadSvg(`.${selector}`, "region-plot-export.svg")}
+      />
       <LoadingOverlay open={loading} />
     </Grid>
   );

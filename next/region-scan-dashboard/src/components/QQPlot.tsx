@@ -11,6 +11,9 @@ import { axisBottom, axisLeft } from "d3-axis";
 import LoadingOverlay from "./LoadingOverlay";
 import { RegionResult, VariantResult } from "@/lib/ts/types";
 import { drawDottedLine, getEntries } from "@/lib/ts/util";
+import useDownloadPlot from "@/lib/hooks/useDownloadPlot";
+import { PlotDownloadButton } from "@/components";
+import { downloadSvg } from "@/lib/ts/export";
 
 const marginBottom = 40;
 const yLabelMargin = 28;
@@ -233,6 +236,9 @@ const QQPlot: React.FC<QQPlotProps> = ({
   //we need a full tick and render to show the initial loading indicator
   const [renderFlag, setRenderFlag] = useState(false);
 
+  const { anchorEl, buttonRef, handlePopoverOpen, handlePopoverClose } =
+    useDownloadPlot();
+
   const pvals = useMemo(
     () =>
       data.flatMap((d) =>
@@ -305,8 +311,17 @@ const QQPlot: React.FC<QQPlotProps> = ({
 
   return (
     <>
-      <Box className={selector} />
+      <Box
+        className={selector}
+        onMouseEnter={handlePopoverOpen}
+        onMouseLeave={handlePopoverClose}
+      />
       <LoadingOverlay open={loading} />
+      <PlotDownloadButton
+        anchorEl={anchorEl}
+        buttonRef={buttonRef}
+        download={() => downloadSvg(`.${selector}`, "qq-plot-export.svg")}
+      />
     </>
   );
 };
