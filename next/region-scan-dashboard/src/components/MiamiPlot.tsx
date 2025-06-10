@@ -86,6 +86,7 @@ export interface BrushFilter {
   };
 }
 
+const legendSpace = 20;
 const marginMiddle = 10;
 const marginBottom = 25;
 const yLabelMargin = 28;
@@ -98,7 +99,6 @@ const buildChart = (
   bottomCol: keyof RegionResult | keyof VariantResult,
   _bottomThresh: number,
   data: (RegionResult | VariantResult)[],
-  filter: BrushFilter | undefined,
   filterCb: (filter: BrushFilter) => void,
   height: number,
   onCircleClick: (d: RegionResult | VariantResult) => void,
@@ -213,7 +213,10 @@ const buildChart = (
       : singleChrXScale;
 
   const yScaleLower = scaleLinear()
-    .range([marginTop + height / 2 + marginMiddle, height - marginBottom])
+    .range([
+      marginTop + height / 2 + marginMiddle,
+      height - marginBottom - legendSpace,
+    ])
     .domain(
       extent(lowerData.map((d) => getPVal(bottomCol, d)) as number[]) as [
         number,
@@ -373,7 +376,7 @@ const buildChart = (
     .attr("width", (d) => !!d && d[1] - d[0])
     .attr("x", () => posRange && posRange[0])
     .attr("y", marginTop)
-    .attr("height", height - marginBottom - marginTop)
+    .attr("height", height - marginBottom - marginTop - legendSpace)
     .attr("stroke", "gold")
     .attr("stroke-width", "3px")
     .attr("fill", "none")
@@ -390,7 +393,7 @@ const buildChart = (
     brushX<number>()
       .extent([
         [marginLeft, marginTop],
-        [width, height - marginBottom],
+        [width, height - marginBottom - legendSpace],
       ])
       .on("start brush end", function (event: D3BrushEvent<number>) {
         if (!event.sourceEvent || !event.selection) return;
@@ -533,6 +536,33 @@ const buildChart = (
     .on("mouseover", (e: MouseEvent, d: RegionResult) => showMiamiTooltip(d, e))
     .on("mouseout", () => selectAll(".tooltip").style("visibility", "hidden"));
 
+  container
+    .selectAll("g.legend")
+    .data([1])
+    .join("g")
+    .attr("class", "legend")
+    .selectAll<SVGGElement, string>("g.legend-item")
+    //we'll just force a redraw rather than doing all the enters and joins
+    .data([topCol, bottomCol], () => Math.random().toString(36).slice(2))
+    .join("g")
+    .attr("class", "legend-item")
+    .each(function (d, i) {
+      const item = select(this);
+      const textOffset = i === 0 ? -100 : 100;
+      item
+        .attr(
+          "transform",
+          `translate(${width / 2 + textOffset}, ${height - legendSpace})`,
+        )
+        .append("circle")
+        .attr("cx", -7)
+        .attr("cy", -5)
+        .attr("r", 5)
+        .attr("fill", pvalScale(d));
+
+      item.append("text").text(d);
+    });
+
   drawDottedLine(
     container,
     "top-thresh",
@@ -633,7 +663,6 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
           bottomCol,
           bottomThresh,
           data,
-          filter,
           filterCb,
           0.5 * width,
           onCircleClick,
