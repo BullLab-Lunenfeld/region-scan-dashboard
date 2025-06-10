@@ -45,7 +45,6 @@ import {
 } from "@/lib/ts/util";
 import { fetchGenes } from "@/util/fetchGenes";
 import useDownloadPlot from "@/lib/hooks/useDownloadPlot";
-import { downloadSvg } from "@/lib/ts/export";
 
 //so these need to return pixel values, like a char is 6px, so how many bp is that?
 //we habe to take the wider width
@@ -1115,7 +1114,8 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
       <PlotDownloadButton
         anchorEl={anchorEl}
         buttonRef={buttonRef}
-        download={() => downloadSvg(`.${selector}`, "region-plot-export.svg")}
+        plotType="Region Plot"
+        selector={`.${selector}`}
       />
       <LoadingOverlay open={loading} />
     </Grid>

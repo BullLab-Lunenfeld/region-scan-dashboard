@@ -2,6 +2,7 @@ export { default as Footer } from "./Footer";
 export { default as LoadingOverlay } from "./LoadingOverlay";
 export { default as PvarCheckbox } from "./PvarCheckbox";
 export { default as MiamiPlot } from "./MiamiPlot";
+export { default as Modal } from "./Modal";
 export { default as NumberInput } from "./NumberInput";
 export { default as PaginatedTable } from "./PaginatedTable";
 export { default as PlotDownloadButton } from "./PlotDownloadButton";

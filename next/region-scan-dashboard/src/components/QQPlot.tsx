@@ -13,7 +13,6 @@ import { RegionResult, VariantResult } from "@/lib/ts/types";
 import { drawDottedLine, getEntries } from "@/lib/ts/util";
 import useDownloadPlot from "@/lib/hooks/useDownloadPlot";
 import { PlotDownloadButton } from "@/components";
-import { downloadSvg } from "@/lib/ts/export";
 
 const marginBottom = 40;
 const yLabelMargin = 28;
@@ -320,7 +319,8 @@ const QQPlot: React.FC<QQPlotProps> = ({
       <PlotDownloadButton
         anchorEl={anchorEl}
         buttonRef={buttonRef}
-        download={() => downloadSvg(`.${selector}`, "qq-plot-export.svg")}
+        plotType="QQ Plot"
+        selector={`.${selector}`}
       />
     </>
   );

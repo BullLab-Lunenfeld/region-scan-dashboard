@@ -2,11 +2,16 @@ import { select } from "d3-selection";
 import { saveAs } from "file-saver";
 
 const getSvgSrc = (selector: string) => {
-  const clonedParent = (select(selector).node() as Element).cloneNode(
-    true,
-  ) as Element;
+  const svg = ((select(selector).node() as Element).cloneNode(true) as Element)
+    .getElementsByTagName("svg")
+    .item(0)!;
 
-  return `data:image/svg+xml;base64,\n${window.btoa(clonedParent.innerHTML)}`;
+  const downloadableSvg = select(svg)
+    .attr("xmlns", "http://www.w3.org/2000/svg")
+    .attr("version", 1.1)
+    .node();
+
+  return `data:image/svg+xml;base64,\n${window.btoa(downloadableSvg!.outerHTML)}`;
 };
 
 export const downloadPng = (selector: string, filename: string) => {
@@ -22,6 +27,7 @@ export const downloadPng = (selector: string, filename: string) => {
   canvas.height = h;
 
   const image = new Image();
+  document.querySelector("body")?.append(image);
   image.src = src;
   image.onload = function () {
     context.clearRect(0, 0, w, h);

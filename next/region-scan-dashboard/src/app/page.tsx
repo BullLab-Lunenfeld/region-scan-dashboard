@@ -535,8 +535,8 @@ export default function Home() {
             size={{ xs: 5, lg: 4, xl: 4.25 }}
             container
             direction="column"
-            spacing={1}
-            justifyContent="center"
+            spacing={2}
+            justifyContent="flex-start"
           >
             {!!regionData.length && !!qqChartContainerRef.current && (
               <>
@@ -553,7 +553,7 @@ export default function Home() {
 
                 {!!regionData.length && (
                   <Grid
-                    marginLeft={2}
+                    marginLeft={4}
                     container
                     spacing={0}
                     direction="row"

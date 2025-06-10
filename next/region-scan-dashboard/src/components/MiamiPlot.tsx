@@ -29,7 +29,6 @@ import {
   getEntries,
   showToolTip,
 } from "@/lib/ts/util";
-import { downloadSvg } from "@/lib/ts/export";
 import useDownloadPlot from "@/lib/hooks/useDownloadPlot";
 
 const className = "miami-plot";
@@ -673,7 +672,8 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
       <PlotDownloadButton
         anchorEl={anchorEl}
         buttonRef={buttonRef}
-        download={() => downloadSvg(`.${className}`, "miami-plot-export.svg")}
+        selector={`.${className}`}
+        plotType="Miami Plot"
       />
       <LoadingOverlay open={loading} />
     </>
