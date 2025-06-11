@@ -2,14 +2,21 @@ import { select } from "d3-selection";
 import { saveAs } from "file-saver";
 
 const getSvgSrc = (selector: string) => {
-  const svg = ((select(selector).node() as Element).cloneNode(true) as Element)
+  const _svg = ((select(selector).node() as Element).cloneNode(true) as Element)
     .getElementsByTagName("svg")
     .item(0)!;
 
-  const downloadableSvg = select(svg)
-    .attr("xmlns", "http://www.w3.org/2000/svg")
-    .attr("version", 1.1)
-    .node();
+  const svg = select(_svg);
+
+  svg.attr("xmlns", "http://www.w3.org/2000/svg").attr("version", 1.1);
+
+  svg
+    .append("style")
+    .text(
+      "text { font-family: 'Inter', 'Inter Fallback', 'Arial', sans-serif;}",
+    );
+
+  const downloadableSvg = svg.node();
 
   return `data:image/svg+xml;base64,\n${window.btoa(downloadableSvg!.outerHTML)}`;
 };
