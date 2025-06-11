@@ -27,7 +27,7 @@ export const downloadPng = (selector: string, filename: string) => {
   canvas.height = h;
 
   const image = new Image();
-  document.querySelector("body")?.append(image);
+  //document.querySelector("body")?.append(image);
   image.src = src;
   image.onload = function () {
     context.clearRect(0, 0, w, h);
