@@ -88,6 +88,7 @@ const DownloadModal: React.FC<DownloadModalProps> = ({
     } else {
       downloadSvg(selector, filename);
     }
+    handleClose();
   }, [filename, downloadType, selector]);
 
   useEffect(() => {
