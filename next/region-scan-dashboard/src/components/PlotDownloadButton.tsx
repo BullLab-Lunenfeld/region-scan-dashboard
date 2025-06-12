@@ -5,7 +5,7 @@ import {
   FormControlLabel,
   Grid2 as Grid,
   IconButton,
-  Popover,
+  Popper,
   Radio,
   RadioGroup,
   TextField,
@@ -31,21 +31,23 @@ const PlotDownloadButton: React.FC<PlotDownloadButtonProps> = ({
 
   return (
     <>
-      <Popover
+      <Popper
+        placement="top-start"
         id="download-popover"
         sx={{ pointerEvents: "none" }}
+        style={{ inset: "auto auto -10px 10px" }}
         aria-hidden={!!anchorEl}
+        modifiers={[
+          {
+            name: "offset",
+            options: {
+              offset: [10, -10],
+            },
+          },
+        ]}
         open={!!anchorEl}
+        autoFocus={false}
         anchorEl={anchorEl}
-        anchorOrigin={{
-          vertical: "top",
-          horizontal: "left",
-        }}
-        transformOrigin={{
-          vertical: "top",
-          horizontal: "left",
-        }}
-        disableRestoreFocus
       >
         <IconButton
           onClick={() => setModalOpen(true)}
@@ -54,7 +56,7 @@ const PlotDownloadButton: React.FC<PlotDownloadButtonProps> = ({
         >
           <Save ref={buttonRef} color="primary" fontSize="small" />
         </IconButton>
-      </Popover>
+      </Popper>
       {ModalOpen && (
         <DownloadModal
           plotType={plotType}
