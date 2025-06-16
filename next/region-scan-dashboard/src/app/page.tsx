@@ -11,7 +11,7 @@ import { Grid2 as Grid, IconButton, MenuItem } from "@mui/material";
 import { schemeTableau10 } from "d3-scale-chromatic";
 import { scaleOrdinal } from "d3-scale";
 import { extent, groups } from "d3-array";
-import { UndoSharp } from "@mui/icons-material";
+import { DeselectSharp, UndoSharp } from "@mui/icons-material";
 import {
   LoadingOverlay,
   MiamiPlot,
@@ -22,6 +22,7 @@ import {
   RegionPlot,
   ShortTextField,
   UploadButtonMulti,
+  ValidationModal,
 } from "@/components";
 import {
   getEntries,
@@ -55,6 +56,41 @@ const colMap: Partial<
 
 const oldColsToDrop = ["GATES.df", "SKAT.pLiu", "SKAT"];
 
+const validateRegionResultUpload = (uploadedData: any[]) => {
+  if (!uploadedData.length) {
+    return "Region file is empty";
+  }
+
+  const fields = Object.keys(uploadedData[0]);
+  const missing = ["chr", "end_bp", "start_bp", "region"].filter(
+    (k) => !fields.includes(k),
+  );
+
+  if (missing.length) {
+    return `The following fields are missing: ${missing.join(", ")}`;
+  } else return "";
+};
+
+const validateRegionVariantUpload = (uploadedData: any[]) => {
+  if (!uploadedData.length) {
+    return "Variant file is empty";
+  }
+
+  const fields = Object.keys(uploadedData[0]);
+  const missing = [
+    "chr",
+    "end_bp",
+    "start_bp",
+    "bp",
+    "region",
+    "sglm_pvalue",
+  ].filter((k) => !fields.includes(k));
+
+  if (missing.length) {
+    return `The following fields are missing: ${missing.join(", ")}`;
+  } else return "";
+};
+
 export default function Home() {
   const [assemblyInfo, setAssemblyInfo] = useState<AssembyInfo>({
     assembly: "GRCh38",
@@ -71,7 +107,6 @@ export default function Home() {
     [],
   );
 
-  //  const [filterModel, setFilterModel] = useState<GridFilterModel>();
   const [lowerThresh, setLowerThresh] = useState<number>(5e-6);
   const [lowerVariable, setLowerVariable] = useState<
     keyof RegionResult | keyof VariantResult | ""
@@ -89,6 +124,8 @@ export default function Home() {
   >();
   const [selectedRegionDetailData, setSelectedRegionDetailData] =
     useState<SelectedRegionDetailData>();
+
+  const [uploadErrors, setUploadErrors] = useState("");
 
   const [uploadKey, setUploadKey] = useState(
     Math.random().toString(36).slice(2),
@@ -134,6 +171,18 @@ export default function Home() {
 
     return mapping;
   }, [regionData]);
+
+  const tableData = useMemo(() => {
+    let data: RegionResult[] = [];
+    if (selectedRegionDetailData?.data.length) {
+      data = selectedRegionDetailData.data;
+    } else if (miamiData.length) {
+      data = miamiData.filter((d) => isRegionResult(d));
+    } else if (regionData.length) {
+      data = regionData;
+    }
+    return data;
+  }, [regionData, miamiData, selectedRegionDetailData]);
 
   useEffect(() => {
     if (regionVariants.length) {
@@ -314,6 +363,7 @@ export default function Home() {
                 let i = 1;
                 for (const file of files) {
                   const parsed = await parseTsv<RegionResultRaw>(file);
+
                   results = [
                     ...results,
                     ...parsed.map((val, j) => {
@@ -356,9 +406,15 @@ export default function Home() {
                   i++;
                 }
 
-                setRegionData(results);
+                const errors = validateRegionResultUpload(results);
                 setLoading(false);
                 setUploadKey(Math.random().toString(36).slice(2));
+
+                if (errors) {
+                  return setUploadErrors(errors);
+                }
+
+                setRegionData(results);
               }}
             />
           </Grid>
@@ -387,7 +443,14 @@ export default function Home() {
                     );
                     results = results.concat(variants);
                   }
+                  const errors = validateRegionVariantUpload(results);
+                  setUploadKey(Math.random().toString(36).slice(2));
                   setLoading(false);
+
+                  if (errors) {
+                    return setUploadErrors(errors);
+                  }
+
                   setRegionVariants(results);
                 }}
               />
@@ -484,19 +547,42 @@ export default function Home() {
               />
             )}
           </Grid>
-          <Grid container alignItems="center" justifyContent="center">
+          <Grid
+            spacing={2}
+            container
+            alignItems="center"
+            justifyContent="center"
+          >
             {!!upperVariable && !!lowerVariable && (
-              <IconButton
-                onClick={() =>
-                  setBrushFilterHistory(brushFilterHistory.slice(0, -1))
-                }
-                disabled={brushFilterHistory.length == 0}
-                size="large"
-                title="Undo Zoom"
-                color="primary"
-              >
-                <UndoSharp fontSize="large" />
-              </IconButton>
+              <>
+                <Grid>
+                  <IconButton
+                    onClick={() =>
+                      setBrushFilterHistory(brushFilterHistory.slice(0, -1))
+                    }
+                    disabled={brushFilterHistory.length == 0}
+                    size="large"
+                    title="Revert Zoom"
+                    color="primary"
+                  >
+                    <UndoSharp fontSize="large" />
+                  </IconButton>
+                </Grid>
+                <Grid>
+                  <IconButton
+                    onClick={() => {
+                      setSelectedRegion(undefined);
+                      setSelectedRegionDetailData(undefined);
+                    }}
+                    disabled={!selectedRegion}
+                    color="primary"
+                    size="large"
+                    title="Deselect Region"
+                  >
+                    <DeselectSharp fontSize="large" />
+                  </IconButton>
+                </Grid>
+              </>
             )}
           </Grid>
         </Grid>
@@ -603,21 +689,19 @@ export default function Home() {
             variants={regionVariants}
           />
         )}
-      {/* Ideally we don't need controlled filters at all*/}
-      {!!miamiData.length && (
+      {!!tableData.length && (
         <Grid size={{ xs: 12 }} container flexWrap="nowrap">
           <Grid sx={{ width: "100%" }}>
-            <PaginatedTable
-              cols={RegionResultCols}
-              data={miamiData.filter((d) => isRegionResult(d))}
-              //filterModel={filterModel}
-              //onFilterModelChange={(m) => console.log(m)}
-              //onSelect={(m) => null}
-            />
+            <PaginatedTable cols={RegionResultCols} data={tableData} />
           </Grid>
         </Grid>
       )}
       <LoadingOverlay open={loading} />
+      <ValidationModal
+        open={!!uploadErrors}
+        errorMsg={uploadErrors}
+        onClose={() => setUploadErrors("")}
+      />
     </Grid>
   );
 }

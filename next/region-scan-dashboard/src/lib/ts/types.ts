@@ -18,12 +18,6 @@ export interface EnsemblGeneResult {
   seq_region_name: string;
 }
 
-export interface UCSCRecombTrackResult {
-  start: number;
-  end: number;
-  value: number;
-}
-
 export interface LocalRecombData {
   chrom: string;
   pos: number;

@@ -10,3 +10,4 @@ export { default as ShortTextField } from "./ShortTextField";
 export { default as QQPlot } from "./QQPlot";
 export { default as RegionPlot } from "./RegionPlot";
 export { UploadButtonMulti, UploadButtonSingle } from "./UploadButton";
+export { default as ValidationModal } from "./ValidationModal";
