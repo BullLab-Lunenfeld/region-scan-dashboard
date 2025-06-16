@@ -25,6 +25,7 @@ const UploadButton: React.FC<ButtonProps> = ({ children, variant }) => (
     role={undefined}
     variant={variant}
     tabIndex={-1}
+    size="small"
     startIcon={<CloudUploadIcon />}
   >
     {children}

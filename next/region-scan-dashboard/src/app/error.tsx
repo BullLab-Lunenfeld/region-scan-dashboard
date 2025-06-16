@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
+import { Button, Grid2 as Grid, Typography } from "@mui/material";
 
 export default function Error({
   error,
@@ -14,9 +15,15 @@ export default function Error({
   }, [error]);
 
   return (
-    <div>
-      <h2>Something went wrong!</h2>
-      <button onClick={() => reset()}>Try again</button>
-    </div>
+    <Grid container direction="column" alignItems="center">
+      <Grid>
+        <Typography color="error" textAlign="center" variant="h3">
+          Something went wrong!
+        </Typography>
+      </Grid>
+      <Grid>
+        <Button onClick={() => reset()}>Try again</Button>
+      </Grid>
+    </Grid>
   );
 }
