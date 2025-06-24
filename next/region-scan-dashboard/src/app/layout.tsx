@@ -15,6 +15,7 @@ import {
 import { ThemeProvider } from "@mui/material/styles";
 
 import theme from "../lib/mui/theme";
+import { NavLink } from "@/components";
 //import { Footer } from "@/components";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -44,9 +45,22 @@ export default function RootLayout({
                 color="primary"
                 sx={{ marginBottom: 3 }}
               >
-                <Toolbar component={Grid} justifyContent="center">
-                  <Grid>
-                    <Typography variant="h3">RegionScan Dashboard</Typography>
+                <Toolbar component={Grid} container justifyContent="center">
+                  <Grid flexGrow={1} size={{ xs: 4 }} />
+                  <Grid flexGrow={1} size={{ xs: 4 }}>
+                    <NavLink href="/">
+                      <Typography variant="h3">RegionScan Dashboard</Typography>
+                    </NavLink>
+                  </Grid>
+                  <Grid
+                    flexGrow={1}
+                    size={{ xs: 4 }}
+                    justifyContent="flex-end"
+                    container
+                  >
+                    <Grid>
+                      <NavLink href="/about">About</NavLink>
+                    </Grid>
                   </Grid>
                 </Toolbar>
               </AppBar>
