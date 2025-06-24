@@ -56,6 +56,50 @@ const colMap: Partial<
 
 const oldColsToDrop = ["GATES.df", "SKAT.pLiu", "SKAT"];
 
+const _handleRegionUpload = async (files: File[]) => {
+  let results: RegionResult[] = [];
+  let i = 1;
+  for (const file of files) {
+    const parsed = await parseTsv<RegionResultRaw>(file);
+
+    results = [
+      ...results,
+      ...parsed.map((val, j) => {
+        val.id = +`${i}${j}`;
+        return Object.fromEntries(
+          getEntries(val)
+            .map<[keyof RegionResultRaw, number | null]>(([k, v]) => {
+              let k_ = colMap[k as keyof RegionResultRawOld] || k;
+              k_ = k_.replaceAll(".", "_") as keyof RegionResultRaw;
+              return [k_, v ? +v : null];
+            })
+            .filter(([k, v]) => {
+              if (oldColsToDrop.includes(k)) {
+                return false;
+              }
+
+              // these are old and redundant values? Keeping this here.
+              if (["MLCZ_p", "LCZ_p"].includes(k + "")) {
+                return false;
+              }
+              //for now we'll filter out negative p values as errors
+              //but we may want to correct them later
+              else if (
+                !!v &&
+                typeof k == "string" &&
+                k.toLowerCase().endsWith("_p")
+              ) {
+                return !!+v && +v > 0;
+              } else return true;
+            }),
+        );
+      }),
+    ] as RegionResult[];
+    i++;
+  }
+  return results;
+};
+
 const validateRegionResultUpload = (uploadedData: any[]) => {
   if (!uploadedData.length) {
     return "Region file is empty";
@@ -69,6 +113,29 @@ const validateRegionResultUpload = (uploadedData: any[]) => {
   if (missing.length) {
     return `The following fields are missing: ${missing.join(", ")}`;
   } else return "";
+};
+
+const _handleRegionVariantUpload = async (
+  files: File[],
+  regionData: RegionResult[],
+) => {
+  let results: VariantResult[] = [];
+  const chrs = unique(regionData, "chr");
+
+  const range =
+    chrs.length == 1
+      ? null
+      : (extent(regionData.flatMap((r) => [r.start_bp, r.end_bp])) as [
+          number,
+          number,
+        ]);
+
+  // we need chr and range
+  for (const file of files) {
+    const variants = await processRegionVariants(file, chrs, range);
+    results = results.concat(variants);
+  }
+  return results;
 };
 
 const validateRegionVariantUpload = (uploadedData: any[]) => {
@@ -326,6 +393,43 @@ export default function Home() {
     [regionData, regionVariants],
   );
 
+  const handleRegionUpload = useCallback(async (files: File[]) => {
+    resetVisualizationVariables();
+    setLoading(true);
+    const results = await _handleRegionUpload(files);
+    const errors = validateRegionResultUpload(results);
+    setLoading(false);
+    setUploadKey(Math.random().toString(36).slice(2));
+
+    if (errors) {
+      return setUploadErrors(errors);
+    }
+
+    setRegionData(results);
+  }, []);
+
+  const handleRegionVariantUpload = useCallback(
+    async (files: File[]) => {
+      setLoading(true);
+      const results = await _handleRegionVariantUpload(files, regionData);
+      const errors = validateRegionVariantUpload(results);
+      setLoading(false);
+      setUploadKey(Math.random().toString(36).slice(2));
+
+      if (errors) {
+        return setUploadErrors(errors);
+      }
+
+      setRegionVariants(results);
+    },
+    [regionData],
+  );
+
+  const filterCb = useCallback(
+    (f: BrushFilter) => setBrushFilterHistory(brushFilterHistory.concat(f)),
+    [brushFilterHistory],
+  );
+
   const resetVisualizationVariables = () => {
     setSelectedRegion(undefined);
     setBrushFilterHistory([]);
@@ -334,11 +438,13 @@ export default function Home() {
     setUpperVariable("");
     setLowerVariable("");
   };
+  const variablesSelected = !!lowerVariable && !!upperVariable;
 
-  const filterCb = useCallback(
-    (f: BrushFilter) => setBrushFilterHistory(brushFilterHistory.concat(f)),
-    [brushFilterHistory],
-  );
+  const miamiVarsSet =
+    variablesSelected && !!miamiChartContainerRef.current && !!pvalScale;
+
+  const regionVarsSet =
+    miamiVarsSet && !!selectedRegion && !!selectedRegionDetailData?.data.length;
 
   return (
     /* Main column container */
@@ -360,66 +466,7 @@ export default function Home() {
             <UploadButtonMulti
               key={uploadKey}
               fileType="region"
-              onUpload={async (files: File[]) => {
-                let results: RegionResult[] = [];
-                resetVisualizationVariables();
-                setLoading(true);
-                let i = 1;
-                for (const file of files) {
-                  const parsed = await parseTsv<RegionResultRaw>(file);
-
-                  results = [
-                    ...results,
-                    ...parsed.map((val, j) => {
-                      val.id = +`${i}${j}`;
-                      return Object.fromEntries(
-                        getEntries(val)
-                          .map<[keyof RegionResultRaw, number | null]>(
-                            ([k, v]) => {
-                              let k_ =
-                                colMap[k as keyof RegionResultRawOld] || k;
-                              k_ = k_.replaceAll(
-                                ".",
-                                "_",
-                              ) as keyof RegionResultRaw;
-                              return [k_, v ? +v : null];
-                            },
-                          )
-                          .filter(([k, v]) => {
-                            if (oldColsToDrop.includes(k)) {
-                              return false;
-                            }
-
-                            // these are old and redundant values? Keeping this here.
-                            if (["MLCZ_p", "LCZ_p"].includes(k + "")) {
-                              return false;
-                            }
-                            //for now we'll filter out negative p values as errors
-                            //but we may want to correct them later
-                            else if (
-                              !!v &&
-                              typeof k == "string" &&
-                              k.toLowerCase().endsWith("_p")
-                            ) {
-                              return !!+v && +v > 0;
-                            } else return true;
-                          }),
-                      );
-                    }),
-                  ] as RegionResult[];
-                  i++;
-                }
-
-                const errors = validateRegionResultUpload(results);
-                setLoading(false);
-                setUploadKey(Math.random().toString(36).slice(2));
-
-                if (errors) {
-                  return setUploadErrors(errors);
-                }
-
-                setRegionData(results);
-              }}
+              onUpload={handleRegionUpload}
             />
           </Grid>
           {!regionData.length && (
@@ -435,36 +482,7 @@ export default function Home() {
                 <UploadButtonMulti
                   key={uploadKey}
                   fileType="variant"
-                  onUpload={async (files: File[]) => {
-                    setLoading(true);
-                    let results: VariantResult[] = [];
-                    const _chrs = unique(regionData, "chr");
-                    const chrs = _chrs.length === 1 ? null : _chrs;
-                    const range = chrs?.length
-                      ? null
-                      : (extent(
-                          regionData.flatMap((r) => [r.start_bp, r.end_bp]),
-                        ) as [number, number]);
-
-                    // we need chr and range
-                    for (const file of files) {
-                      const variants = await processRegionVariants(
-                        file,
-                        chrs,
-                        range,
-                      );
-                      results = results.concat(variants);
-                    }
-                    const errors = validateRegionVariantUpload(results);
-                    setUploadKey(Math.random().toString(36).slice(2));
-                    setLoading(false);
-
-                    if (errors) {
-                      return setUploadErrors(errors);
-                    }
-
-                    setRegionVariants(results);
-                  }}
+                  onUpload={handleRegionVariantUpload}
                 />
               </Grid>
 
@@ -560,7 +578,7 @@ export default function Home() {
             alignItems="center"
             justifyContent="center"
           >
-            {!!upperVariable && !!lowerVariable && (
+            {variablesSelected && (
               <>
                 <Grid>
                   <IconButton
@@ -600,25 +618,22 @@ export default function Home() {
           size={{ xs: 5, lg: 6, xl: 6.25 }}
         >
           <Grid>
-            {!!pvalScale &&
-              !!upperVariable &&
-              !!lowerVariable &&
-              !!miamiChartContainerRef.current && (
-                <MiamiPlot
-                  assemblyInfo={assemblyInfo}
-                  pvalScale={pvalScale}
-                  bottomCol={lowerVariable}
-                  bottomThresh={lowerThresh}
-                  data={miamiData}
-                  onCircleClick={(d) => setSelectedRegion(d)}
-                  filter={brushFilterHistory[brushFilterHistory.length - 1]}
-                  filterCb={filterCb}
-                  selectedRegionDetailData={selectedRegionDetailData}
-                  topCol={upperVariable}
-                  topThresh={upperThresh}
-                  width={miamiChartContainerRef.current.clientWidth}
-                />
-              )}
+            {miamiVarsSet && (
+              <MiamiPlot
+                assemblyInfo={assemblyInfo}
+                pvalScale={pvalScale}
+                bottomCol={lowerVariable}
+                bottomThresh={lowerThresh}
+                data={miamiData}
+                onCircleClick={(d) => setSelectedRegion(d)}
+                filter={brushFilterHistory[brushFilterHistory.length - 1]}
+                filterCb={filterCb}
+                selectedRegionDetailData={selectedRegionDetailData}
+                topCol={upperVariable}
+                topThresh={upperThresh}
+                width={miamiChartContainerRef.current!.clientWidth}
+              />
+            )}
           </Grid>
         </Grid>
         {/* QQ Plot */}
@@ -644,58 +659,49 @@ export default function Home() {
                   />
                 </Grid>
 
-                {!!regionData.length && (
-                  <Grid
-                    marginLeft={4}
-                    container
-                    spacing={0}
-                    direction="row"
-                    wrap="wrap"
-                  >
-                    {pVars.map((v) => (
-                      <Grid key={v}>
-                        <PvarCheckbox
-                          checked={qqVariables.includes(v)}
-                          onChange={(_, checked) =>
-                            checked
-                              ? setQqVariables(qqVariables.concat(v))
-                              : setQqVariables(
-                                  qqVariables.filter((c) => c !== v),
-                                )
-                          }
-                          pvalScale={pvalScale}
-                          value={v}
-                        />
-                      </Grid>
-                    ))}
-                  </Grid>
-                )}
+                <Grid
+                  marginLeft={4}
+                  container
+                  spacing={0}
+                  direction="row"
+                  wrap="wrap"
+                >
+                  {pVars.map((v) => (
+                    <Grid key={v}>
+                      <PvarCheckbox
+                        checked={qqVariables.includes(v)}
+                        onChange={(_, checked) =>
+                          checked
+                            ? setQqVariables(qqVariables.concat(v))
+                            : setQqVariables(qqVariables.filter((c) => c !== v))
+                        }
+                        pvalScale={pvalScale}
+                        value={v}
+                      />
+                    </Grid>
+                  ))}
+                </Grid>
               </>
             )}
           </Grid>
         )}
       </Grid>
-      {!!pvalScale &&
-        !!miamiChartContainerRef.current &&
-        !!selectedRegionDetailData?.data.length &&
-        !!upperVariable &&
-        !!lowerVariable &&
-        !!selectedRegion && (
-          <RegionPlot
-            assemblyInfo={assemblyInfo}
-            pvalScale={pvalScale}
-            pvars={pVars.filter((p) => isKeyOfRegionResult(p))}
-            selector="region-plot"
-            selectedRegionDetailData={selectedRegionDetailData}
-            regionVars={
-              [upperVariable, lowerVariable].filter(
-                (k) => !!regionData.length && Object.hasOwn(regionData[0], k),
-              ) as (keyof RegionResult)[]
-            }
-            mainWidth={miamiChartContainerRef.current.clientWidth}
-            variants={regionVariants}
-          />
-        )}
+      {regionVarsSet && (
+        <RegionPlot
+          assemblyInfo={assemblyInfo}
+          pvalScale={pvalScale}
+          pvars={pVars.filter((p) => isKeyOfRegionResult(p))}
+          selector="region-plot"
+          selectedRegionDetailData={selectedRegionDetailData}
+          regionVars={
+            [upperVariable, lowerVariable].filter(
+              (k) => !!regionData.length && Object.hasOwn(regionData[0], k),
+            ) as (keyof RegionResult)[]
+          }
+          mainWidth={miamiChartContainerRef.current!.clientWidth}
+          variants={regionVariants}
+        />
+      )}
       {!!tableData.length && (
         <Grid size={{ xs: 12 }} container flexWrap="nowrap">
           <Grid sx={{ width: "100%" }}>
