@@ -854,7 +854,6 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     (delta: number, pos: number) => {
       const [visibleStart, visibleEnd] = getRegionResultRange(visibleData);
       const visibleRange = visibleEnd - visibleStart;
-      const visibleCenter = Math.round((visibleEnd + visibleStart) / 2);
       const [totalStart, totalEnd] = getRegionResultRange(data);
       const totalRange = totalEnd - totalStart;
 
@@ -870,33 +869,24 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
         (d) => pos >= d.start_bp && pos <= d.end_bp,
       );
 
-      //target region is not in center, limit this or that side and zoom in, until it becomes the center or we run out of room
       let zoomed = false;
       if (targetRegion) {
-        if (targetRegion.region > visibleCenter) {
-          //zoom in rhs
+        //if mouse is hovering over the end, don't zoom in any further on that side
+        if (targetRegion.region === visibleEnd) {
           if (delta < 0) {
             if (visibleStart < totalEnd) {
               newVisibleStart++;
               zoomed = true;
             }
           }
-          // zoom out rhs
-          else if (visibleStart < totalStart) {
-            newVisibleStart--;
-            zoomed = true;
-          }
-        } else if (targetRegion.region < visibleCenter) {
-          //zoom in lhs
+        }
+        //if mouse is hovering over the start, don't zoom in any further on that side
+        else if (targetRegion.region === visibleStart) {
           if (delta < 0) {
             if (visibleEnd > visibleStart + 1) {
               newVisibleEnd--;
               zoomed = true;
             }
-          } else if (visibleEnd < totalEnd) {
-            // zoom out lhs
-            newVisibleEnd++;
-            zoomed = true;
           }
         }
       }
@@ -907,15 +897,15 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
           if (newVisibleStart < totalEnd) {
             newVisibleStart++;
           }
-          if (newVisibleEnd < newVisibleStart) {
+          if (newVisibleEnd > newVisibleStart) {
             newVisibleEnd--;
           }
         } else if (delta > 0) {
           //zooming out
-          if (newVisibleStart > totalStart) {
+          if (newVisibleStart >= totalStart) {
             newVisibleStart--;
           }
-          if (newVisibleEnd < totalEnd) {
+          if (newVisibleEnd <= totalEnd) {
             newVisibleEnd++;
           }
         }
