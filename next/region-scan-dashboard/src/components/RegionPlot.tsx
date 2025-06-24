@@ -31,6 +31,7 @@ import {
   VariantResult,
 } from "@/lib/ts/types";
 import {
+  ErrorModal,
   LoadingOverlay,
   NumberInput,
   PlotDownloadButton,
@@ -91,6 +92,7 @@ const getStartPos = (
 
 const processPlinkVariants = async (
   file: File,
+  chr: number,
   posRange: [number, number],
 ): Promise<PlinkVariant[]> => {
   const parsed = await parseTsv<PlinkVariant>(file);
@@ -111,7 +113,11 @@ const processPlinkVariants = async (
       ),
     )
     .filter(
-      (v) => v.pos > posRange[0] && v.pos < posRange[1] && v.test === "ADD",
+      (v) =>
+        v.chrom === chr &&
+        v.pos > posRange[0] &&
+        v.pos < posRange[1] &&
+        v.test === "ADD",
     ) as PlinkVariant[];
 };
 
@@ -760,6 +766,8 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   const [visiblePvars, setVisiblePvars] = useState<(keyof RegionResult)[]>([]);
 
+  const [warningMessage, setWarningMessage] = useState("");
+
   const { anchorEl, buttonRef, handlePopoverOpen, handlePopoverClose } =
     useDownloadPlot();
 
@@ -985,11 +993,12 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
             fileType="plink variant"
             onUpload={async (file) => {
               setLoading(true);
-              const mapped = await processPlinkVariants(file, posRange);
+              const mapped = await processPlinkVariants(file, chr!, posRange);
               if (mapped.length === 0) {
-                alert("no variants found for this region");
+                setWarningMessage("No variants found for this region!");
               }
               setLoading(false);
+              setVariantsVisible(true);
               setPlinkVariants(mapped);
             }}
             variant="text"
@@ -1021,11 +1030,11 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
                 if (_genes !== null) {
                   setGenes(_genes);
                   if (_genes.length === 0) {
-                    alert("No genes found for this region");
+                    setWarningMessage("No genes found for this region!");
                   }
                 } else {
-                  alert(
-                    "there was an error fetching the genes for this region",
+                  setWarningMessage(
+                    "There was an error fetching the genes for this region!",
                   );
                   setGenes([]);
                 }
@@ -1118,6 +1127,11 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
         selector={`.${selector}`}
       />
       <LoadingOverlay open={loading} />
+      <ErrorModal
+        open={!!warningMessage}
+        onClose={() => setWarningMessage("")}
+        message={warningMessage}
+      />
     </Grid>
   );
 };

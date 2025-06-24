@@ -7,7 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Grid2 as Grid, IconButton, MenuItem } from "@mui/material";
+import { Button, Grid2 as Grid, IconButton, MenuItem } from "@mui/material";
 import { schemeTableau10 } from "d3-scale-chromatic";
 import { scaleOrdinal } from "d3-scale";
 import { extent, groups } from "d3-array";
@@ -347,8 +347,12 @@ export default function Home() {
       <Grid container direction="row" spacing={2}>
         {/* miami plot controls */}
         <Grid
-          size={{ xs: 2, xl: 1.5 }}
+          size={{
+            xs: !!regionData.length ? 2 : 12,
+            xl: !!regionData.length ? 1.5 : 12,
+          }}
           direction="column"
+          alignItems="center"
           container
           spacing={2}
         >
@@ -418,135 +422,138 @@ export default function Home() {
               }}
             />
           </Grid>
-          {!!regionData.length && (
+          {!regionData.length && (
             <Grid>
-              <UploadButtonMulti
-                key={uploadKey}
-                fileType="variant"
-                onUpload={async (files: File[]) => {
-                  setLoading(true);
-                  let results: VariantResult[] = [];
-                  const _chrs = unique(regionData, "chr");
-                  const chrs = _chrs.length === 1 ? null : _chrs;
-                  const range = chrs?.length
-                    ? null
-                    : (extent(
-                        regionData.flatMap((r) => [r.start_bp, r.end_bp]),
-                      ) as [number, number]);
-
-                  // we need chr and range
-                  for (const file of files) {
-                    const variants = await processRegionVariants(
-                      file,
-                      chrs,
-                      range,
-                    );
-                    results = results.concat(variants);
-                  }
-                  const errors = validateRegionVariantUpload(results);
-                  setUploadKey(Math.random().toString(36).slice(2));
-                  setLoading(false);
-
-                  if (errors) {
-                    return setUploadErrors(errors);
-                  }
-
-                  setRegionVariants(results);
-                }}
-              />
+              <Button size="small" variant="contained">
+                Download sample data
+              </Button>
             </Grid>
           )}
           {!!regionData.length && (
-            <Grid>
-              <ShortTextField
-                label="Assembly"
-                select
-                value={assemblyInfo.assembly}
-                onChange={(e) =>
-                  e.target.value === "GRCh37"
-                    ? setAssemblyInfo({
-                        assembly: "GRCh37",
-                        lengths: chromLengths37,
-                      })
-                    : setAssemblyInfo({
-                        assembly: "GRCh38",
-                        lengths: chromLengths38,
-                      })
-                }
-              >
-                <MenuItem value="GRCh37">GRCh37</MenuItem>
-                <MenuItem value="GRCh38">GRCh38</MenuItem>
-              </ShortTextField>
-            </Grid>
+            <>
+              <Grid>
+                <UploadButtonMulti
+                  key={uploadKey}
+                  fileType="variant"
+                  onUpload={async (files: File[]) => {
+                    setLoading(true);
+                    let results: VariantResult[] = [];
+                    const _chrs = unique(regionData, "chr");
+                    const chrs = _chrs.length === 1 ? null : _chrs;
+                    const range = chrs?.length
+                      ? null
+                      : (extent(
+                          regionData.flatMap((r) => [r.start_bp, r.end_bp]),
+                        ) as [number, number]);
+
+                    // we need chr and range
+                    for (const file of files) {
+                      const variants = await processRegionVariants(
+                        file,
+                        chrs,
+                        range,
+                      );
+                      results = results.concat(variants);
+                    }
+                    const errors = validateRegionVariantUpload(results);
+                    setUploadKey(Math.random().toString(36).slice(2));
+                    setLoading(false);
+
+                    if (errors) {
+                      return setUploadErrors(errors);
+                    }
+
+                    setRegionVariants(results);
+                  }}
+                />
+              </Grid>
+
+              <Grid>
+                <ShortTextField
+                  label="Assembly"
+                  select
+                  value={assemblyInfo.assembly}
+                  onChange={(e) =>
+                    e.target.value === "GRCh37"
+                      ? setAssemblyInfo({
+                          assembly: "GRCh37",
+                          lengths: chromLengths37,
+                        })
+                      : setAssemblyInfo({
+                          assembly: "GRCh38",
+                          lengths: chromLengths38,
+                        })
+                  }
+                >
+                  <MenuItem value="GRCh37">GRCh37</MenuItem>
+                  <MenuItem value="GRCh38">GRCh38</MenuItem>
+                </ShortTextField>
+              </Grid>
+
+              <Grid>
+                <ShortTextField
+                  fullWidth
+                  onChange={(e) =>
+                    setUpperVariable(e.target.value as keyof RegionResult)
+                  }
+                  label="Upper Variable"
+                  select
+                  value={upperVariable}
+                >
+                  {Object.keys(regionData[0])
+                    .filter((k) => k.endsWith("_p"))
+                    .concat(!!regionVariants.length ? VARIANT_PVAL : [])
+                    .filter((k) => k !== lowerVariable)
+                    .map((k) => (
+                      <MenuItem
+                        value={k}
+                        onChange={() =>
+                          setUpperVariable(k as keyof RegionResult)
+                        }
+                        key={k}
+                      >
+                        {k}
+                      </MenuItem>
+                    ))}
+                </ShortTextField>
+              </Grid>
+              <Grid>
+                <ShortTextField
+                  fullWidth
+                  value={lowerVariable}
+                  onChange={(e) =>
+                    setLowerVariable(e.target.value as keyof RegionResult)
+                  }
+                  label="Lower Variable"
+                  select
+                >
+                  {Object.keys(regionData[0])
+                    .filter((k) => k.endsWith("_p"))
+                    .concat(!!regionVariants.length ? VARIANT_PVAL : [])
+                    .filter((k) => k !== upperVariable)
+                    .map((k) => (
+                      <MenuItem value={k} key={k}>
+                        {k}
+                      </MenuItem>
+                    ))}
+                </ShortTextField>
+              </Grid>
+              <Grid>
+                <NumberInput
+                  value={upperThresh}
+                  onChange={(v: number) => !!v && setUpperThresh(v)}
+                  label="Upper Threshold"
+                />
+              </Grid>
+              <Grid>
+                <NumberInput
+                  value={lowerThresh}
+                  onChange={(v: number) => !!v && setLowerThresh(v)}
+                  label="Lower Threshold"
+                />
+              </Grid>
+            </>
           )}
-          <Grid>
-            {!!regionData.length && (
-              <ShortTextField
-                fullWidth
-                onChange={(e) =>
-                  setUpperVariable(e.target.value as keyof RegionResult)
-                }
-                label="Upper Variable"
-                select
-                value={upperVariable}
-              >
-                {Object.keys(regionData[0])
-                  .filter((k) => k.endsWith("_p"))
-                  .concat(!!regionVariants.length ? VARIANT_PVAL : [])
-                  .filter((k) => k !== lowerVariable)
-                  .map((k) => (
-                    <MenuItem
-                      value={k}
-                      onChange={() => setUpperVariable(k as keyof RegionResult)}
-                      key={k}
-                    >
-                      {k}
-                    </MenuItem>
-                  ))}
-              </ShortTextField>
-            )}
-          </Grid>
-          <Grid>
-            {!!regionData.length && (
-              <ShortTextField
-                fullWidth
-                value={lowerVariable}
-                onChange={(e) =>
-                  setLowerVariable(e.target.value as keyof RegionResult)
-                }
-                label="Lower Variable"
-                select
-              >
-                {Object.keys(regionData[0])
-                  .filter((k) => k.endsWith("_p"))
-                  .concat(!!regionVariants.length ? VARIANT_PVAL : [])
-                  .filter((k) => k !== upperVariable)
-                  .map((k) => (
-                    <MenuItem value={k} key={k}>
-                      {k}
-                    </MenuItem>
-                  ))}
-              </ShortTextField>
-            )}
-          </Grid>
-          <Grid>
-            {!!regionData.length && (
-              <NumberInput
-                value={upperThresh}
-                onChange={(v: number) => !!v && setUpperThresh(v)}
-                label="Upper Threshold"
-              />
-            )}
-          </Grid>
-          <Grid>
-            {!!regionData.length && (
-              <NumberInput
-                value={lowerThresh}
-                onChange={(v: number) => !!v && setLowerThresh(v)}
-                label="Lower Threshold"
-              />
-            )}
-          </Grid>
           <Grid
             spacing={2}
             container
