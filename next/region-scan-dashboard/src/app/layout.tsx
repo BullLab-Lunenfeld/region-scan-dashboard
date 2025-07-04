@@ -49,7 +49,9 @@ export default function RootLayout({
                   <Grid flexGrow={1} size={{ xs: 4 }} />
                   <Grid flexGrow={1} size={{ xs: 4 }}>
                     <NavLink href="/">
-                      <Typography variant="h3">RegionScan Dashboard</Typography>
+                      <Typography textAlign="center" variant="h4">
+                        RegionScan Dashboard
+                      </Typography>
                     </NavLink>
                   </Grid>
                   <Grid

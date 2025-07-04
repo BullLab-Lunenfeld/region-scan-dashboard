@@ -977,7 +977,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
   return (
     <Grid container spacing={2} direction="row" size={{ xs: 12 }}>
       {/* Region controls */}
-      <Grid container size={{ xs: 2, xl: 1.5 }} spacing={2} direction="column">
+      <Grid container size={{ xs: 2, xl: 1.5 }} spacing={1} direction="column">
         <Grid>
           {/* plink variant upload */}
           <UploadButtonSingle

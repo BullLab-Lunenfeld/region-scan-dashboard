@@ -28,6 +28,7 @@ import {
   getEntries,
   parseTsv,
   processRegionVariants,
+  transformRegionVariants,
   unique,
 } from "@/lib/ts/util";
 import {
@@ -56,45 +57,44 @@ const colMap: Partial<
 
 const oldColsToDrop = ["GATES.df", "SKAT.pLiu", "SKAT"];
 
+const transformRegionUpload = (parsed: RegionResultRaw[], i: number) =>
+  parsed.map((val, j) => {
+    val.id = +`${i}${j}`;
+    return Object.fromEntries(
+      getEntries(val)
+        .map<[keyof RegionResultRaw, number | null]>(([k, v]) => {
+          let k_ = colMap[k as keyof RegionResultRawOld] || k;
+          k_ = k_.replaceAll(".", "_") as keyof RegionResultRaw;
+          return [k_, v ? +v : null];
+        })
+        .filter(([k, v]) => {
+          if (oldColsToDrop.includes(k)) {
+            return false;
+          }
+
+          // these are old and redundant values? Keeping this here.
+          if (["MLCZ_p", "LCZ_p"].includes(k + "")) {
+            return false;
+          }
+          //for now we'll filter out negative p values as errors
+          //but we may want to correct them later
+          else if (
+            !!v &&
+            typeof k == "string" &&
+            k.toLowerCase().endsWith("_p")
+          ) {
+            return !!+v && +v > 0;
+          } else return true;
+        }),
+    ) as unknown as RegionResult;
+  });
+
 const _handleRegionUpload = async (files: File[]) => {
   let results: RegionResult[] = [];
   let i = 1;
   for (const file of files) {
     const parsed = await parseTsv<RegionResultRaw>(file);
-
-    results = [
-      ...results,
-      ...parsed.map((val, j) => {
-        val.id = +`${i}${j}`;
-        return Object.fromEntries(
-          getEntries(val)
-            .map<[keyof RegionResultRaw, number | null]>(([k, v]) => {
-              let k_ = colMap[k as keyof RegionResultRawOld] || k;
-              k_ = k_.replaceAll(".", "_") as keyof RegionResultRaw;
-              return [k_, v ? +v : null];
-            })
-            .filter(([k, v]) => {
-              if (oldColsToDrop.includes(k)) {
-                return false;
-              }
-
-              // these are old and redundant values? Keeping this here.
-              if (["MLCZ_p", "LCZ_p"].includes(k + "")) {
-                return false;
-              }
-              //for now we'll filter out negative p values as errors
-              //but we may want to correct them later
-              else if (
-                !!v &&
-                typeof k == "string" &&
-                k.toLowerCase().endsWith("_p")
-              ) {
-                return !!+v && +v > 0;
-              } else return true;
-            }),
-        );
-      }),
-    ] as RegionResult[];
+    results = [...results, ...transformRegionUpload(parsed, i)];
     i++;
   }
   return results;
@@ -393,6 +393,32 @@ export default function Home() {
     [regionData, regionVariants],
   );
 
+  const getSampleData = () =>
+    fetch(`${process.env.NEXT_PUBLIC_APP_URL}/example`).then((r) =>
+      r.json().then(async (r) => {
+        const regionData = transformRegionUpload(
+          await parseTsv<RegionResultRaw>(r.region),
+          1,
+        );
+
+        setRegionData(regionData);
+
+        const chrs = unique(regionData, "chr");
+
+        const range =
+          chrs.length == 1
+            ? null
+            : (extent(regionData.flatMap((r) => [r.start_bp, r.end_bp])) as [
+                number,
+                number,
+              ]);
+
+        const variantData = await parseTsv<VariantResult>(r.variant);
+
+        setRegionVariants(transformRegionVariants(variantData, chrs, range));
+      }),
+    );
+
   const handleRegionUpload = useCallback(async (files: File[]) => {
     resetVisualizationVariables();
     setLoading(true);
@@ -431,6 +457,7 @@ export default function Home() {
   );
 
   const resetVisualizationVariables = () => {
+    setRegionVariants([]);
     setSelectedRegion(undefined);
     setBrushFilterHistory([]);
     setSelectedRegionDetailData(undefined);
@@ -471,8 +498,8 @@ export default function Home() {
           </Grid>
           {!regionData.length && (
             <Grid>
-              <Button size="small" variant="contained">
-                Download sample data
+              <Button size="small" variant="contained" onClick={getSampleData}>
+                Use example data
               </Button>
             </Grid>
           )}

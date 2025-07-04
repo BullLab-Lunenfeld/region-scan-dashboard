@@ -120,14 +120,13 @@ const regionVariantColsToDrop = [
   "LCZbin_glmByBin_p",
 ];
 
-export const processRegionVariants = async (
-  file: File,
+export const transformRegionVariants = (
+  parsed: VariantResult[],
   chrs: number[] | null = null,
   posRange: [number, number] | null = null,
   selectedRegions: number[] | null = null,
-) => {
-  const parsed = await parseTsv<VariantResult>(file);
-  return parsed
+) =>
+  parsed
     .map(
       (v) =>
         Object.fromEntries(
@@ -163,6 +162,15 @@ export const processRegionVariants = async (
 
       return true;
     });
+
+export const processRegionVariants = async (
+  file: File,
+  chrs: number[] | null = null,
+  posRange: [number, number] | null = null,
+  selectedRegions: number[] | null = null,
+) => {
+  const parsed = await parseTsv<VariantResult>(file);
+  return transformRegionVariants(parsed, chrs, posRange, selectedRegions);
 };
 
 export const showToolTip = (e: MouseEvent, text: string[]) =>

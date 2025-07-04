@@ -23,7 +23,7 @@ export async function GET(
   const path = __dirname.replace(".next/server", "src"); //.next/server is the path created by the build
 
   //path will be location of this file by default
-  const dataPath = path.replace(/src(.+)/, "") + `src/data/${chr}.json`;
+  const dataPath = path.replace(/src(.+)/, "") + `src/data/recomb/${chr}.json`;
 
   const fileBuffer = await fs.readFile(dataPath);
   const json = JSON.parse(fileBuffer.toString());
