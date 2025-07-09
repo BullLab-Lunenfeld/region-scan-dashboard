@@ -21,7 +21,7 @@ import { NavLink } from "@/components";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "RegionScan Dashboard",
+  title: "RegionScan Visualization",
   description: "A visualization suite for RegionScan results",
 };
 
@@ -50,7 +50,7 @@ export default function RootLayout({
                   <Grid flexGrow={1} size={{ xs: 4 }}>
                     <NavLink href="/">
                       <Typography textAlign="center" variant="h4">
-                        RegionScan Dashboard
+                        RegionScan Visualization
                       </Typography>
                     </NavLink>
                   </Grid>

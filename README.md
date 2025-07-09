@@ -1,4 +1,4 @@
-# RegionScan Dashboard
+# RegionScan Visualization
 
 ## Description
 
