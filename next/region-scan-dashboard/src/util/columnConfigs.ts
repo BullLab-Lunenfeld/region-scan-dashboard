@@ -48,13 +48,11 @@ export const RegionResultCols: PaginatedTableColumn<RegionResult>[] = [
     field: "start_bp",
     headerName: "start_bp",
     sortable: true,
-    //getSortComparator: chromSort,
   },
   {
     field: "end_bp",
     headerName: "end_bp",
     sortable: true,
-    //getSortComparator: chromSort,
   },
   { field: "nSNPs", headerName: "nSNPs", sortable: true },
   { field: "nSNPs_kept", headerName: "nSNPs_kept", sortable: true },

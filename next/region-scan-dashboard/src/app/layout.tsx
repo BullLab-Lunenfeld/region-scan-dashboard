@@ -48,7 +48,7 @@ export default function RootLayout({
                 <Toolbar component={Grid} container justifyContent="center">
                   <Grid flexGrow={1} size={{ xs: 4 }} />
                   <Grid flexGrow={1} size={{ xs: 4 }}>
-                    <NavLink href="/">
+                    <NavLink noDecoration href="/">
                       <Typography textAlign="center" variant="h4">
                         RegionScan Visualization
                       </Typography>
@@ -59,9 +59,13 @@ export default function RootLayout({
                     size={{ xs: 4 }}
                     justifyContent="flex-end"
                     container
+                    spacing={3}
                   >
                     <Grid>
                       <NavLink href="/about">About</NavLink>
+                    </Grid>
+                    <Grid>
+                      <NavLink href="/visualization">Visualizations</NavLink>
                     </Grid>
                   </Grid>
                 </Toolbar>
