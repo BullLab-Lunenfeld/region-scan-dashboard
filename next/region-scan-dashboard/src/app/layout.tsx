@@ -3,19 +3,11 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v14-appRouter";
 import CssBaseline from "@mui/material/CssBaseline";
-import {
-  AppBar,
-  Box,
-  Container,
-  Grid2 as Grid,
-  Toolbar,
-  Typography,
-} from "@mui/material";
 
 import { ThemeProvider } from "@mui/material/styles";
 
 import theme from "../lib/mui/theme";
-import { NavLink } from "@/components";
+import { AppContainer } from "@/components";
 //import { Footer } from "@/components";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -39,40 +31,7 @@ export default function RootLayout({
         <AppRouterCacheProvider options={{ enableCssLayer: true }}>
           <ThemeProvider theme={theme}>
             <CssBaseline />
-            <Container maxWidth={false}>
-              <AppBar
-                position="static"
-                color="primary"
-                sx={{ marginBottom: 3 }}
-              >
-                <Toolbar component={Grid} container justifyContent="center">
-                  <Grid flexGrow={1} size={{ xs: 4 }} />
-                  <Grid flexGrow={1} size={{ xs: 4 }}>
-                    <NavLink noDecoration href="/">
-                      <Typography textAlign="center" variant="h4">
-                        RegionScan Visualization
-                      </Typography>
-                    </NavLink>
-                  </Grid>
-                  <Grid
-                    flexGrow={1}
-                    size={{ xs: 4 }}
-                    justifyContent="flex-end"
-                    container
-                    spacing={3}
-                  >
-                    <Grid>
-                      <NavLink href="/about">About</NavLink>
-                    </Grid>
-                    <Grid>
-                      <NavLink href="/visualization">Visualizations</NavLink>
-                    </Grid>
-                  </Grid>
-                </Toolbar>
-              </AppBar>
-              <Box sx={{ flexGrow: 1, overflow: "auto" }}>{children}</Box>
-              {/* <Footer /> */}
-            </Container>
+            <AppContainer>{children}</AppContainer>
           </ThemeProvider>
         </AppRouterCacheProvider>
       </body>

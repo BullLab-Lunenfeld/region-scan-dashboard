@@ -22,7 +22,7 @@ const ValidationModal: React.FC<ValidationModalProps> = ({
         </Typography>
       </Grid>
       <Grid>
-        <Typography>{errorMsg}</Typography>
+        <Typography textAlign="center">{errorMsg}</Typography>
       </Grid>
       <Grid>
         <Button onClick={onClose}>Close</Button>
