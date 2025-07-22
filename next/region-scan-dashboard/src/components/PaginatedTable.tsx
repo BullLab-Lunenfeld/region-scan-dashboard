@@ -26,16 +26,13 @@ import {
 } from "@mui/x-data-grid";
 import { GridBaseColDef, isNumber } from "@mui/x-data-grid/internals";
 import { VisualizationDataContext } from "./AppContainer";
-import { getEntries } from "@/lib/ts/util";
+import { downloadCsv, getEntries } from "@/lib/ts/util";
 
 export type PaginatedTableColumn<T extends GridValidRowModel> =
   GridBaseColDef<T> & {
     hideOnLoad?: boolean;
     searchable?: boolean;
   };
-
-//todo: bring to life
-const dummyDownload = () => null;
 
 interface PaginatedTableProps<T extends GridValidRowModel> {
   cols: PaginatedTableColumn<T>[];
@@ -175,6 +172,8 @@ const RSGridToolbar: React.FC<RSGridToolbarProps> = ({
     [thresholds],
   );
 
+  const apiRef = useGridApiContext();
+
   return (
     <GridToolbarContainer>
       <Grid container direction="row" wrap="nowrap" alignItems="center">
@@ -186,7 +185,11 @@ const RSGridToolbar: React.FC<RSGridToolbarProps> = ({
             <RSColumnsButton />
           </Grid>
           <Grid>
-            <RSExportButton download={dummyDownload} />
+            <RSExportButton
+              download={() =>
+                downloadCsv([...apiRef.current.getRowModels()].map((v) => v[1]))
+              }
+            />
           </Grid>
           <Grid width={200} padding={1}>
             <TextField
