@@ -2,6 +2,7 @@
 
 import React, {
   useCallback,
+  useContext,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -23,6 +24,7 @@ import {
   Grid2 as Grid,
   Typography,
 } from "@mui/material";
+import { VisualizationDataContext } from "./AppContainer";
 import {
   AssembyInfo,
   EnsemblGeneResult,
@@ -172,6 +174,8 @@ class RegionChart {
   hiddenGeneLabels: string[];
   mainWidth: number;
   pvalScale: ScaleOrdinal<string, string, never>;
+  pvalThresholdRegion: number;
+  pvalThresholdVariant: number;
   selector: string;
   svg: Selection<SVGElement, number, BaseType, unknown>;
   width: number;
@@ -179,11 +183,15 @@ class RegionChart {
 
   constructor(
     pvalScale: ScaleOrdinal<string, string, never>,
+    pvalThresholdRegion: number,
+    pvalThresholdVariant: number,
     selector: string,
     mainWidth: number,
   ) {
     //display properties
     this.pvalScale = pvalScale;
+    this.pvalThresholdRegion = pvalThresholdRegion;
+    this.pvalThresholdVariant = pvalThresholdVariant;
     this.selector = selector;
     this.mainWidth = mainWidth;
     this.width = this.mainWidth + 140;
@@ -698,8 +706,8 @@ class RegionChart {
     drawDottedLine(
       this.container,
       "region-p-line",
-      yScalePval(-Math.log10(5e-6)),
-      yScalePval(-Math.log10(5e-6)),
+      yScalePval(-Math.log10(this.pvalThresholdRegion)),
+      yScalePval(-Math.log10(this.pvalThresholdRegion)),
       xScale.range()[0],
       xScale.range()[1],
     );
@@ -708,8 +716,8 @@ class RegionChart {
       drawDottedLine(
         this.container,
         "variant-p-line",
-        yScalePval(-Math.log10(5e-7)),
-        yScalePval(-Math.log10(5e-7)),
+        yScalePval(-Math.log10(this.pvalThresholdVariant)),
+        yScalePval(-Math.log10(this.pvalThresholdVariant)),
         xScale.range()[0],
         xScale.range()[1],
       );
@@ -805,6 +813,13 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
       return { regionVariants: [], plinkVariants: [] };
     }
   }, [plinkVariants, filteredVariants, variantsVisible]);
+
+  const {
+    thresholds: {
+      regionRegion: pvalThresholdRegion,
+      regionVariant: pvalThresholdVariant,
+    },
+  } = useContext(VisualizationDataContext);
 
   useEffect(() => {
     if (chr) {
@@ -930,7 +945,13 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   //initial render
   useLayoutEffect(() => {
-    const Chart = new RegionChart(pvalScale, selector, mainWidth);
+    const Chart = new RegionChart(
+      pvalScale,
+      pvalThresholdRegion,
+      pvalThresholdVariant,
+      selector,
+      mainWidth,
+    );
     setChart(Chart);
   }, [mainWidth]);
 
@@ -954,7 +975,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
         visibleVariants,
         visibleGenes,
         updateRange,
-        setCenterRegion, //this should be dynamic --- look at the span of the current view and shift so this is in the middle, then reset
+        setCenterRegion,
         visibleRecomb,
         geneLabelsVisible,
         visiblePvars,
@@ -972,6 +993,8 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     visibleRecomb,
     visibleVariants,
     mainWidth,
+    pvalThresholdRegion,
+    pvalThresholdVariant,
   ]);
 
   return (

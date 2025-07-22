@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import "d3-transition"; // must be imported before selection
 import { symbolDiamond, symbol } from "d3-shape";
 import { cumsum, extent, sum } from "d3-array";
@@ -15,6 +15,7 @@ import {
 } from "d3-scale";
 import { BaseType, select, selectAll, Selection } from "d3-selection";
 import { Box } from "@mui/material";
+import { VisualizationDataContext } from "./AppContainer";
 import { LoadingOverlay, PlotDownloadButton } from "@/components";
 import {
   AssembyInfo,
@@ -615,14 +616,12 @@ const buildChart = (
 interface MiamiPlotProps {
   assemblyInfo: AssembyInfo;
   bottomCol: keyof RegionResult | keyof VariantResult;
-  bottomThresh: number;
   data: (RegionResult | VariantResult)[];
   filterCb: (filter: BrushFilter) => void;
   filter?: BrushFilter;
   onCircleClick: (d: RegionResult | VariantResult) => void;
   pvalScale: ScaleOrdinal<string, string, never>;
   selectedRegionDetailData?: SelectedRegionDetailData;
-  topThresh: number;
   topCol: keyof RegionResult | keyof VariantResult;
   width: number;
 }
@@ -630,7 +629,6 @@ interface MiamiPlotProps {
 const MiamiPlot: React.FC<MiamiPlotProps> = ({
   assemblyInfo,
   bottomCol,
-  bottomThresh,
   data,
   filter,
   filterCb,
@@ -638,7 +636,6 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
   pvalScale,
   selectedRegionDetailData,
   topCol,
-  topThresh,
   width,
 }) => {
   const [loading, setLoading] = useState(true);
@@ -654,6 +651,10 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
   useEffect(() => {
     setTimeout(() => setRenderFlag(true));
   }, []);
+
+  const {
+    thresholds: { miamiTop: topThresh, miamiBottom: bottomThresh },
+  } = useContext(VisualizationDataContext);
 
   useEffect(() => {
     if (renderFlag) {

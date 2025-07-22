@@ -60,7 +60,6 @@ export default function Visualization() {
     [],
   );
 
-  const [lowerThresh, setLowerThresh] = useState<number>(5e-6);
   const [lowerVariable, setLowerVariable] = useState<
     keyof RegionResult | keyof VariantResult | ""
   >("");
@@ -75,13 +74,18 @@ export default function Visualization() {
   const [selectedRegionDetailData, setSelectedRegionDetailData] =
     useState<SelectedRegionDetailData>();
 
-  const [upperThresh, setUpperThresh] = useState<number>(5e-6);
   const [upperVariable, setUpperVariable] = useState<
     keyof RegionResult | keyof VariantResult | ""
   >("");
 
-  const { regionData, regionVariantData, setRegionData, setRegionVariantData } =
-    useContext(VisualizationDataContext);
+  const {
+    regionData,
+    regionVariantData,
+    setRegionData,
+    setRegionVariantData,
+    setThreshold,
+    thresholds: { miamiTop: upperThresh, miamiBottom: lowerThresh },
+  } = useContext(VisualizationDataContext);
 
   useEffect(() => {
     if (regionData) {
@@ -429,14 +433,16 @@ export default function Visualization() {
               <Grid>
                 <NumberInput
                   value={upperThresh}
-                  onChange={(v: number) => !!v && setUpperThresh(v)}
+                  onChange={(v: number) => !!v && setThreshold("miamiTop", v)}
                   label="Upper Threshold"
                 />
               </Grid>
               <Grid>
                 <NumberInput
                   value={lowerThresh}
-                  onChange={(v: number) => !!v && setLowerThresh(v)}
+                  onChange={(v: number) =>
+                    !!v && setThreshold("miamiBottom", v)
+                  }
                   label="Lower Threshold"
                 />
               </Grid>
@@ -493,14 +499,12 @@ export default function Visualization() {
                 assemblyInfo={assemblyInfo}
                 pvalScale={pvalScale}
                 bottomCol={lowerVariable}
-                bottomThresh={lowerThresh}
                 data={miamiData}
                 onCircleClick={(d) => setSelectedRegion(d)}
                 filter={brushFilterHistory[brushFilterHistory.length - 1]}
                 filterCb={filterCb}
                 selectedRegionDetailData={selectedRegionDetailData}
                 topCol={upperVariable}
-                topThresh={upperThresh}
                 width={miamiChartContainerRef.current!.clientWidth}
               />
             )}
@@ -516,7 +520,7 @@ export default function Visualization() {
             spacing={2}
             justifyContent="flex-start"
           >
-            {!!regionData.length && !!qqChartContainerRef.current && (
+            {miamiVarsSet && !!qqChartContainerRef.current && (
               <>
                 <Grid>
                   <QQPlot
