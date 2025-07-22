@@ -5,7 +5,7 @@ import { Box, Container } from "@mui/material";
 import Header from "./Header";
 import { RegionResult, VariantResult } from "@/lib/ts/types";
 
-interface PlotThresholds {
+export interface PlotThresholds {
   miamiBottom: number;
   miamiTop: number;
   regionRegion: number;
