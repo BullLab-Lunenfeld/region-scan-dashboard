@@ -129,7 +129,7 @@ const buildChart = (
     .data([1])
     .join("text")
     .text("Uniform dist (-log10)")
-    .attr("font-size", 12)
+    .attr("font-size", "12px")
     .attr("text-anchor", "middle");
 
   container
@@ -146,7 +146,7 @@ const buildChart = (
     .text("p-value (-log 10)")
     .attr("transform", "rotate(-90)")
     .text("pValue (-log10)")
-    .attr("font-size", 12)
+    .attr("font-size", "12px")
     .attr("text-anchor", "middle");
 
   container

@@ -529,7 +529,8 @@ class RegionChart {
       .attr("x", (d) => getGeneLabelXCoord(d, xScale))
       .attr("y", (d) => yScaleGene(geneHeightMap[d.id]) - 1)
       .text((d) => d.external_name)
-      .style("font-size", 9)
+      .style("font-size", "9px")
+      .style("font-style", "italic")
       .style("text-anchor", "middle")
       .on("mouseover", (e: MouseEvent, d: EnsemblGeneResult) =>
         showToolTip(e, [
@@ -561,7 +562,7 @@ class RegionChart {
       .data([1], () => `${visibleDataRange[0]}-${visibleDataRange[1]}`)
       .join("text")
       .attr("class", "title")
-      .attr("font-size", 14)
+      .attr("font-size", "14px")
       .text(`Chr${chr} Regions ${visibleDataRange[0]}-${visibleDataRange[1]}`)
       .attr("text-anchor", "middle")
       .attr("transform", `translate(${this.mainWidth / 2}, 12)`);
@@ -589,7 +590,7 @@ class RegionChart {
       .data([1])
       .join("text")
       .text("p-value (-log 10)")
-      .attr("font-size", 12)
+      .attr("font-size", "12px")
       .attr("transform", "rotate(-90)")
       .attr("text-anchor", "middle");
 
@@ -620,7 +621,7 @@ class RegionChart {
       .attr("transform", "rotate(90)")
       .transition()
       .duration(500)
-      .attr("font-size", 12)
+      .attr("font-size", "12px")
       .selection()
       .attr("text-anchor", "middle");
 

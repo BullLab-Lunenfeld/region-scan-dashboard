@@ -343,7 +343,7 @@ const buildChart = (
     .join("text")
     .text("p-value (-log 10)")
     .attr("transform", "rotate(-90)")
-    .attr("font-size", 12)
+    .attr("font-size", "12px")
     .attr("text-anchor", "middle");
 
   container
@@ -360,7 +360,7 @@ const buildChart = (
     .join("text")
     .text("p-value (-log 10)")
     .attr("transform", "rotate(-90)")
-    .attr("font-size", 12)
+    .attr("font-size", "12px")
     .attr("text-anchor", "middle");
 
   const posRange = selectedRegionDetailData
