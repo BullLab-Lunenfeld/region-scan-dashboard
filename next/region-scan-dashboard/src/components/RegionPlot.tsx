@@ -44,6 +44,7 @@ import {
 } from "@/components";
 import {
   drawDottedLine,
+  fillRange,
   formatComma,
   parseTsv,
   showToolTip,
@@ -230,6 +231,7 @@ class RegionChart {
     recombData: LocalRecombData[],
     geneLabelsVisible: boolean,
     visiblePvars: (keyof RegionResult)[],
+    unconveredRegions: number[],
   ) => {
     const regionData = groups(data, (d) => d.region).flatMap(
       ([region, members]) => {
@@ -387,6 +389,32 @@ class RegionChart {
             ], //observed max is 1100 but this appears to be an outlier, there are a few higher than 120, so we'll be dynamic only as needed
       );
 
+    // draw plink variants
+    this.container
+      .selectAll<SVGCircleElement, PlinkVariant>("circle.variant")
+      .data(filteredPlinkVariants, (v) => v.p!)
+      .join("circle")
+      .attr("class", "variant")
+      .attr("cx", (d) => xScale(d.pos!))
+      .attr("cy", (d) => yScalePval(-Math.log10(d.p!)))
+      .attr("fill", () => "black")
+      .transition()
+      .duration(300)
+      .selection()
+      .attr("opacity", (d) => (unconveredRegions.includes(d.pos!) ? 0.2 : 0.8))
+      .attr("r", circleWidthScale(xScale.domain()[1] - xScale.domain()[0]))
+      .on("mouseover", (e: MouseEvent, d: PlinkVariant) =>
+        showToolTip(e, [
+          `Pos: ${formatComma(d.pos!)}`,
+          `Ref: ${d.ref}`,
+          `Alt: ${d.alt}`,
+          `P-values: ${d.p}`,
+        ]),
+      )
+      .on("mouseout", () =>
+        selectAll(".tooltip").style("visibility", "hidden"),
+      );
+
     //draw region rectangles
     this.container
       .selectAll<SVGRectElement, RegionData>("rect.region")
@@ -445,32 +473,6 @@ class RegionChart {
         selectAll(".tooltip").style("visibility", "hidden"),
       );
 
-    // add plink variants
-    this.container
-      .selectAll<SVGCircleElement, PlinkVariant>("circle.variant")
-      .data(filteredPlinkVariants, (v) => v.p!)
-      .join("circle")
-      .attr("class", "variant")
-      .attr("cx", (d) => xScale(d.pos!))
-      .attr("cy", (d) => yScalePval(-Math.log10(d.p!)))
-      .attr("fill", () => "gray")
-      .transition()
-      .duration(300)
-      .selection()
-      .attr("opacity", 0.3)
-      .attr("r", circleWidthScale(xScale.domain()[1] - xScale.domain()[0]))
-      .on("mouseover", (e: MouseEvent, d: PlinkVariant) =>
-        showToolTip(e, [
-          `Pos: ${d.pos}`,
-          `Ref: ${d.ref}`,
-          `Alt: ${d.alt}`,
-          `P-values: ${d.p}`,
-        ]),
-      )
-      .on("mouseout", () =>
-        selectAll(".tooltip").style("visibility", "hidden"),
-      );
-
     // add genes
     this.container
       .selectAll<SVGRectElement, EnsemblGeneResult>("rect.gene")
@@ -511,6 +513,7 @@ class RegionChart {
           recombData,
           geneLabelsVisible,
           visiblePvars,
+          unconveredRegions,
         );
       });
 
@@ -667,7 +670,7 @@ class RegionChart {
     const lowest = (visiblePvars.length - 1) * 18 + 5;
     const variantLegendData = ([] as ({ text: string; color: string } | null)[])
       .concat(
-        filteredPlinkVariants.length ? { text: "ADD_p", color: "gray" } : null,
+        filteredPlinkVariants.length ? { text: "ADD_p", color: "black" } : null,
       )
       .concat(
         filteredRegionVariants.length
@@ -782,9 +785,30 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
   const { anchorEl, handlePopoverOpen } = useDownloadPlot();
 
   const data = useMemo(
-    () => selectedRegionDetailData.data,
+    () =>
+      selectedRegionDetailData.data.sort((a, b) =>
+        a.region < b.region ? -1 : 1,
+      ),
     [selectedRegionDetailData],
   );
+
+  const uncoveredRegions = useMemo(() => {
+    let missing: number[] = [];
+
+    if (!!plinkVariants.length) {
+      for (let i = 0; i < data.length; i++) {
+        if (i === 0) {
+          continue;
+        }
+
+        missing = missing.concat(
+          fillRange(data[i - 1].end_bp + 1, data[i].start_bp - 1),
+        );
+      }
+    }
+
+    return missing;
+  }, [data, plinkVariants]);
 
   const chr = useMemo(() => (data.length ? data[0].chr : null), [data]);
 
@@ -979,6 +1003,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
         visibleRecomb,
         geneLabelsVisible,
         visiblePvars,
+        uncoveredRegions,
       );
     }
     setUploadKey(Math.random().toString(36).slice(2));
@@ -995,6 +1020,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     mainWidth,
     pvalThresholdRegion,
     pvalThresholdVariant,
+    uncoveredRegions,
   ]);
 
   return (

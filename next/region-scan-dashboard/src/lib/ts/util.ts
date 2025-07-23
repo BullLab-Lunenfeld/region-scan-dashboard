@@ -90,6 +90,14 @@ export const linspace = (
   return Array.from({ length: num }, (_, i) => start + step * i);
 };
 
+export const fillRange = (min: number, max: number) => {
+  const res = [];
+  for (let i = min; i <= max; i++) {
+    res.push(i);
+  }
+  return res;
+};
+
 const regionVariantRenameMap: Partial<
   Record<keyof VariantResultRawOld, keyof VariantResultRawNew>
 > = {
