@@ -18,14 +18,15 @@ import { downloadPng, downloadSvg } from "@/lib/ts/export";
 
 interface PlotDownloadButtonProps {
   anchorEl: HTMLElement | null;
-  buttonRef: React.RefObject<SVGSVGElement | null>;
   plotType: string;
   selector: string;
 }
 
+// we pass in anchor el b/c of timing,
+// if user hovers over, we know the element exists
+
 const PlotDownloadButton: React.FC<PlotDownloadButtonProps> = ({
   anchorEl,
-  buttonRef,
   plotType,
   selector,
 }) => {
@@ -46,8 +47,29 @@ const PlotDownloadButton: React.FC<PlotDownloadButtonProps> = ({
               offset: [10, -10],
             },
           },
+          {
+            name: "flip",
+            enabled: false,
+            options: {
+              altBoundary: false,
+              rootBoundary: "document",
+              padding: 8,
+            },
+          },
+          {
+            name: "preventOverflow",
+            enabled: false,
+            options: {
+              altAxis: true,
+              altBoundary: true,
+              tether: true,
+              rootBoundary: "document",
+              padding: 8,
+            },
+          },
         ]}
         open={!!anchorEl}
+        disablePortal
         autoFocus={false}
         anchorEl={anchorEl}
       >
@@ -56,7 +78,7 @@ const PlotDownloadButton: React.FC<PlotDownloadButtonProps> = ({
           sx={{ margin: 0, padding: 0, pointerEvents: "all" }}
           size="small"
         >
-          <Save ref={buttonRef} color="primary" fontSize="small" />
+          <Save color="primary" fontSize="small" />
         </IconButton>
       </Popper>
       {ModalOpen && (

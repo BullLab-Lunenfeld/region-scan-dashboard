@@ -643,8 +643,7 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
   //we need a full tick and render to show the loading indicator
   const [renderFlag, setRenderFlag] = useState(false);
 
-  const { anchorEl, buttonRef, handlePopoverOpen, handlePopoverClose } =
-    useDownloadPlot();
+  const { anchorEl, handlePopoverOpen } = useDownloadPlot();
 
   const _width = useMemo(() => width, [width]);
 
@@ -694,14 +693,9 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
 
   return (
     <>
-      <Box
-        className={className}
-        onMouseEnter={handlePopoverOpen}
-        onMouseLeave={handlePopoverClose}
-      />
+      <Box className={className} onMouseEnter={handlePopoverOpen} />
       <PlotDownloadButton
         anchorEl={anchorEl}
-        buttonRef={buttonRef}
         selector={`.${className}`}
         plotType="Miami Plot"
       />

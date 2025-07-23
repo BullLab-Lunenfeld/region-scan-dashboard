@@ -779,8 +779,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   const [warningMessage, setWarningMessage] = useState("");
 
-  const { anchorEl, buttonRef, handlePopoverOpen, handlePopoverClose } =
-    useDownloadPlot();
+  const { anchorEl, handlePopoverOpen } = useDownloadPlot();
 
   const data = useMemo(
     () => selectedRegionDetailData.data,
@@ -1107,11 +1106,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
       </Grid>
       {/* Region plot */}
       <Grid container size={{ xs: 9, lg: 7.5, xl: 7.5 }}>
-        <Box
-          className={selector}
-          onMouseEnter={handlePopoverOpen}
-          onMouseLeave={handlePopoverClose}
-        />
+        <Box className={selector} onMouseEnter={handlePopoverOpen} />
       </Grid>
       {/* Region line selector */}
       <Grid
@@ -1138,7 +1133,6 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
       </Grid>
       <PlotDownloadButton
         anchorEl={anchorEl}
-        buttonRef={buttonRef}
         plotType="Region Plot"
         selector={`.${selector}`}
       />

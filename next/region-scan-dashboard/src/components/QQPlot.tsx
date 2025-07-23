@@ -235,8 +235,7 @@ const QQPlot: React.FC<QQPlotProps> = ({
   //we need a full tick and render to show the initial loading indicator
   const [renderFlag, setRenderFlag] = useState(false);
 
-  const { anchorEl, buttonRef, handlePopoverOpen, handlePopoverClose } =
-    useDownloadPlot();
+  const { anchorEl, handlePopoverOpen } = useDownloadPlot();
 
   const pvals = useMemo(
     () =>
@@ -310,15 +309,10 @@ const QQPlot: React.FC<QQPlotProps> = ({
 
   return (
     <>
-      <Box
-        className={selector}
-        onMouseEnter={handlePopoverOpen}
-        onMouseLeave={handlePopoverClose}
-      />
+      <Box className={selector} onMouseEnter={handlePopoverOpen} />
       <LoadingOverlay open={loading} />
       <PlotDownloadButton
         anchorEl={anchorEl}
-        buttonRef={buttonRef}
         plotType="QQ Plot"
         selector={`.${selector}`}
       />
