@@ -194,7 +194,7 @@ export default function Visualization() {
       const regionDetailData = miamiData.filter(
         (d) =>
           isRegionResult(d) &&
-          d.end_bp < maxBp &&
+          d.end_bp <= maxBp &&
           d.start_bp >= minBp &&
           d.chr == chr,
       ) as RegionResult[];

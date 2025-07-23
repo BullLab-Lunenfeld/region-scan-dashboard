@@ -8,7 +8,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { extent, groups, max } from "d3-array";
+import { extent, groups, max, min } from "d3-array";
 import { axisBottom, axisLeft, axisRight } from "d3-axis";
 import { format } from "d3-format";
 import "d3-transition"; // must be imported before selection
@@ -774,9 +774,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   const [variantsVisible, setVariantsVisible] = useState<boolean>(false);
 
-  const [visibleData, setVisibleData] = useState<RegionResult[]>(
-    selectedRegionDetailData.data,
-  );
+  const [visibleData, setVisibleData] = useState<RegionResult[]>([]);
 
   const [visiblePvars, setVisiblePvars] = useState<(keyof RegionResult)[]>([]);
 
@@ -784,6 +782,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   const { anchorEl, handlePopoverOpen } = useDownloadPlot();
 
+  // pull data for convenience
   const data = useMemo(
     () =>
       selectedRegionDetailData.data.sort((a, b) =>
@@ -791,6 +790,35 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
       ),
     [selectedRegionDetailData],
   );
+
+  const setInitialDataRange = (regionDetailData: SelectedRegionDetailData) => {
+    const {
+      region: { region },
+      regions,
+      data,
+    } = regionDetailData;
+
+    const maxInitialRegion = region + 20;
+    const minInitialRegion = region - 20;
+
+    const initialStartRegion = Math.max(
+      minInitialRegion,
+      min(regions) as number,
+    );
+
+    const initialEndRegion = Math.min(maxInitialRegion, max(regions) as number);
+
+    setVisibleData(
+      data.filter((region) =>
+        isWithinRegions(initialStartRegion, initialEndRegion, region.region),
+      ),
+    );
+  };
+
+  // start with view at +/- 20 regions
+  useEffect(() => {
+    setInitialDataRange(selectedRegionDetailData);
+  }, [selectedRegionDetailData]);
 
   const uncoveredRegions = useMemo(() => {
     let missing: number[] = [];
@@ -802,7 +830,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
         }
 
         missing = missing.concat(
-          fillRange(data[i - 1].end_bp + 1, data[i].start_bp - 1),
+          fillRange(data[i - 1].end_bp + 1, data[i].start_bp),
         );
       }
     }
@@ -810,18 +838,23 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     return missing;
   }, [data, plinkVariants]);
 
+  //grab chr for convenience, only 1 will be visible at a time, prevent fetching the same data if data changes
+  //but chr stays the same
   const chr = useMemo(() => (data.length ? data[0].chr : null), [data]);
 
+  // grab the range of basepairs for convenience
   const posRange = useMemo(
     () => extent(data.map((d) => d.start_bp)) as [number, number],
     [data],
   );
 
+  // get a base filter of variants that can be visible with this data
   const filteredVariants = useMemo(
     () => variants.filter((v) => v.bp >= posRange[0] && v.bp <= posRange[1]),
     [variants, posRange],
   );
 
+  // get the visible genes (depends on protein coding only option)
   const visibleGenes = useMemo(() => {
     if (proteinGenesOnly) {
       return genes.filter((g) => g.biotype === "protein_coding");
@@ -830,6 +863,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     }
   }, [genes, proteinGenesOnly]);
 
+  // get the visible variants (depends on variants visible option)
   const visibleVariants: ChartVariants = useMemo(() => {
     if (variantsVisible) {
       return { regionVariants: filteredVariants, plinkVariants: plinkVariants };
@@ -838,6 +872,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     }
   }, [plinkVariants, filteredVariants, variantsVisible]);
 
+  // get thresholds from context
   const {
     thresholds: {
       regionRegion: pvalThresholdRegion,
@@ -845,6 +880,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     },
   } = useContext(VisualizationDataContext);
 
+  // fetch all recomb rates that might be displayed with this data
   useEffect(() => {
     if (chr) {
       fetch(`${process.env.NEXT_PUBLIC_APP_URL}/recomb/chr${chr}`).then((d) =>
@@ -853,11 +889,13 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     }
   }, [chr]);
 
+  // filter the recomb data by range
   const filteredRecombData = useMemo(
     () => recombData.filter((d) => d.pos > posRange[0] && d.pos < posRange[1]),
     [recombData, posRange],
   );
 
+  // toggle recomb data for chart depending on choice
   const visibleRecomb = useMemo(() => {
     if (recombVisible) {
       return filteredRecombData;
@@ -866,6 +904,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     }
   }, [filteredRecombData, recombVisible]);
 
+  // callback for when a user clicks on a region
   const setCenterRegion = useCallback(
     (newCenterRegion: number) => {
       const [selectedRegionStart, selectedRegionEnd] =
@@ -891,6 +930,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     [data],
   );
 
+  //zoom callback
   const updateRange = useCallback(
     (delta: number, pos: number) => {
       const [visibleStart, visibleEnd] = getRegionResultRange(visibleData);
@@ -961,6 +1001,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     [data, visibleData],
   );
 
+  // List of visible p-values for the checkboxes and legend
   useEffect(() => {
     setVisiblePvars((pvars) => [
       ...new Set(pvars.concat(regionVars).filter(Boolean)),
@@ -984,12 +1025,12 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     if (chart) {
       setGenes([]);
       setVariantsVisible(true);
-      setVisibleData(selectedRegionDetailData.data);
+      setInitialDataRange(selectedRegionDetailData);
     }
     /* only clear out if the chart exists */
   }, [selectedRegionDetailData, assemblyInfo]);
 
-  //update
+  //update chart with new data
   useEffect(() => {
     if (!!chart && !!visibleData.length) {
       chart.resetHiddenGeneLabels();

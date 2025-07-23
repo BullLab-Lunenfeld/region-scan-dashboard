@@ -90,9 +90,15 @@ export const linspace = (
   return Array.from({ length: num }, (_, i) => start + step * i);
 };
 
+/**
+ * Fill the range with consecutive numbers, up to but not including `max`
+ * @param min the start position
+ * @param max the end position
+ * @returns
+ */
 export const fillRange = (min: number, max: number) => {
   const res = [];
-  for (let i = min; i <= max; i++) {
+  for (let i = min; i < max; i++) {
     res.push(i);
   }
   return res;
