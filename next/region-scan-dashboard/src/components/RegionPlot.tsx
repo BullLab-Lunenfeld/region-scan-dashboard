@@ -187,6 +187,7 @@ class RegionChart {
   pvalThresholdRegion: number;
   pvalThresholdVariant: number;
   selector: string;
+  selectedGeneRange: [[number, number]] | null;
   svg: Selection<SVGElement, number, BaseType, unknown>;
   width: number;
   xScale: ScaleLinear<number, number, never> | null = null;
@@ -206,6 +207,7 @@ class RegionChart {
     this.mainWidth = mainWidth;
     this.width = this.mainWidth + 240;
     this.height = 0.4 * this.width;
+    this.selectedGeneRange = null;
 
     this.svg = select(`.${this.selector}`)
       .selectAll<SVGElement, number>("svg")
@@ -519,23 +521,31 @@ class RegionChart {
           `End pos: ${formatComma(d.end)}`,
         ]),
       )
-      .on("mouseout", () =>
-        selectAll(".tooltip").style("visibility", "hidden"),
-      );
-    // .on("click", (e, d) => {
-    //   this.render(
-    //     data,
-    //     { plinkVariants, regionVariants },
-    //     genes,
-    //     wheelCb,
-    //     setCenterRegion,
-    //     recombData,
-    //     geneLabelsVisible,
-    //     visiblePvars,
-    //     unconveredRegions,
-    //     regionPeaks,
-    //   );
-    // });
+      .on("mouseout", () => selectAll(".tooltip").style("visibility", "hidden"))
+      .on("click", (e, d) => {
+        if (
+          !!this.selectedGeneRange &&
+          d.start === this.selectedGeneRange[0][0] &&
+          d.end === this.selectedGeneRange[0][1]
+        ) {
+          this.selectedGeneRange = null;
+        } else {
+          this.selectedGeneRange = [[d.start, d.end]];
+        }
+
+        this.render(
+          data,
+          { plinkVariants, regionVariants },
+          genes,
+          wheelCb,
+          setCenterRegion,
+          recombData,
+          geneLabelsVisible,
+          visiblePvars,
+          unconveredRegions,
+          regionPeaks,
+        );
+      });
 
     // add gene labels
     this.container
@@ -646,6 +656,7 @@ class RegionChart {
       .x((d) => xScale(d.pos))
       .y((d) => yScaleRecomb(d.recomb_rate));
 
+    //draw recomb line
     this.container
       .selectAll("path.recomb")
       .data([recombData], () => recombData.length)
@@ -654,6 +665,18 @@ class RegionChart {
       .style("fill", "none")
       .style("stroke", "lightsteelblue")
       .attr("d", (d) => recombLine(d));
+
+    this.container
+      .selectAll("rect.selected-gene")
+      .data(this.selectedGeneRange || [])
+      .join("rect")
+      .attr("width", (d) => xScale(d[1]) - xScale(d[0]))
+      .attr("height", yScalePval.range()[1] - yScalePval.range()[0])
+      .attr("x", (d) => xScale(d[0]))
+      .attr("y", yScalePval.range()[0])
+      .attr("class", "selected-gene")
+      .style("fill", "gold")
+      .style("opacity", 0.4);
 
     const legendContainer = this.container
       .selectAll("g.legend")
