@@ -195,7 +195,7 @@ class RegionChart {
     this.pvalThresholdVariant = pvalThresholdVariant;
     this.selector = selector;
     this.mainWidth = mainWidth;
-    this.width = this.mainWidth + 140;
+    this.width = this.mainWidth + 240;
     this.height = 0.4 * this.width;
     this.hiddenGeneLabels = [];
 
