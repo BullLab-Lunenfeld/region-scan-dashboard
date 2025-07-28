@@ -51,14 +51,19 @@ import {
   drawDottedLine,
   fillRange,
   formatComma,
+  getEntries,
   parseTsv,
   showToolTip,
 } from "@/lib/ts/util";
 import { fetchGenes } from "@/util/fetchGenes";
 import useDownloadPlot from "@/lib/hooks/useDownloadPlot";
 
-//so these need to return pixel values, like a char is 6px, so how many bp is that?
-//we habe to take the wider width
+interface RegionPeak {
+  region: number;
+  start_bp: number;
+  end_bp: number;
+  min_p: number;
+}
 
 const getEndPos = (
   gene: EnsemblGeneResult,
@@ -177,7 +182,6 @@ const isWithinRegions = (
 class RegionChart {
   container: Selection<SVGGElement, number, SVGElement, unknown>;
   height: number;
-  hiddenGeneLabels: string[];
   mainWidth: number;
   pvalScale: ScaleOrdinal<string, string, never>;
   pvalThresholdRegion: number;
@@ -202,7 +206,6 @@ class RegionChart {
     this.mainWidth = mainWidth;
     this.width = this.mainWidth + 240;
     this.height = 0.4 * this.width;
-    this.hiddenGeneLabels = [];
 
     this.svg = select(`.${this.selector}`)
       .selectAll<SVGElement, number>("svg")
@@ -225,8 +228,6 @@ class RegionChart {
       .attr("class", "container");
   }
 
-  resetHiddenGeneLabels = () => (this.hiddenGeneLabels = []);
-
   render = (
     data: RegionResult[],
     { plinkVariants, regionVariants }: ChartVariants,
@@ -237,6 +238,7 @@ class RegionChart {
     geneLabelsVisible: boolean,
     visiblePvars: (keyof RegionResult)[],
     unconveredRegions: number[],
+    regionPeaks: RegionPeak[],
   ) => {
     const regionData = groups(data, (d) => d.region).flatMap(
       ([region, members]) => {
@@ -344,6 +346,10 @@ class RegionChart {
       (v) => v.start_bp >= xScale.domain()[0] && v.end_bp <= xScale.domain()[1],
     );
 
+    const filteredRegionLabels = regionPeaks.filter(
+      (v) => v.start_bp >= xScale.domain()[0] && v.end_bp <= xScale.domain()[1],
+    );
+
     const filteredPlinkVariants = plinkVariants.filter(
       (v) =>
         !!v.pos &&
@@ -354,7 +360,7 @@ class RegionChart {
 
     const yScalePval = scaleLinear()
       .range([
-        marginTop,
+        marginTop + (regionPeaks.length ? 10 : 0), //10 is for topmost region label
         this.height - marginBottom - geneSpace - 0.5 * regionRectHeight,
       ])
       .domain([
@@ -452,6 +458,20 @@ class RegionChart {
       .on("mouseout", () => selectAll(".tooltip").style("visibility", "hidden"))
       .on("click", (e, d) => setCenterRegion(d.region));
 
+    //draw region labels
+    this.container
+      .selectAll<SVGRectElement, number[]>("text.region-label")
+      .data(filteredRegionLabels)
+      .join("text")
+      .attr("font-size", "8px")
+      .attr("text-anchor", "middle")
+      .attr("class", "region-label")
+      .attr("x", (d) => xScale((d.end_bp + d.start_bp) / 2))
+      .transition()
+      .attr("y", (d) => yScalePval(-Math.log10(d.min_p)) - 8)
+      .duration(200)
+      .text((d) => d.region);
+
     // add region variants
     this.container
       .selectAll<SVGCircleElement, VariantResult>("circle.region-variant")
@@ -499,39 +519,28 @@ class RegionChart {
           `End pos: ${formatComma(d.end)}`,
         ]),
       )
-      .on("mouseout", () => selectAll(".tooltip").style("visibility", "hidden"))
-      .on("click", (e, d) => {
-        if (this.hiddenGeneLabels.includes(d.external_name)) {
-          this.hiddenGeneLabels = this.hiddenGeneLabels.filter(
-            (g) => g !== d.external_name,
-          );
-        } else {
-          this.hiddenGeneLabels.push(d.external_name);
-        }
-
-        this.render(
-          data,
-          { plinkVariants, regionVariants },
-          genes,
-          wheelCb,
-          setCenterRegion,
-          recombData,
-          geneLabelsVisible,
-          visiblePvars,
-          unconveredRegions,
-        );
-      });
+      .on("mouseout", () =>
+        selectAll(".tooltip").style("visibility", "hidden"),
+      );
+    // .on("click", (e, d) => {
+    //   this.render(
+    //     data,
+    //     { plinkVariants, regionVariants },
+    //     genes,
+    //     wheelCb,
+    //     setCenterRegion,
+    //     recombData,
+    //     geneLabelsVisible,
+    //     visiblePvars,
+    //     unconveredRegions,
+    //     regionPeaks,
+    //   );
+    // });
 
     // add gene labels
     this.container
       .selectAll<SVGRectElement, EnsemblGeneResult>("text.gene-label")
-      .data(
-        geneLabelsVisible
-          ? visibleGenes.filter(
-              (g) => !this.hiddenGeneLabels.includes(g.external_name),
-            )
-          : [],
-      )
+      .data(geneLabelsVisible ? visibleGenes : [])
       .join("text")
       .attr("class", "gene-label")
       .attr("x", (d) => getGeneLabelXCoord(d, xScale))
@@ -775,6 +784,8 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   const [recombVisible, setRecombVisible] = useState(false);
 
+  const [regionLabelsVisible, setRegionLabelsVisible] = useState(false);
+
   const [uploadKey, setUploadKey] = useState<string>(
     Math.random().toString(36).slice(2),
   );
@@ -844,6 +855,19 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
     return missing;
   }, [data, plinkVariants]);
+
+  const regionPeaks: RegionPeak[] = useMemo(() => {
+    return data.map((d) => ({
+      region: d.region,
+      start_bp: d.start_bp,
+      end_bp: d.end_bp,
+      min_p: min(
+        getEntries(d)
+          .filter(([k, v]) => !!v && visiblePvars.includes(k))
+          .map(([, v]) => (v ? +v : 0)),
+      ) as number,
+    }));
+  }, [data, visiblePvars]);
 
   //grab chr for convenience, only 1 will be visible at a time, prevent fetching the same data if data changes
   //but chr stays the same
@@ -1040,8 +1064,6 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
   //update chart with new data
   useEffect(() => {
     if (!!chart && !!visibleData.length) {
-      chart.resetHiddenGeneLabels();
-
       chart.render(
         visibleData,
         visibleVariants,
@@ -1052,6 +1074,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
         geneLabelsVisible,
         visiblePvars,
         uncoveredRegions,
+        regionLabelsVisible ? regionPeaks : [],
       );
     }
     setUploadKey(Math.random().toString(36).slice(2));
@@ -1069,6 +1092,8 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     pvalThresholdRegion,
     pvalThresholdVariant,
     uncoveredRegions,
+    regionPeaks,
+    regionLabelsVisible,
   ]);
 
   const toggleAnnotationsButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -1121,6 +1146,11 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
               onChange={() => setRecombVisible(!recombVisible)}
               title="Recombination visible"
               value={recombVisible}
+            />
+            <AnnotationItem
+              onChange={() => setRegionLabelsVisible(!regionLabelsVisible)}
+              title="Region labels visible"
+              value={regionLabelsVisible}
             />
             {(!!filteredVariants.length || !!plinkVariants.length) && (
               <AnnotationItem
