@@ -6,6 +6,7 @@ import React, {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { extent, groups, max, min } from "d3-array";
@@ -19,11 +20,15 @@ import {
   Box,
   Button,
   Checkbox,
+  Divider,
   FormControl,
   FormControlLabel,
   Grid2 as Grid,
+  Menu,
+  MenuItem,
   Typography,
 } from "@mui/material";
+import { CompareArrows } from "@mui/icons-material";
 import { VisualizationDataContext } from "./AppContainer";
 import {
   AssembyInfo,
@@ -752,6 +757,8 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
   mainWidth,
   variants,
 }) => {
+  const [annotationMenuOpen, setAnnotationMenuOpen] = useState(false);
+
   const [chart, setChart] = useState<RegionChart>();
 
   const [genes, setGenes] = useState<EnsemblGeneResult[]>([]);
@@ -1064,12 +1071,88 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     uncoveredRegions,
   ]);
 
+  const toggleAnnotationsButtonRef = useRef<HTMLButtonElement | null>(null);
+
   return (
     <Grid container spacing={2} direction="row" size={{ xs: 12 }}>
       {/* Region controls */}
-      <Grid container size={{ xs: 2, xl: 1.5 }} spacing={1} direction="column">
+      <Grid
+        container
+        size={{ xs: 2, xl: 1.5 }}
+        spacing={1}
+        alignItems="flex-start"
+        direction="column"
+      >
         <Grid>
-          {/* plink variant upload */}
+          <Typography>
+            Total range: {getRegionResultRange(data).join("-")}
+          </Typography>
+        </Grid>
+        <Grid container flexWrap="wrap" direction="row">
+          <Grid>
+            <RegionRangeInputStart
+              allData={data}
+              setVisibleData={setVisibleData}
+              visibleData={visibleData}
+            />
+          </Grid>
+          <Grid>
+            <RegionRangeInputEnd
+              allData={data}
+              setVisibleData={setVisibleData}
+              visibleData={visibleData}
+            />
+          </Grid>
+        </Grid>
+        <Grid>
+          <Button
+            ref={toggleAnnotationsButtonRef}
+            onClick={() => setAnnotationMenuOpen(true)}
+            variant="contained"
+          >
+            Annotation Controls
+          </Button>
+          <Menu
+            anchorEl={toggleAnnotationsButtonRef.current}
+            open={annotationMenuOpen}
+            onClose={() => setAnnotationMenuOpen(false)}
+          >
+            <AnnotationItem
+              onChange={() => setRecombVisible(!recombVisible)}
+              title="Recombination visible"
+              value={recombVisible}
+            />
+            {(!!filteredVariants.length || !!plinkVariants.length) && (
+              <AnnotationItem
+                onChange={() => setVariantsVisible(!variantsVisible)}
+                title="Variants visible"
+                value={variantsVisible}
+              />
+            )}
+            {!!genes.length && (
+              <>
+                <AnnotationItem
+                  onChange={() => setGeneLabelsVisible(!geneLabelsVisible)}
+                  title="Gene names visible"
+                  value={geneLabelsVisible}
+                />
+                <AnnotationItem
+                  onChange={() => setProteinGenesOnly(!proteinGenesOnly)}
+                  title="Protein coding only"
+                  value={proteinGenesOnly}
+                />
+              </>
+            )}
+          </Menu>
+        </Grid>
+        <Grid width="100%" marginY={2}>
+          <Divider
+            orientation="horizontal"
+            sx={(theme) => ({ color: theme.palette.grey[400] })}
+          />
+        </Grid>
+        {/* plink variant upload */}
+        <Grid>
           <UploadButtonSingle
             key={uploadKey}
             fileType="plink variant"
@@ -1086,20 +1169,9 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
             variant="text"
           />
         </Grid>
-        {(!!filteredVariants.length || !!plinkVariants.length) && (
-          <Grid>
-            <Button onClick={() => setVariantsVisible(!variantsVisible)}>
-              {variantsVisible ? "Hide " : " Show"} Variants
-            </Button>
-          </Grid>
-        )}
-        <Grid>
-          <Button onClick={() => setRecombVisible(!recombVisible)}>
-            {recombVisible ? "Hide " : " Show"} Recombination
-          </Button>
-        </Grid>
         <Grid>
           <Button
+            startIcon={<CompareArrows />}
             onClick={async () => {
               if (chr) {
                 setLoading(true);
@@ -1126,49 +1198,6 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
           >
             Fetch genes
           </Button>
-        </Grid>
-        {!!genes.length && (
-          <Grid>
-            <FormControl>
-              <FormControlLabel
-                label="Protein Coding Only"
-                control={
-                  <Checkbox
-                    size="small"
-                    onChange={() => setProteinGenesOnly(!proteinGenesOnly)}
-                    checked={proteinGenesOnly}
-                    title="Protein Coding only"
-                  />
-                }
-              />
-            </FormControl>
-          </Grid>
-        )}
-        {!!genes.length && (
-          <Grid>
-            <Button onClick={() => setGeneLabelsVisible(!geneLabelsVisible)}>
-              {`${geneLabelsVisible ? "Hide " : "Show "}`}Gene Names
-            </Button>
-          </Grid>
-        )}
-        <Grid>
-          <RegionRangeInputStart
-            allData={data}
-            setVisibleData={setVisibleData}
-            visibleData={visibleData}
-          />
-        </Grid>
-        <Grid>
-          <RegionRangeInputEnd
-            allData={data}
-            setVisibleData={setVisibleData}
-            visibleData={visibleData}
-          />
-        </Grid>
-        <Grid>
-          <Typography>
-            Max range: {getRegionResultRange(data).join("-")}
-          </Typography>
         </Grid>
       </Grid>
       {/* Region plot */}
@@ -1250,7 +1279,7 @@ const RegionRangeInputStart: React.FC<RegionRangeInputProps> = ({
       error={error}
       value={getRegionResultRange(visibleData)[0] || 0}
       onChange={onChange}
-      width="100px"
+      width="90px"
     />
   );
 };
@@ -1285,7 +1314,35 @@ const RegionRangeInputEnd: React.FC<RegionRangeInputProps> = ({
       error={error}
       value={getRegionResultRange(visibleData)[1] || 0}
       onChange={onChange}
-      width="100px"
+      width="90px"
     />
   );
 };
+
+interface AnnotationItemProps {
+  onChange: () => void;
+  title: string;
+  value: boolean;
+}
+
+const AnnotationItem: React.FC<AnnotationItemProps> = ({
+  onChange,
+  title,
+  value,
+}) => (
+  <MenuItem>
+    <FormControl>
+      <FormControlLabel
+        label={title}
+        control={
+          <Checkbox
+            size="small"
+            onChange={onChange}
+            checked={value}
+            title={title}
+          />
+        }
+      />
+    </FormControl>
+  </MenuItem>
+);

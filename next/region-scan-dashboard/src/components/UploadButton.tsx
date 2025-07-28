@@ -19,14 +19,18 @@ const VisuallyHiddenInput = styled("input")({
   width: 1,
 });
 
-const UploadButton: React.FC<ButtonProps> = ({ children, variant }) => (
+const UploadButton: React.FC<ButtonProps & { hideAdornment?: boolean }> = ({
+  children,
+  hideAdornment,
+  variant,
+}) => (
   <Button
     component="label"
     role={undefined}
     variant={variant}
     tabIndex={-1}
     size="small"
-    startIcon={<CloudUploadIcon />}
+    startIcon={hideAdornment ? null : <CloudUploadIcon />}
   >
     {children}
   </Button>
