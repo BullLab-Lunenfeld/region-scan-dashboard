@@ -410,11 +410,16 @@ class RegionChart {
       .attr("class", "variant")
       .attr("cx", (d) => xScale(d.pos!))
       .attr("cy", (d) => yScalePval(-Math.log10(d.p!)))
-      .attr("fill", () => "black")
+      .attr("fill", (d) =>
+        unconveredRegions.includes(d.pos!) ? "none" : "black",
+      )
+      .attr("stroke", (d) =>
+        unconveredRegions.includes(d.pos!) ? "black" : "none",
+      )
       .transition()
       .duration(300)
       .selection()
-      .attr("opacity", (d) => (unconveredRegions.includes(d.pos!) ? 0.2 : 0.8))
+      //.attr("opacity", (d) => (unconveredRegions.includes(d.pos!) ? 0.2 : 0.8))
       .attr("r", circleWidthScale(xScale.domain()[1] - xScale.domain()[0]))
       .on("mouseover", (e: MouseEvent, d: PlinkVariant) =>
         showToolTip(e, [
@@ -1080,6 +1085,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
       setGenes([]);
       setVariantsVisible(true);
       setInitialDataRange(selectedRegionDetailData);
+      chart.selectedGeneRange = null;
     }
     /* only clear out if the chart exists */
   }, [selectedRegionDetailData, assemblyInfo]);
@@ -1132,7 +1138,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
         direction="column"
       >
         <Grid>
-          <Typography>
+          <Typography textAlign="center">
             Total range: {getRegionResultRange(data).join("-")}
           </Typography>
         </Grid>
@@ -1151,6 +1157,12 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
               visibleData={visibleData}
             />
           </Grid>
+        </Grid>
+        <Grid width="100%" marginY={2}>
+          <Divider
+            orientation="horizontal"
+            sx={(theme) => ({ color: theme.palette.grey[400] })}
+          />
         </Grid>
         <Grid>
           <Button
