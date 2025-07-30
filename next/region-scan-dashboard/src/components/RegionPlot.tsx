@@ -419,7 +419,6 @@ class RegionChart {
       .transition()
       .duration(300)
       .selection()
-      //.attr("opacity", (d) => (unconveredRegions.includes(d.pos!) ? 0.2 : 0.8))
       .attr("r", circleWidthScale(xScale.domain()[1] - xScale.domain()[0]))
       .on("mouseover", (e: MouseEvent, d: PlinkVariant) =>
         showToolTip(e, [
@@ -477,7 +476,18 @@ class RegionChart {
       .transition()
       .attr("y", (d) => yScalePval(-Math.log10(d.min_p)) - 8)
       .duration(200)
-      .text((d) => d.region);
+      .text((d) => d.region)
+      .selection()
+      .on("mouseover", (e: MouseEvent, d) =>
+        showToolTip(e, [
+          `Region: ${d.region}`,
+          `Start pos: ${formatComma(d.start_bp)}`,
+          `End pos: ${formatComma(d.end_bp)}`,
+        ]),
+      )
+      .on("mouseout", () =>
+        selectAll(".tooltip").style("visibility", "hidden"),
+      );
 
     // add region variants
     this.container
