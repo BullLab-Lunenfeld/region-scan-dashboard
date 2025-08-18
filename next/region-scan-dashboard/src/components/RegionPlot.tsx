@@ -362,22 +362,19 @@ class RegionChart {
         v.pos <= xScale.domain()[1],
     );
 
+    const pvalExtent = extent(
+      regionData
+        .map((d) => d.pvalue)
+        .concat(filteredRegionVariants.map((v) => transformPval(v.sglm_pvalue)))
+        .concat(filteredPlinkVariants.map((v) => transformPval(v.p!))),
+    ).reverse() as [number, number];
+
     const yScalePval = scaleLinear()
       .range([
         marginTop + (regionPeaks.length ? 10 : 0), //10 is for topmost region label
         this.height - marginBottom - geneSpace - 0.5 * regionRectHeight,
       ])
-      .domain([
-        max(
-          regionData
-            .map((d) => d.pvalue)
-            .concat(
-              filteredRegionVariants.map((v) => transformPval(v.sglm_pvalue)),
-            )
-            .concat(filteredPlinkVariants.map((v) => transformPval(v.p!))),
-        ) as number,
-        -0.05,
-      ]);
+      .domain(pvalExtent);
 
     const yScaleGene = scaleLinear()
       .range([
@@ -1211,18 +1208,18 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
               />
             )}
             {!!genes.length && (
-              <>
-                <AnnotationItem
-                  onChange={() => setGeneLabelsVisible(!geneLabelsVisible)}
-                  title="Gene names visible"
-                  value={geneLabelsVisible}
-                />
-                <AnnotationItem
-                  onChange={() => setProteinGenesOnly(!proteinGenesOnly)}
-                  title="Protein coding only"
-                  value={proteinGenesOnly}
-                />
-              </>
+              <AnnotationItem
+                onChange={() => setGeneLabelsVisible(!geneLabelsVisible)}
+                title="Gene names visible"
+                value={geneLabelsVisible}
+              />
+            )}
+            {!!genes.length && (
+              <AnnotationItem
+                onChange={() => setProteinGenesOnly(!proteinGenesOnly)}
+                title="Protein coding only"
+                value={proteinGenesOnly}
+              />
             )}
           </Menu>
         </Grid>
