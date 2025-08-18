@@ -7,6 +7,10 @@ import {
   VariantResultRawNew,
   VariantResultRawOld,
 } from "./types";
+import {
+  transformPLog10,
+  transformPLog10Log10,
+} from "@/components/AppContainer";
 
 export const parseTsv = <T extends Record<string, any>>(
   tsv: File,
@@ -238,3 +242,7 @@ const downloadFile = (file: string, filename: string) => {
   a.click();
   a.remove();
 };
+
+export const makePvalAxisLabel = (
+  pvalTransformer: typeof transformPLog10 | typeof transformPLog10Log10,
+) => (pvalTransformer === transformPLog10 ? "-log10(p)" : "log10(-log10(p))");

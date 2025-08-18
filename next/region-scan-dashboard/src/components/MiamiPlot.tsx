@@ -28,6 +28,7 @@ import {
   drawDottedLine,
   formatComma,
   getEntries,
+  makePvalAxisLabel,
   showToolTip,
 } from "@/lib/ts/util";
 import useDownloadPlot from "@/lib/hooks/useDownloadPlot";
@@ -342,7 +343,7 @@ const buildChart = (
     .selectAll("text")
     .data([1])
     .join("text")
-    .text("p-value (-log 10)")
+    .text(makePvalAxisLabel(transformPval))
     .attr("transform", "rotate(-90)")
     .attr("font-size", "12px")
     .attr("text-anchor", "middle");
@@ -359,7 +360,7 @@ const buildChart = (
     .selectAll("text")
     .data([1])
     .join("text")
-    .text("p-value (-log 10)")
+    .text(makePvalAxisLabel(transformPval))
     .attr("transform", "rotate(-90)")
     .attr("font-size", "12px")
     .attr("text-anchor", "middle");

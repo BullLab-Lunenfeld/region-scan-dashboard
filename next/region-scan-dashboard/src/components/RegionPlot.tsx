@@ -52,6 +52,7 @@ import {
   fillRange,
   formatComma,
   getEntries,
+  makePvalAxisLabel,
   parseTsv,
   showToolTip,
 } from "@/lib/ts/util";
@@ -633,7 +634,7 @@ class RegionChart {
       .selectAll("text")
       .data([1])
       .join("text")
-      .text("p-value (-log 10)")
+      .text(makePvalAxisLabel(transformPval))
       .attr("font-size", "12px")
       .attr("transform", "rotate(-90)")
       .attr("text-anchor", "middle");

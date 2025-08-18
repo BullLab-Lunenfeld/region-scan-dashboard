@@ -11,7 +11,7 @@ import { axisBottom, axisLeft } from "d3-axis";
 import LoadingOverlay from "./LoadingOverlay";
 import { VisualizationDataContext } from "./AppContainer";
 import { RegionResult, VariantResult } from "@/lib/ts/types";
-import { drawDottedLine, getEntries } from "@/lib/ts/util";
+import { drawDottedLine, getEntries, makePvalAxisLabel } from "@/lib/ts/util";
 import useDownloadPlot from "@/lib/hooks/useDownloadPlot";
 import { PlotDownloadButton } from "@/components";
 
@@ -130,7 +130,7 @@ const buildChart = (
     .selectAll<SVGGElement, string>("text")
     .data([1])
     .join("text")
-    .text("Uniform dist (-log10)")
+    .text(`Uniform dist (${makePvalAxisLabel(transformPValue)})`)
     .attr("font-size", "12px")
     .attr("text-anchor", "middle");
 
@@ -145,9 +145,9 @@ const buildChart = (
     .selection()
     .selectAll("text")
     .data(["pValue"])
-    .text("p-value (-log 10)")
+    .join("text")
+    .text(makePvalAxisLabel(transformPValue))
     .attr("transform", "rotate(-90)")
-    .text("pValue (-log10)")
     .attr("font-size", "12px")
     .attr("text-anchor", "middle");
 
