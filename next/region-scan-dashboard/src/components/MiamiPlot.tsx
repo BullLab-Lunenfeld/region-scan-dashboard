@@ -297,11 +297,11 @@ const buildChart = (
     .text((d) => (chrs.length > 1 ? `Chr ${d.chr}` : ""));
 
   const yAxisUpper = axisLeft(yScaleUpper)
-    .tickFormat((t) => Math.abs(+t).toString())
+    .tickFormat((t) => (+t).toString())
     .ticks(7);
 
   const yAxisLower = axisLeft(yScaleLower)
-    .tickFormat((t) => Math.abs(+t).toString())
+    .tickFormat((t) => (+t).toString())
     .ticks(7);
 
   container
