@@ -328,8 +328,8 @@ const buildChart = (
 
   // Add y axis labels
 
-  const upperMidPoint = (yScaleUpper.range()[0] + yScaleUpper(0)) / 2;
-  const lowerMidPoint = (yScaleLower.range()[1] + yScaleLower(0)) / 2;
+  const upperMidPoint = (yScaleUpper.range()[0] + yScaleUpper.range()[1]) / 2;
+  const lowerMidPoint = (yScaleLower.range()[0] + yScaleLower.range()[1]) / 2;
 
   container
     .selectAll("g.y-upper-label")
