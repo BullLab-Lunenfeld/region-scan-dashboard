@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import { Box } from "@mui/material";
 import { select, Selection, BaseType } from "d3-selection";
 import { groups, quantile, range, extent, min, max } from "d3-array";
@@ -9,6 +9,7 @@ import { randomUniform } from "d3-random";
 import { scaleLinear, ScaleOrdinal } from "d3-scale";
 import { axisBottom, axisLeft } from "d3-axis";
 import LoadingOverlay from "./LoadingOverlay";
+import { VisualizationDataContext } from "./AppContainer";
 import { RegionResult, VariantResult } from "@/lib/ts/types";
 import { drawDottedLine, getEntries } from "@/lib/ts/util";
 import useDownloadPlot from "@/lib/hooks/useDownloadPlot";
@@ -44,6 +45,7 @@ const buildChart = (
   selector: string,
   variables: (keyof RegionResult)[],
   width: number,
+  transformPValue: (pval: number) => number,
 ) => {
   const mainWidth = width * 0.7;
 
@@ -56,8 +58,8 @@ const buildChart = (
       chartData.push(
         v.ref.map((r, i) => ({
           test: k,
-          x: -Math.log10(r),
-          y: -Math.log10(v.quan[i]),
+          x: transformPValue(r),
+          y: transformPValue(v.quan[i]),
         })),
       );
     }
@@ -237,6 +239,8 @@ const QQPlot: React.FC<QQPlotProps> = ({
 
   const { anchorEl, handlePopoverOpen } = useDownloadPlot();
 
+  const { transformPValue } = useContext(VisualizationDataContext);
+
   const pvals = useMemo(
     () =>
       data.flatMap((d) =>
@@ -295,6 +299,7 @@ const QQPlot: React.FC<QQPlotProps> = ({
         selector,
         visibleVariables.filter(Boolean) as (keyof RegionResult)[],
         width,
+        transformPValue,
       );
     }
   }, [
@@ -305,6 +310,7 @@ const QQPlot: React.FC<QQPlotProps> = ({
     visibleVariables,
     width,
     renderFlag,
+    transformPValue,
   ]);
 
   return (

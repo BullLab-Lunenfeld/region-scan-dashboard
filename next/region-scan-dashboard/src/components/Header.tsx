@@ -5,16 +5,22 @@ import {
   AppBar,
   Button,
   Grid2 as Grid,
+  IconButton,
+  ListSubheader,
   Menu,
   MenuItem,
   Toolbar,
   Typography,
 } from "@mui/material";
 import { extent } from "d3-array";
-import { Upload } from "@mui/icons-material";
+import { Check, Settings, Upload } from "@mui/icons-material";
 import { usePathname } from "next/navigation";
 import NavLink from "./NavLink";
-import { VisualizationDataContext } from "./AppContainer";
+import {
+  transformPLog10,
+  transformPLog10Log10,
+  VisualizationDataContext,
+} from "./AppContainer";
 import LoadingOverlay from "./LoadingOverlay";
 import ValidationModal from "./ValidationModal";
 import { UploadButtonMulti } from "./UploadButton";
@@ -143,7 +149,6 @@ const validateRegionVariantUpload = (uploadedData: any[]) => {
 };
 
 const Header: React.FC = () => {
-  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const [loading, setLoading] = useState(false);
   const [uploadErrors, setUploadErrors] = useState("");
 
@@ -156,7 +161,6 @@ const Header: React.FC = () => {
   const handleRegionUpload = useCallback(
     async (files: File[]) => {
       setLoading(true);
-      setAnchorEl(null);
       const results = await _handleRegionUpload(files);
       const errors = validateRegionResultUpload(results);
       setLoading(false);
@@ -173,7 +177,6 @@ const Header: React.FC = () => {
   const handleRegionVariantUpload = useCallback(
     async (files: File[]) => {
       setLoading(true);
-      setAnchorEl(null);
       const results = await _handleRegionVariantUpload(files, regionData);
       const errors = validateRegionVariantUpload(results);
       setLoading(false);
@@ -190,52 +193,28 @@ const Header: React.FC = () => {
   return (
     <AppBar position="static" color="primary" sx={{ marginBottom: 3 }}>
       <Toolbar component={Grid} container justifyContent="center">
-        <Grid flexGrow={1} size={{ xs: 4 }}>
+        <Grid
+          alignItems="center"
+          spacing={2}
+          container
+          flexGrow={1}
+          size={{ xs: 4 }}
+        >
           {pathname === "/visualization" && (
             <>
-              <Button
-                onClick={(e) => setAnchorEl(e.currentTarget)}
-                sx={{ color: "white" }}
-                startIcon={<Upload />}
-              >
-                Upload Data
-              </Button>
-              <Menu
-                id="upload-menu"
-                aria-labelledby="upload-menu"
-                anchorEl={anchorEl}
-                open={!!anchorEl}
-                onClose={() => setAnchorEl(null)}
-                anchorOrigin={{
-                  vertical: "top",
-                  horizontal: "left",
-                }}
-                transformOrigin={{
-                  vertical: "top",
-                  horizontal: "left",
-                }}
-              >
-                <MenuItem>
-                  {" "}
-                  <UploadButtonMulti
-                    fileType="region"
-                    onUpload={handleRegionUpload}
-                  />
-                </MenuItem>
-                {!!regionData.length && (
-                  <MenuItem>
-                    {" "}
-                    <UploadButtonMulti
-                      fileType="variant"
-                      onUpload={handleRegionVariantUpload}
-                    />
-                  </MenuItem>
-                )}
-              </Menu>
+              <Grid>
+                <UploadDataDropdown
+                  handleRegionUpload={handleRegionUpload}
+                  handleVariantUpload={handleRegionVariantUpload}
+                  showVariantUpload={!!regionData.length}
+                />
+              </Grid>
+              <Grid>
+                <SettingsDropdown />
+              </Grid>
             </>
           )}
         </Grid>
-
         <Grid flexGrow={1} size={{ xs: 4 }}>
           <NavLink noDecoration href="/">
             <Typography textAlign="center" variant="h4">
@@ -267,5 +246,139 @@ const Header: React.FC = () => {
     </AppBar>
   );
 };
+
+interface UploadDataDropdownProps {
+  handleRegionUpload: (files: File[]) => void;
+  handleVariantUpload: (files: File[]) => void;
+  showVariantUpload: boolean;
+}
+
+const UploadDataDropdown: React.FC<UploadDataDropdownProps> = ({
+  handleRegionUpload,
+  handleVariantUpload,
+  showVariantUpload,
+}) => {
+  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+  return (
+    <>
+      <Button
+        onClick={(e) => setAnchorEl(e.currentTarget)}
+        sx={{ color: "white" }}
+        startIcon={<Upload />}
+      >
+        Upload Data
+      </Button>
+      <Menu
+        id="upload-menu"
+        aria-labelledby="upload-menu"
+        anchorEl={anchorEl}
+        open={!!anchorEl}
+        onClose={() => setAnchorEl(null)}
+        anchorOrigin={{
+          vertical: "top",
+          horizontal: "left",
+        }}
+        transformOrigin={{
+          vertical: "top",
+          horizontal: "left",
+        }}
+      >
+        <MenuItem>
+          <UploadButtonMulti
+            fileType="region"
+            onUpload={(files) => {
+              handleRegionUpload(files);
+              setAnchorEl(null);
+            }}
+          />
+        </MenuItem>
+        {showVariantUpload && (
+          <MenuItem>
+            <UploadButtonMulti
+              fileType="variant"
+              onUpload={(files) => {
+                handleVariantUpload(files);
+                setAnchorEl(null);
+              }}
+            />
+          </MenuItem>
+        )}
+      </Menu>
+    </>
+  );
+};
+
+const SettingsDropdown: React.FC = () => {
+  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+
+  const { transformPValue, setTransformPValue } = useContext(
+    VisualizationDataContext,
+  );
+
+  return (
+    <>
+      <IconButton
+        onClick={(e) => setAnchorEl(e.currentTarget)}
+        sx={(theme) => ({
+          color: theme.palette.getContrastText(theme.palette.primary.dark),
+        })}
+      >
+        <Settings />
+      </IconButton>
+
+      <Menu
+        id="settings-menu"
+        aria-labelledby="settings-menu"
+        anchorEl={anchorEl}
+        open={!!anchorEl}
+        onClose={() => setAnchorEl(null)}
+        anchorOrigin={{
+          vertical: "top",
+          horizontal: "left",
+        }}
+        transformOrigin={{
+          vertical: "top",
+          horizontal: "left",
+        }}
+      >
+        <ListSubheader>P VALUE FORMAT</ListSubheader>
+        <Log10MenuItem
+          val="-log10"
+          selected={transformPValue == transformPLog10}
+          onClick={() => setTransformPValue(() => transformPLog10)}
+        />
+        <Log10MenuItem
+          val="log10(-log10)"
+          selected={transformPValue == transformPLog10Log10}
+          onClick={() => setTransformPValue(() => transformPLog10Log10)}
+        />
+      </Menu>
+    </>
+  );
+};
+
+interface Log10MenuItemProps {
+  onClick: () => void;
+  selected?: boolean;
+  val: string;
+}
+
+const Log10MenuItem: React.FC<Log10MenuItemProps> = ({
+  onClick,
+  selected,
+  val,
+}) => (
+  <MenuItem onClick={onClick}>
+    <Grid
+      container
+      flexGrow={1}
+      justifyContent="space-between"
+      alignItems="center"
+    >
+      <Grid>{val}</Grid>
+      <Grid>{selected ? <Check fontSize="small" /> : ""}</Grid>
+    </Grid>
+  </MenuItem>
+);
 
 export default Header;

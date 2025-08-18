@@ -241,6 +241,7 @@ class RegionChart {
     visiblePvars: (keyof RegionResult)[],
     unconveredRegions: number[],
     regionPeaks: RegionPeak[],
+    transformPval: (pval: number) => number,
   ) => {
     const regionData = groups(data, (d) => d.region).flatMap(
       ([region, members]) => {
@@ -252,14 +253,14 @@ class RegionChart {
           .filter(
             ([k, v]) =>
               k.toLowerCase().endsWith("_p") &&
-              -Math.log10(v) < Number.MAX_VALUE, //some are smaller than the max and get converted to infinity...
+              transformPval(v) < Number.MAX_VALUE, //some are smaller than the js max and get converted to infinity...
           )
           .map(([variable, pvalue]) => ({
             region,
             start,
             end,
             variable,
-            pvalue: -Math.log10(pvalue),
+            pvalue: transformPval(pvalue),
           })) as RegionData[];
       },
     );
@@ -370,9 +371,9 @@ class RegionChart {
           regionData
             .map((d) => d.pvalue)
             .concat(
-              filteredRegionVariants.map((v) => -Math.log10(v.sglm_pvalue)),
+              filteredRegionVariants.map((v) => transformPval(v.sglm_pvalue)),
             )
-            .concat(filteredPlinkVariants.map((v) => -Math.log10(v.p!))),
+            .concat(filteredPlinkVariants.map((v) => transformPval(v.p!))),
         ) as number,
         -0.05,
       ]);
@@ -409,7 +410,7 @@ class RegionChart {
       .join("circle")
       .attr("class", "variant")
       .attr("cx", (d) => xScale(d.pos!))
-      .attr("cy", (d) => yScalePval(-Math.log10(d.p!)))
+      .attr("cy", (d) => yScalePval(transformPval(d.p!)))
       .attr("fill", (d) =>
         unconveredRegions.includes(d.pos!) ? "none" : "black",
       )
@@ -474,7 +475,7 @@ class RegionChart {
       .attr("class", "region-label")
       .attr("x", (d) => xScale((d.end_bp + d.start_bp) / 2))
       .transition()
-      .attr("y", (d) => yScalePval(-Math.log10(d.min_p)) - 8)
+      .attr("y", (d) => yScalePval(transformPval(d.min_p)) - 8)
       .duration(200)
       .text((d) => d.region)
       .selection()
@@ -496,7 +497,7 @@ class RegionChart {
       .join("circle")
       .attr("class", "region-variant")
       .attr("cx", (d) => xScale(d.bp))
-      .attr("cy", (d) => yScalePval(-Math.log10(d.sglm_pvalue)))
+      .attr("cy", (d) => yScalePval(transformPval(d.sglm_pvalue)))
       .attr("fill", this.pvalScale("sglm_pvalue"))
       .transition()
       .duration(300)
@@ -559,6 +560,7 @@ class RegionChart {
           visiblePvars,
           unconveredRegions,
           regionPeaks,
+          transformPval,
         );
       });
 
@@ -762,8 +764,8 @@ class RegionChart {
     drawDottedLine(
       this.container,
       "region-p-line",
-      yScalePval(-Math.log10(this.pvalThresholdRegion)),
-      yScalePval(-Math.log10(this.pvalThresholdRegion)),
+      yScalePval(transformPval(this.pvalThresholdRegion)),
+      yScalePval(transformPval(this.pvalThresholdRegion)),
       xScale.range()[0],
       xScale.range()[1],
     );
@@ -772,8 +774,8 @@ class RegionChart {
       drawDottedLine(
         this.container,
         "variant-p-line",
-        yScalePval(-Math.log10(this.pvalThresholdVariant)),
-        yScalePval(-Math.log10(this.pvalThresholdVariant)),
+        yScalePval(transformPval(this.pvalThresholdVariant)),
+        yScalePval(transformPval(this.pvalThresholdVariant)),
         xScale.range()[0],
         xScale.range()[1],
       );
@@ -947,6 +949,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
       regionRegion: pvalThresholdRegion,
       regionVariant: pvalThresholdVariant,
     },
+    transformPValue,
   } = useContext(VisualizationDataContext);
 
   // fetch all recomb rates that might be displayed with this data
@@ -1114,6 +1117,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
         visiblePvars,
         uncoveredRegions,
         regionLabelsVisible ? regionPeaks : [],
+        transformPValue,
       );
     }
     setUploadKey(Math.random().toString(36).slice(2));
@@ -1133,6 +1137,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     uncoveredRegions,
     regionPeaks,
     regionLabelsVisible,
+    transformPValue,
   ]);
 
   const toggleAnnotationsButtonRef = useRef<HTMLButtonElement | null>(null);

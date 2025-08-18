@@ -1,6 +1,11 @@
 "use client";
 
-import React, { createContext, useState } from "react";
+import React, {
+  createContext,
+  Dispatch,
+  SetStateAction,
+  useState,
+} from "react";
 import { Box, Container } from "@mui/material";
 import Header from "./Header";
 import { RegionResult, VariantResult } from "@/lib/ts/types";
@@ -12,9 +17,15 @@ export interface PlotThresholds {
   regionVariant: number;
 }
 
+export const transformPLog10 = (pval: number) => -Math.log10(pval);
+export const transformPLog10Log10 = (pval: number) =>
+  Math.log10(-Math.log10(pval));
+
 interface VisualizationDataContext {
+  transformPValue: (pval: number) => number;
   regionData: RegionResult[];
   regionVariantData: VariantResult[];
+  setTransformPValue: Dispatch<SetStateAction<(pval: number) => number>>;
   setRegionData: (data: RegionResult[]) => void;
   setRegionVariantData: (data: VariantResult[]) => void;
   setThreshold: (name: keyof PlotThresholds, val: number) => void;
@@ -27,8 +38,10 @@ interface AppContainerProps {
 
 export const VisualizationDataContext = createContext<VisualizationDataContext>(
   {
+    transformPValue: () => 0,
     regionData: [],
     regionVariantData: [],
+    setTransformPValue: () => null,
     setThreshold: () => null,
     setRegionData: () => null,
     setRegionVariantData: () => null,
@@ -42,6 +55,9 @@ export const VisualizationDataContext = createContext<VisualizationDataContext>(
 );
 
 const AppContainer: React.FC<AppContainerProps> = ({ children }) => {
+  const [transformPValue, setTransformPValue] = useState<
+    (pval: number) => number
+  >(() => transformPLog10);
   const [regionData, setRegionData] = useState<RegionResult[]>([]);
   const [regionVariantData, setRegionVariantData] = useState<VariantResult[]>(
     [],
@@ -59,8 +75,10 @@ const AppContainer: React.FC<AppContainerProps> = ({ children }) => {
   return (
     <VisualizationDataContext.Provider
       value={{
+        transformPValue,
         regionData,
         regionVariantData,
+        setTransformPValue,
         setRegionData,
         setRegionVariantData,
         setThreshold,

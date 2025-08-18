@@ -108,10 +108,11 @@ const buildChart = (
   topCol: keyof RegionResult | keyof VariantResult,
   _topThresh: number,
   width: number,
+  transformPval: (pval: number) => number,
   selectedRegionDetailData?: SelectedRegionDetailData,
 ) => {
-  const topThresh = -Math.log10(_topThresh);
-  const bottomThresh = -Math.log10(_bottomThresh);
+  const topThresh = transformPval(_topThresh);
+  const bottomThresh = transformPval(_bottomThresh);
 
   // get unique chromosomes, convert to string, sort asc
   const chrs = data
@@ -169,7 +170,7 @@ const buildChart = (
           .filter(([, v]) => !!v)
           .map(([k, v]) => {
             if ([topCol, bottomCol].includes(k)) {
-              return [k, -1 * Math.log10(v as number)];
+              return [k, transformPval(v)];
             } else {
               return [k, v];
             }
@@ -653,6 +654,7 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
 
   const {
     thresholds: { miamiTop: topThresh, miamiBottom: bottomThresh },
+    transformPValue,
   } = useContext(VisualizationDataContext);
 
   useEffect(() => {
@@ -671,6 +673,7 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
           topCol,
           topThresh,
           _width,
+          transformPValue,
           selectedRegionDetailData,
         ),
       ).finally(() => setLoading(false));
@@ -689,6 +692,7 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
     width,
     renderFlag,
     _width,
+    transformPValue,
   ]);
 
   return (
