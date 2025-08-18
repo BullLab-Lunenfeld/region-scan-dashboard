@@ -4,10 +4,11 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Grid2 as Grid } from "@mui/material";
 import ShortTextField from "./ShortTextField";
 
-interface NumberInputProps {
+export interface NumberInputProps {
   error?: string;
   label: string;
   onChange: (arg: number) => void;
+  ref?: React.RefObject<HTMLInputElement>;
   value: number;
   width?: string;
 }
@@ -16,6 +17,7 @@ export const NumberInput: React.FC<NumberInputProps> = ({
   error,
   label,
   onChange,
+  ref,
   value,
   width,
 }) => {
@@ -49,6 +51,7 @@ export const NumberInput: React.FC<NumberInputProps> = ({
     <Grid container wrap="nowrap" spacing={1} alignItems="center">
       <Grid>
         <ShortTextField
+          ref={ref}
           onChange={(e) => localOnChange(e.currentTarget.value)}
           value={internalValue}
           label={label}
