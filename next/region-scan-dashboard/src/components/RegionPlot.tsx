@@ -254,18 +254,24 @@ class RegionChart {
         ) as [number, number];
 
         return Object.entries(members[0])
-          .filter(
-            ([k, v]) =>
-              k.toLowerCase().endsWith("_p") &&
-              transformPval(v) < Number.MAX_VALUE, //some are smaller than the js max and get converted to infinity...
-          )
-          .map(([variable, pvalue]) => ({
-            region,
-            start,
-            end,
-            variable,
-            pvalue: transformPval(pvalue),
-          })) as RegionData[];
+          .filter(([k]) => k.toLowerCase().endsWith("_p"))
+          .map(([variable, pvalue]) => {
+            const transformed = transformPval(pvalue);
+            return {
+              region,
+              start,
+              end,
+              variable,
+              pvalue:
+                transformed > 0 && transformed < Number.MIN_VALUE
+                  ? Number.MIN_VALUE
+                  : Math.abs(transformed) > Number.MAX_VALUE
+                    ? Number.MAX_VALUE * transformed < 0
+                      ? -1
+                      : 1
+                    : transformed,
+            };
+          });
       },
     );
 
@@ -467,7 +473,9 @@ class RegionChart {
     this.container
       .selectAll<SVGRectElement, RegionData>("rect.region")
       .data(
-        regionData.filter((d) => visiblePvars.includes(d.variable)),
+        regionData.filter((d) =>
+          visiblePvars.includes(d.variable as keyof RegionResult),
+        ),
         (d) => d.pvalue,
       )
       .join("rect")
@@ -483,7 +491,7 @@ class RegionChart {
       .attr("height", regionRectHeight)
       .attr("width", (d) => xScale(d.end) - xScale(d.start))
       .selection()
-      .on("mouseover", (e: MouseEvent, d: RegionData) =>
+      .on("mouseover", (e: MouseEvent, d) =>
         showToolTip(e, [
           `Variable: ${d.variable}`,
           `Region: ${d.region}`,
