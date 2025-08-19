@@ -9,8 +9,9 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { extent, groups, max, min } from "d3-array";
+import { extent, groups, max, mean, min } from "d3-array";
 import { axisBottom, axisLeft, axisRight } from "d3-axis";
+import { drag } from "d3-drag";
 import { format } from "d3-format";
 import "d3-transition"; // must be imported before selection
 import { BaseType, pointer, select, selectAll, Selection } from "d3-selection";
@@ -182,6 +183,7 @@ const isWithinRegions = (
 
 class RegionChart {
   container: Selection<SVGGElement, number, SVGElement, unknown>;
+  dragCb: (dist: number) => void;
   height: number;
   mainWidth: number;
   pvalScale: ScaleOrdinal<string, string, never>;
@@ -191,7 +193,6 @@ class RegionChart {
   selectedGeneRange: [[number, number]] | null;
   svg: Selection<SVGElement, number, BaseType, unknown>;
   width: number;
-  xScale: ScaleLinear<number, number, never> | null = null;
 
   constructor(
     pvalScale: ScaleOrdinal<string, string, never>,
@@ -199,6 +200,7 @@ class RegionChart {
     pvalThresholdVariant: number,
     selector: string,
     mainWidth: number,
+    dragCb: (dist: number) => void,
   ) {
     //display properties
     this.pvalScale = pvalScale;
@@ -209,6 +211,7 @@ class RegionChart {
     this.width = this.mainWidth + 240;
     this.height = 0.4 * this.width;
     this.selectedGeneRange = null;
+    this.dragCb = dragCb;
 
     this.svg = select(`.${this.selector}`)
       .selectAll<SVGElement, number>("svg")
@@ -270,8 +273,6 @@ class RegionChart {
       .range([marginLeft, this.mainWidth - marginRight])
       .domain(extent(regionData.flatMap((d) => [d.start, d.end])) as number[])
       .clamp(true);
-
-    this.xScale = xScale; //ts, could just initialize empty
 
     const visibleGenes = genes.filter(
       (g) => g.end >= xScale.domain()[0] && g.start <= xScale.domain()[1],
@@ -401,6 +402,37 @@ class RegionChart {
             ], //observed max is 1100 but this appears to be an outlier, there are a few higher than 120, so we'll be dynamic only as needed
       );
 
+    this.container
+      .selectAll<SVGRectElement, number>("rect.drag-rect")
+      .data([1], () => (mean(data.map((d) => d.region)) as number).toString())
+      .join("rect")
+      .attr("class", "drag-rect")
+      .attr("x", xScale.range()[0])
+      .attr("y", 0)
+      .attr("width", xScale.range()[1] - xScale.range()[0])
+      .attr("height", yScalePval.range()[1])
+      .attr("fill", "white")
+      .lower()
+      .call(
+        drag<SVGRectElement, number, SVGRectElement>().on(
+          "start",
+          (e: DragEvent) => {
+            const startPos = e.x;
+            let dist = 0;
+            //eslint-disable-next-line
+            //@ts-ignore "on" is not included in types...
+            e.on("drag", (e: DragEvent) => {
+              const _dist = e.x - startPos;
+              dist = dist + Math.abs(_dist);
+              if (dist > (xScale.range()[1] - xScale.range()[0]) / 2.5) {
+                this.dragCb(_dist);
+                dist = 0;
+              }
+            });
+          },
+        ),
+      );
+
     // draw plink variants
     this.container
       .selectAll<SVGCircleElement, PlinkVariant>("circle.variant")
@@ -472,8 +504,8 @@ class RegionChart {
       .attr("text-anchor", "middle")
       .attr("class", "region-label")
       .attr("x", (d) => xScale((d.end_bp + d.start_bp) / 2))
-      .transition()
       .attr("y", (d) => yScalePval(transformPval(d.min_p)) - 8)
+      .transition()
       .duration(200)
       .text((d) => d.region)
       .selection()
@@ -871,6 +903,13 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     );
   };
 
+  //we keep this in a ref so we don't have to redefine the drag callback over and over
+  const visibleRegions = useRef([...new Set(visibleData.map((v) => v.region))]);
+
+  useEffect(() => {
+    visibleRegions.current = [...new Set(visibleData.map((v) => v.region))];
+  }, [visibleData]);
+
   // start with view at +/- 20 regions
   useEffect(() => {
     setInitialDataRange(selectedRegionDetailData);
@@ -1000,7 +1039,37 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     [data],
   );
 
+  const dragCb = useCallback(
+    (bpChange: number) => {
+      const { regions: allRegions } = selectedRegionDetailData;
+      const [visibleRegionMin, visibleRegionMax] = extent(
+        visibleRegions.current,
+      ) as [number, number];
+
+      if (bpChange < 0) {
+        if ((max(allRegions) as number) > visibleRegionMax) {
+          setVisibleData(
+            data.filter(
+              (d) =>
+                d.region > visibleRegionMin && d.region <= visibleRegionMax + 1,
+            ),
+          );
+        }
+      } else if ((min(allRegions) as number) < visibleRegionMin) {
+        setVisibleData(
+          data.filter(
+            (d) =>
+              d.region < visibleRegionMax && d.region >= visibleRegionMin - 1,
+          ),
+        );
+      }
+    },
+    [data],
+  );
+
   //zoom callback
+  //todo: move copy visibleData into a ref so we can remove the dependency
+  //update with same useEffect call as visibleRegion ref
   const updateRange = useCallback(
     (delta: number, pos: number) => {
       const [visibleStart, visibleEnd] = getRegionResultRange(visibleData);
@@ -1086,6 +1155,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
       pvalThresholdVariant,
       selector,
       mainWidth,
+      dragCb,
     );
     setChart(Chart);
   }, [mainWidth]);
@@ -1097,6 +1167,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
       setVariantsVisible(true);
       setInitialDataRange(selectedRegionDetailData);
       chart.selectedGeneRange = null;
+      chart.dragCb = dragCb;
     }
     /* only clear out if the chart exists */
   }, [selectedRegionDetailData, assemblyInfo]);
