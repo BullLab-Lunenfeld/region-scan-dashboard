@@ -418,6 +418,11 @@ class RegionChart {
       .attr("width", xScale.range()[1] - xScale.range()[0])
       .attr("height", yScalePval.range()[1])
       .attr("fill", "white")
+      .on("wheel", function (e: WheelEvent) {
+        e.preventDefault();
+        const [x] = pointer(e);
+        wheelCb(e.deltaY, xScale.invert(x));
+      })
       .lower()
       .call(
         drag<SVGRectElement, number, SVGRectElement>().on(
@@ -792,12 +797,6 @@ class RegionChart {
         "transform",
         (_, i) => `translate(15,${lowest + 10 + (i + 1) * 18})`,
       );
-
-    this.svg.on("wheel", function (e: WheelEvent) {
-      e.preventDefault();
-      const [x] = pointer(e);
-      wheelCb(e.deltaY, xScale.invert(x));
-    });
 
     drawDottedLine(
       this.container,
