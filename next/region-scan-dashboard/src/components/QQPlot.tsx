@@ -3,15 +3,20 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { Box } from "@mui/material";
 import { select, Selection, BaseType } from "d3-selection";
-import { groups, quantile, range, extent, min, max } from "d3-array";
+import { groups, quantile, range, min, max } from "d3-array";
 import { line } from "d3-shape";
-import { randomUniform } from "d3-random";
+//import { randomUniform } from "d3-random";
 import { scaleLinear, ScaleOrdinal } from "d3-scale";
 import { axisBottom, axisLeft } from "d3-axis";
 import LoadingOverlay from "./LoadingOverlay";
 import { VisualizationDataContext } from "./AppContainer";
 import { RegionResult, VariantResult } from "@/lib/ts/types";
-import { drawDottedLine, getEntries, makePvalAxisLabel } from "@/lib/ts/util";
+import {
+  drawDottedLine,
+  getEntries,
+  linspace,
+  makePvalAxisLabel,
+} from "@/lib/ts/util";
 import useDownloadPlot from "@/lib/hooks/useDownloadPlot";
 import { PlotDownloadButton } from "@/components";
 
@@ -21,6 +26,14 @@ const yAxisMargin = 20;
 const marginLeft = yLabelMargin + yAxisMargin;
 const marginTop = 25;
 
+/**
+ * Return the quantiles in intervals of 100 / qcount * .01.
+ * E.g., passing in qcount of 100 will return percentiles.
+ *
+ * @param data the sorted pvales
+ * @param qcount the number of quartiles
+ * @returns Array<number>
+ */
 const getQuantiles = (data: number[], qcount: number) => {
   if (qcount > data.length) {
     throw "Data cannot be longer than qcount";
@@ -28,9 +41,7 @@ const getQuantiles = (data: number[], qcount: number) => {
 
   const step = 100 / qcount;
 
-  return range(qcount - 1).map((d) =>
-    quantile(data, (d + 1) * 0.01 * step),
-  ) as number[];
+  return range(qcount).map((d) => quantile(data, d * 0.01 * step)) as number[];
 };
 
 type PvalLineData = {
@@ -49,29 +60,38 @@ const buildChart = (
 ) => {
   const mainWidth = width * 0.7;
 
-  const height = 0.75 * mainWidth;
+  const height = mainWidth;
 
   const chartData: PvalLineData[][] = [];
 
-  getEntries(quantiles).map(([k, v]) => {
-    if (variables.includes(k)) {
+  let maxP = 0;
+
+  getEntries(quantiles).map(([test, v]) => {
+    if (variables.includes(test)) {
       chartData.push(
-        v.ref.map((r, i) => ({
-          test: k,
-          x: transformPValue(r),
-          y: transformPValue(v.quan[i]),
-        })),
+        v.ref.map((r, i) => {
+          const x = transformPValue(r);
+          const y = transformPValue(v.quan[i]);
+
+          if (x > maxP) maxP = x;
+          if (y > maxP) maxP = y;
+
+          return {
+            test,
+            x,
+            y,
+          };
+        }),
       );
     }
   });
 
-  const xScale = scaleLinear()
-    .range([marginLeft, mainWidth])
-    .domain(extent(chartData.flat().map((d) => d.x)) as [number, number]);
+  const xScale = scaleLinear().range([marginLeft, mainWidth]).domain([0, maxP]);
 
+  //ensure that axes have the same domain
   const yScale = scaleLinear()
     .range([marginTop, height - marginBottom])
-    .domain(extent(chartData.flat().map((c) => c.y)).reverse() as number[])
+    .domain([maxP, 0])
     .clamp(true);
 
   const svg = select(`.${selector}`)
@@ -246,7 +266,7 @@ const QQPlot: React.FC<QQPlotProps> = ({
       data.flatMap((d) =>
         getEntries(d)
           .filter(([k, v]) => !!v && variables.includes(k))
-          .map(([k, v]) => ({ pValType: k, value: v }) as DisplayPVal),
+          .map(([pValType, value]) => ({ pValType, value }) as DisplayPVal),
       ),
 
     [variables, data],
@@ -271,10 +291,14 @@ const QQPlot: React.FC<QQPlotProps> = ({
           pvals,
           min([250, vals.length]) as number,
         );
-        const rv = randomUniform(max(pvals));
-        const refDist = range(vals.length).map(() => rv());
-        //const refDist = range(1000).map(() => rv());
-        //const refDist = linspace(0, max(pvals) as number, 250);
+        //const rv = randomUniform(max(pvals));
+        //const refDist = range(vals.length).map(() => rv());
+        const refDist = linspace(
+          min(pvals) as number,
+          max(pvals) as number,
+          min([250, vals.length]) as number,
+          false,
+        );
 
         const refQuantiles = getQuantiles(
           refDist,
