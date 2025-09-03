@@ -102,7 +102,7 @@ export interface RegionResult {
   PC80_df: number;
   PC80_p: number;
   region: number;
-  simpleM_p: number;
+  SimpleM_p: number;
   simpleM_df: number | null; //new
   single_Wald_p: number | null; //new
   SKATO_p?: number;
@@ -250,7 +250,7 @@ const regionKeys: (keyof RegionResult)[] = [
   "PC80_df",
   "PC80_p",
   "region",
-  "simpleM_p",
+  "SimpleM_p",
   "simpleM_df",
   "single_Wald_p",
   "SKATO_p",

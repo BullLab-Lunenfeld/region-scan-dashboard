@@ -203,8 +203,8 @@ export const RegionResultCols: PaginatedTableColumn<RegionResult>[] = [
   },
   { field: "simpleM_df", headerName: "simpleM_df", sortable: true },
   {
-    field: "simpleM_p",
-    headerName: "simpleM_p",
+    field: "SimpleM_p",
+    headerName: "SimpleM_p",
     sortable: true,
     valueFormatter: formatPval,
     filterOperators: getGridNumericOperators(),

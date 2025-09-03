@@ -1,22 +1,15 @@
 "use client";
 
-import React, { useContext, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Box } from "@mui/material";
 import { select, Selection, BaseType } from "d3-selection";
-import { groups, quantile, range, min, max } from "d3-array";
-import { line } from "d3-shape";
-//import { randomUniform } from "d3-random";
+import { groups, max, min, range } from "d3-array";
+import { randomUniform } from "d3-random";
 import { scaleLinear, ScaleOrdinal } from "d3-scale";
 import { axisBottom, axisLeft } from "d3-axis";
 import LoadingOverlay from "./LoadingOverlay";
-import { VisualizationDataContext } from "./AppContainer";
 import { RegionResult, VariantResult } from "@/lib/ts/types";
-import {
-  drawDottedLine,
-  getEntries,
-  linspace,
-  makePvalAxisLabel,
-} from "@/lib/ts/util";
+import { drawDottedLine, getEntries } from "@/lib/ts/util";
 import useDownloadPlot from "@/lib/hooks/useDownloadPlot";
 import { PlotDownloadButton } from "@/components";
 
@@ -26,24 +19,6 @@ const yAxisMargin = 20;
 const marginLeft = yLabelMargin + yAxisMargin;
 const marginTop = 25;
 
-/**
- * Return the quantiles in intervals of 100 / qcount * .01.
- * E.g., passing in qcount of 100 will return percentiles.
- *
- * @param data the sorted pvales
- * @param qcount the number of quartiles
- * @returns Array<number>
- */
-const getQuantiles = (data: number[], qcount: number) => {
-  if (qcount > data.length) {
-    throw "Data cannot be longer than qcount";
-  }
-
-  const step = 100 / qcount;
-
-  return range(qcount).map((d) => quantile(data, d * 0.01 * step)) as number[];
-};
-
 type PvalLineData = {
   test: keyof RegionResult;
   x: number;
@@ -52,29 +27,29 @@ type PvalLineData = {
 
 const buildChart = (
   pvalScale: ScaleOrdinal<string, string, never>,
-  quantiles: QuantileResults,
+  qqData: PvalRef,
   selector: string,
   variables: (keyof RegionResult)[],
   width: number,
-  transformPValue: (pval: number) => number,
 ) => {
   const mainWidth = width * 0.7;
 
   const height = mainWidth;
 
-  const chartData: PvalLineData[][] = [];
+  let chartData: PvalLineData[] = [];
 
-  let maxP = 0;
+  let minP = 0;
+  let minRef = 0;
 
-  getEntries(quantiles).map(([test, v]) => {
+  getEntries(qqData).map(([test, v]) => {
     if (variables.includes(test)) {
-      chartData.push(
+      chartData = chartData.concat(
         v.ref.map((r, i) => {
-          const x = transformPValue(r);
-          const y = transformPValue(v.quan[i]);
+          const x = -Math.log10(r);
+          const y = -Math.log10(v.pvals[i]);
 
-          if (x > maxP) maxP = x;
-          if (y > maxP) maxP = y;
+          if (x > minRef) minRef = x;
+          if (y > minP) minP = y;
 
           return {
             test,
@@ -86,12 +61,14 @@ const buildChart = (
     }
   });
 
-  const xScale = scaleLinear().range([marginLeft, mainWidth]).domain([0, maxP]);
+  const xScale = scaleLinear()
+    .range([marginLeft, mainWidth])
+    .domain([0, minRef]);
 
   //ensure that axes have the same domain
   const yScale = scaleLinear()
     .range([marginTop, height - marginBottom])
-    .domain([maxP, 0])
+    .domain([minP, 0])
     .clamp(true);
 
   const svg = select(`.${selector}`)
@@ -114,20 +91,25 @@ const buildChart = (
     .join("g")
     .attr("class", "container");
 
-  const qLine = line<PvalLineData>()
-    .x((d) => xScale(d.x))
-    .y((d) => yScale(d.y));
-
   container
-    .selectAll("path.line")
-    .data(chartData)
-    .join("path")
-    .attr("class", "line")
-    .attr("d", (d) => qLine(d))
-    .attr("stroke", (d) => pvalScale(d[0].test))
-    .attr("stroke-width", 3)
-    .style("fill", "none")
+    .selectAll<SVGCircleElement, PvalLineData>("circle.qq-data")
+    .data(chartData, (d) => `${d.x}-${d.y}`)
+    .join("circle")
+    .attr("class", "qq-data")
+    .attr("cx", (d) => xScale(d.x))
+    .attr("cy", (d) => yScale(d.y))
+    .attr("fill", (d) => pvalScale(d.test))
+    .attr("r", 3)
     .attr("opacity", 0.6);
+
+  //we want to ensure the same precision for each axis, so we'll use the larger range as a basis
+  const xDomainRange = Math.ceil(xScale.domain()[1] - xScale.domain()[0]);
+  const yDomainRange = Math.ceil(yScale.domain()[0] - yScale.domain()[1]);
+  const maxDomainRange = max([xDomainRange, yDomainRange]) as number;
+
+  const tickType = maxDomainRange > 4 ? "integer" : "decimal";
+
+  const formatter = tickType === "integer" ? "d" : ".1";
 
   container
     .selectAll<SVGGElement, number>("g.x-axis")
@@ -137,7 +119,12 @@ const buildChart = (
     .attr("transform", `translate(0,${height - marginBottom})`)
     .transition()
     .duration(500)
-    .call(axisBottom(xScale))
+    .call(
+      axisBottom(xScale).ticks(
+        xDomainRange < 10 ? xDomainRange : 10,
+        formatter,
+      ),
+    )
     .selection();
 
   container
@@ -150,9 +137,22 @@ const buildChart = (
     .selectAll<SVGGElement, string>("text")
     .data([1])
     .join("text")
-    .text(`Uniform dist (${makePvalAxisLabel(transformPValue)})`)
+    .text(`Uniform dist (-log10(p))`)
     .attr("font-size", "12px")
     .attr("text-anchor", "middle");
+
+  container
+    .selectAll<SVGGElement, number>("g.y-axis")
+    .data([1], () => yScale.range().toString())
+    .join("g")
+    .attr("class", "y-axis")
+    .attr("transform", `translate(${marginLeft},0)`)
+    .transition()
+    .duration(500)
+    .call(
+      axisLeft(yScale).ticks(yDomainRange < 10 ? yDomainRange : 10, formatter),
+    )
+    .selection();
 
   container
     .selectAll("g.y-label")
@@ -166,21 +166,10 @@ const buildChart = (
     .selectAll("text")
     .data(["pValue"])
     .join("text")
-    .text(makePvalAxisLabel(transformPValue))
+    .text("-log10(p)")
     .attr("transform", "rotate(-90)")
     .attr("font-size", "12px")
     .attr("text-anchor", "middle");
-
-  container
-    .selectAll<SVGGElement, number>("g.y-axis")
-    .data([1], () => yScale.range().toString())
-    .join("g")
-    .attr("class", "y-axis")
-    .attr("transform", `translate(${marginLeft},0)`)
-    .transition()
-    .duration(500)
-    .call(axisLeft(yScale))
-    .selection();
 
   container
     .selectAll("text.title")
@@ -194,7 +183,7 @@ const buildChart = (
     container,
     "true-line",
     yScale.range()[1],
-    yScale.range()[0],
+    yScale(xScale.domain()[1]),
     xScale.range()[0],
     xScale.range()[1],
   );
@@ -230,10 +219,7 @@ interface DisplayPVal {
   value: number;
 }
 
-type QuantileResults = Record<
-  keyof RegionResult,
-  { ref: number[]; quan: number[] }
->;
+type PvalRef = Record<keyof RegionResult, { ref: number[]; pvals: number[] }>;
 
 interface QQPlotProps {
   data: (RegionResult | VariantResult)[];
@@ -259,8 +245,6 @@ const QQPlot: React.FC<QQPlotProps> = ({
 
   const { anchorEl, handlePopoverOpen } = useDownloadPlot();
 
-  const { transformPValue } = useContext(VisualizationDataContext);
-
   const pvals = useMemo(
     () =>
       data.flatMap((d) =>
@@ -277,65 +261,44 @@ const QQPlot: React.FC<QQPlotProps> = ({
     setTimeout(() => setRenderFlag(true));
   }, []);
 
-  //we'll precompute these since they take a while
-  const quantiles: QuantileResults | undefined = useMemo(() => {
+  //we'll precompute the reference dist since it can take a while
+  const qqData: PvalRef | null = useMemo(() => {
     if (renderFlag) {
       const grouped = groups(pvals, (p) => p.pValType);
 
-      const quantileResults = {} as QuantileResults;
+      const pvalRefs = {} as PvalRef;
 
       for (let i = 0; i < grouped.length; i++) {
         const [key, vals] = grouped[i];
         const pvals = vals.map((v) => v.value).sort((a, b) => (a < b ? -1 : 1));
-        const quantiles = getQuantiles(
+        const rv = randomUniform(min(pvals) as number, max(pvals) as number);
+        const ref = range(pvals.length)
+          .map(() => rv())
+          .sort((a, b) => (a < b ? -1 : 1));
+
+        pvalRefs[key] = {
+          ref,
           pvals,
-          min([250, vals.length]) as number,
-        );
-        //const rv = randomUniform(max(pvals));
-        //const refDist = range(vals.length).map(() => rv());
-        const refDist = linspace(
-          min(pvals) as number,
-          max(pvals) as number,
-          min([250, vals.length]) as number,
-          false,
-        );
-
-        const refQuantiles = getQuantiles(
-          refDist,
-          min([250, vals.length]) as number,
-        );
-
-        quantileResults[key] = {
-          ref: refQuantiles,
-          quan: quantiles,
         };
       }
       setLoading(false);
-      return quantileResults;
+      return pvalRefs;
+    } else {
+      return null;
     }
   }, [pvals, renderFlag]);
 
   useEffect(() => {
-    if (!!quantiles) {
+    if (!!qqData) {
       buildChart(
         pvalScale,
-        quantiles,
+        qqData,
         selector,
         visibleVariables.filter(Boolean) as (keyof RegionResult)[],
         width,
-        transformPValue,
       );
     }
-  }, [
-    pvalScale,
-    pvals,
-    quantiles,
-    selector,
-    visibleVariables,
-    width,
-    renderFlag,
-    transformPValue,
-  ]);
+  }, [pvalScale, pvals, qqData, selector, visibleVariables, width, renderFlag]);
 
   return (
     <>
