@@ -2,14 +2,14 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { Box } from "@mui/material";
-import { select, Selection, BaseType } from "d3-selection";
+import { select, Selection, BaseType, selectAll } from "d3-selection";
 import { groups, max, min, range } from "d3-array";
 import { randomUniform } from "d3-random";
 import { scaleLinear, ScaleOrdinal } from "d3-scale";
 import { axisBottom, axisLeft } from "d3-axis";
 import LoadingOverlay from "./LoadingOverlay";
 import { RegionResult, VariantResult } from "@/lib/ts/types";
-import { drawDottedLine, getEntries } from "@/lib/ts/util";
+import { drawDottedLine, getEntries, showToolTip } from "@/lib/ts/util";
 import useDownloadPlot from "@/lib/hooks/useDownloadPlot";
 import { PlotDownloadButton } from "@/components";
 
@@ -20,6 +20,8 @@ const marginLeft = yLabelMargin + yAxisMargin;
 const marginTop = 25;
 
 type PvalLineData = {
+  chr: number;
+  region: number;
   test: keyof RegionResult;
   x: number;
   y: number;
@@ -46,12 +48,16 @@ const buildChart = (
       chartData = chartData.concat(
         v.ref.map((r, i) => {
           const x = -Math.log10(r);
-          const y = -Math.log10(v.pvals[i]);
+          const y = -Math.log10(v.pvals[i].pval);
+          const region = v.pvals[i].region;
+          const chr = v.pvals[i].chr;
 
           if (x > minRef) minRef = x;
           if (y > minP) minP = y;
 
           return {
+            chr,
+            region,
             test,
             x,
             y,
@@ -100,7 +106,11 @@ const buildChart = (
     .attr("cy", (d) => yScale(d.y))
     .attr("fill", (d) => pvalScale(d.test))
     .attr("r", 3)
-    .attr("opacity", 0.6);
+    .attr("opacity", 0.6)
+    .on("mouseover", (e: MouseEvent, d) =>
+      showToolTip(e, [`Region: Chr${d.chr}:${d.region}`]),
+    )
+    .on("mouseout", () => selectAll(".tooltip").style("visibility", "hidden"));
 
   //we want to ensure the same precision for each axis, so we'll use the larger range as a basis
   const xDomainRange = Math.ceil(xScale.domain()[1] - xScale.domain()[0]);
@@ -214,12 +224,10 @@ const buildChart = (
     .attr("transform", (_, i) => `translate(15,${16 + i * 18})`);
 };
 
-interface DisplayPVal {
-  pValType: keyof RegionResult;
-  value: number;
-}
-
-type PvalRef = Record<keyof RegionResult, { ref: number[]; pvals: number[] }>;
+type PvalRef = Record<
+  keyof RegionResult,
+  { ref: number[]; pvals: { pval: number; region: number; chr: number }[] }
+>;
 
 interface QQPlotProps {
   data: (RegionResult | VariantResult)[];
@@ -245,14 +253,33 @@ const QQPlot: React.FC<QQPlotProps> = ({
 
   const { anchorEl, handlePopoverOpen } = useDownloadPlot();
 
+  interface Pval {
+    region: number;
+    pValType: keyof RegionResult;
+    pval: number;
+    chr: number;
+  }
+
   const pvals = useMemo(
     () =>
-      data.flatMap((d) =>
-        getEntries(d)
-          .filter(([k, v]) => !!v && variables.includes(k))
-          .map(([pValType, value]) => ({ pValType, value }) as DisplayPVal),
-      ),
+      data.flatMap((d) => {
+        const ps = [];
 
+        for (const k in d) {
+          if (
+            variables.includes(k as keyof RegionResult) &&
+            !!(d as RegionResult)[k as keyof RegionResult]
+          ) {
+            const ret = {} as Pval;
+            ret.region = d.region;
+            ret.pValType = k as keyof RegionResult;
+            ret.chr = d.chr;
+            ret.pval = (d as RegionResult)[k as keyof RegionResult] as number;
+            ps.push(ret);
+          }
+        }
+        return ps;
+      }),
     [variables, data],
   );
 
@@ -270,8 +297,13 @@ const QQPlot: React.FC<QQPlotProps> = ({
 
       for (let i = 0; i < grouped.length; i++) {
         const [key, vals] = grouped[i];
-        const pvals = vals.map((v) => v.value).sort((a, b) => (a < b ? -1 : 1));
-        const rv = randomUniform(min(pvals) as number, max(pvals) as number);
+        const pvals = vals
+          .map(({ region, pval, chr }) => ({ region, pval, chr }))
+          .sort((a, b) => (a.pval < b.pval ? -1 : 1));
+        const rv = randomUniform(
+          min(pvals.map((v) => v.pval)) as number,
+          max(pvals.map((v) => v.pval)) as number,
+        );
         const ref = range(pvals.length)
           .map(() => rv())
           .sort((a, b) => (a < b ? -1 : 1));
