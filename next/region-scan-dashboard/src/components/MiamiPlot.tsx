@@ -89,8 +89,9 @@ export interface BrushFilter {
 }
 
 const legendSpace = 20;
-const marginMiddle = 10;
+const marginMiddle = 20;
 const marginBottom = 25;
+const marginRight = 20;
 const yLabelMargin = 28;
 const yAxisMargin = 20;
 const marginLeft = yLabelMargin + yAxisMargin;
@@ -123,7 +124,6 @@ const buildChart = (
     .sort((a, b) => (+a < +b ? -1 : 1));
 
   //make an array of the corresponding lengths
-
   const chrLengths = chrs.map((c) => assemblyInfo.lengths[c]);
 
   //find total base pairs
@@ -131,7 +131,7 @@ const buildChart = (
 
   // create linear scale mapping bps to pixels
   const allChrScale = scaleLinear()
-    .range([marginLeft, width])
+    .range([marginLeft, width - marginRight])
     .domain([0, totalLength]);
 
   // creat cumsum of lengths
@@ -184,7 +184,7 @@ const buildChart = (
   const lowerData = transformedData.filter((d) => Object.hasOwn(d, bottomCol));
 
   const singleChrXScale = scaleLinear()
-    .range([marginLeft, width])
+    .range([marginLeft, width - marginRight])
     .domain(
       extent(
         upperData
@@ -228,7 +228,7 @@ const buildChart = (
     );
 
   const yScaleUpper = scaleLinear()
-    .range([marginTop, height - height / 2 - marginMiddle])
+    .range([marginTop, height / 2 - marginMiddle])
     .domain(
       extent(
         upperData.map((d) => getPVal(topCol, d)) as number[],
@@ -265,7 +265,7 @@ const buildChart = (
     .data([1], () => xAxisScale.range().toString())
     .join("g")
     .attr("class", "x-axis")
-    .attr("transform", `translate(0,${height - height / 2 + marginMiddle})`)
+    .attr("transform", `translate(0,${height / 2})`)
     .transition()
     .duration(500)
     .selection();
@@ -283,6 +283,8 @@ const buildChart = (
       midpoint: (scale.range()[0] + scale.range()[1]) / 2,
     }));
 
+  //TODO: when drawing x scale, check ranges on all chrCumSumScales, if smaller than some threshold, rotate x labels and add extra space to lower
+
   xAxisSelection
     .selectAll<SVGGElement, { chr: string; midpoint: number }>("g.tick-rr")
     .data<{ chr: string; midpoint: number }>(midpoints, (d) => d.midpoint)
@@ -294,7 +296,15 @@ const buildChart = (
     .join("text")
     .attr("class", "label-rr")
     .attr("fill", "black")
-    .text((d) => (chrs.length > 1 ? `Chr ${d.chr}` : ""));
+    .text((d) => (chrs.length > 1 ? `Chr ${d.chr}` : ""))
+    .attr(
+      "transform",
+      Object.values(chrCumSumScale).filter(
+        (s) => s.range()[1] - s.range()[0] < 50,
+      ).length
+        ? "rotate(90) translate(6,0)"
+        : "",
+    );
 
   const yAxisUpper = axisLeft(yScaleUpper)
     .tickFormat((t) => (+t).toString())
@@ -396,7 +406,7 @@ const buildChart = (
     brushX<number>()
       .extent([
         [marginLeft, marginTop],
-        [width, height - marginBottom - legendSpace],
+        [width - marginRight, height - marginBottom - legendSpace],
       ])
       .on("start brush end", function (event: D3BrushEvent<number>) {
         if (!event.sourceEvent || !event.selection) return;
@@ -572,7 +582,7 @@ const buildChart = (
     yScaleUpper(topThresh),
     yScaleUpper(topThresh),
     marginLeft,
-    width,
+    width - marginRight,
   );
 
   drawDottedLine(
@@ -581,7 +591,7 @@ const buildChart = (
     yScaleLower(bottomThresh),
     yScaleLower(bottomThresh),
     marginLeft,
-    width,
+    width - marginRight,
   );
 
   container
