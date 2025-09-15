@@ -696,6 +696,7 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
     data,
     filter,
     filterCb,
+    onCircleClick,
     pvalScale,
     selectedRegionDetailData,
     topCol,

@@ -9,6 +9,8 @@ import React, {
   useState,
 } from "react";
 import {
+  alpha,
+  Box,
   Button,
   Grid2 as Grid,
   IconButton,
@@ -93,12 +95,14 @@ export default function Visualization() {
     }
   }, [regionData]);
 
+  const regionDataSet = !!regionData.length;
+
   const miamiChartContainerRef = useRef<HTMLDivElement>(null);
 
   const qqChartContainerRef = useRef<HTMLDivElement>(null);
 
   const pvalScale = useMemo(() => {
-    if (regionData.length) {
+    if (regionDataSet) {
       return scaleOrdinal<string, string>()
         .range(schemeTableau10)
         .domain(
@@ -114,7 +118,7 @@ export default function Visualization() {
   // save where the regions restart (~centromeres)
   const regionRestartPoints = useMemo(() => {
     const mapping: Record<number, number> = {};
-    if (regionData.length) {
+    if (regionDataSet) {
       const grouped = groups(regionData, (d) => d.chr);
       for (let i = 0; i < grouped.length; i++) {
         const chr = grouped[i][0];
@@ -135,7 +139,7 @@ export default function Visualization() {
       data = selectedRegionDetailData.data;
     } else if (miamiData.length) {
       data = miamiData.filter((d) => isRegionResult(d));
-    } else if (regionData.length) {
+    } else if (regionDataSet) {
       data = regionData;
     }
     return data;
@@ -323,6 +327,7 @@ export default function Visualization() {
     setUpperVariable("");
     setLowerVariable("");
   };
+
   const variablesSelected = !!lowerVariable && !!upperVariable;
 
   const miamiVarsSet =
@@ -339,15 +344,15 @@ export default function Visualization() {
         {/* miami plot controls */}
         <Grid
           size={{
-            xs: !!regionData.length ? 2 : 12,
-            xl: !!regionData.length ? 1.5 : 12,
+            xs: regionDataSet ? 2 : 12,
+            xl: regionDataSet ? 1.5 : 12,
           }}
           direction="column"
           alignItems="center"
           container
           spacing={2}
         >
-          {!regionData.length && (
+          {!regionDataSet && (
             <Grid>
               <Typography textAlign="center">
                 Use the controls in the upper left menu to upload your region
@@ -358,7 +363,7 @@ export default function Visualization() {
               </Typography>
             </Grid>
           )}
-          {!!regionData.length && (
+          {regionDataSet && (
             <>
               <Grid>
                 <ShortTextField
@@ -494,20 +499,38 @@ export default function Visualization() {
           size={{ xs: 5, lg: 6, xl: 6.25 }}
         >
           <Grid>
-            {miamiVarsSet && (
-              <MiamiPlot
-                assemblyInfo={assemblyInfo}
-                pvalScale={pvalScale}
-                bottomCol={lowerVariable}
-                data={miamiData}
-                onCircleClick={(d) => setSelectedRegion(d)}
-                filter={brushFilterHistory[brushFilterHistory.length - 1]}
-                filterCb={filterCb}
-                selectedRegionDetailData={selectedRegionDetailData}
-                topCol={upperVariable}
-                width={miamiChartContainerRef.current!.clientWidth}
-              />
-            )}
+            {regionDataSet &&
+              (miamiVarsSet ? (
+                <MiamiPlot
+                  assemblyInfo={assemblyInfo}
+                  pvalScale={pvalScale}
+                  bottomCol={lowerVariable}
+                  data={miamiData}
+                  onCircleClick={setSelectedRegion}
+                  filter={brushFilterHistory[brushFilterHistory.length - 1]}
+                  filterCb={filterCb}
+                  selectedRegionDetailData={selectedRegionDetailData}
+                  topCol={upperVariable}
+                  width={miamiChartContainerRef.current!.clientWidth}
+                />
+              ) : (
+                <Box
+                  sx={(theme) => ({
+                    backgroundColor: alpha(theme.palette.primary.light, 0.25),
+                    padding: 5,
+                    borderRadius: 4,
+                    display: "flex",
+                    alignItems: "center",
+                    flexGrow: 1,
+                    height: "100%",
+                  })}
+                >
+                  <Typography>
+                    Use the controls on the left to select upper and lower
+                    variables for the Miami Plot
+                  </Typography>
+                </Box>
+              ))}
           </Grid>
         </Grid>
         {/* QQ Plot */}
@@ -569,7 +592,7 @@ export default function Visualization() {
           selectedRegionDetailData={selectedRegionDetailData}
           regionVars={
             [upperVariable, lowerVariable].filter(
-              (k) => !!regionData.length && Object.hasOwn(regionData[0], k),
+              (k) => regionDataSet && Object.hasOwn(regionData[0], k),
             ) as (keyof RegionResult)[]
           }
           mainWidth={miamiChartContainerRef.current!.clientWidth}

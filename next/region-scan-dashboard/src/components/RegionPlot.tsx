@@ -743,7 +743,7 @@ class RegionChart {
       .data([1])
       .join("g")
       .attr("class", "legend")
-      .attr("transform", `translate(${this.mainWidth + 28}, ${marginTop})`);
+      .attr("transform", `translate(${this.mainWidth + 38}, ${marginTop})`);
 
     legendContainer
       .selectAll("rect")

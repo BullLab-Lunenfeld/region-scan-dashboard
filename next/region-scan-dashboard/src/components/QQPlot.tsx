@@ -108,7 +108,7 @@ const buildChart = (
     .attr("r", 3)
     .attr("opacity", 0.6)
     .on("mouseover", (e: MouseEvent, d) =>
-      showToolTip(e, [`Region: Chr${d.chr}:${d.region}`]),
+      showToolTip(e, [`Chr${d.chr}, Region ${d.region}`]),
     )
     .on("mouseout", () => selectAll(".tooltip").style("visibility", "hidden"));
 
