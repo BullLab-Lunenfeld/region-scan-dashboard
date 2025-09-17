@@ -75,7 +75,10 @@ const getPVal = (
   return typeof val === "string" ? +val : val;
 };
 
-const circleWidthScale = scaleLinear().range([3, 5]).domain([80000, 1]);
+const circleWidthScale = scaleLinear()
+  .range([3, 5])
+  .domain([20000, 1])
+  .clamp(true);
 
 export interface BrushFilter {
   x0Lim: {
