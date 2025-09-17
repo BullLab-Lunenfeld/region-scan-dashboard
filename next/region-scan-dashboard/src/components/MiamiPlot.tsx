@@ -75,7 +75,7 @@ const getPVal = (
   return typeof val === "string" ? +val : val;
 };
 
-const circleWidthScale = scaleLinear().range([1, 5]).domain([80000, 1]);
+const circleWidthScale = scaleLinear().range([3, 5]).domain([80000, 1]);
 
 export interface BrushFilter {
   x0Lim: {
@@ -146,19 +146,6 @@ const buildChart = (
     {},
   );
 
-  //create a scale keyed by chromosome (for plotting)
-  const chrCumSumScale = Object.entries(chrSumMapping)
-    .sort((a, b) => (+a[0] > +b[0] ? 1 : -1))
-    .reduce<Record<string, ScaleLinear<number, number, never>>>(
-      (acc, [k, v]) => ({
-        ...acc,
-        [k]: scaleLinear()
-          .range([allChrScale(v[0]), allChrScale(v[1])])
-          .domain([0, assemblyInfo.lengths[k]]),
-      }),
-      {},
-    );
-
   const transformedData = data
     .filter(
       (d) =>
@@ -178,6 +165,24 @@ const buildChart = (
           }),
       ),
     ) as unknown as (RegionResult | VariantResult)[];
+
+  const circleRadius = circleWidthScale(transformedData.length);
+
+  //create a scale keyed by chromosome (for plotting)
+  const chrCumSumScale = Object.entries(chrSumMapping)
+    .sort((a, b) => (+a[0] > +b[0] ? 1 : -1))
+    .reduce<Record<string, ScaleLinear<number, number, never>>>(
+      (acc, [k, v]) => ({
+        ...acc,
+        [k]: scaleLinear()
+          .range([
+            allChrScale(v[0]) + circleRadius * 1.5,
+            allChrScale(v[1]) - circleRadius * 1.5,
+          ])
+          .domain([0, assemblyInfo.lengths[k]]),
+      }),
+      {},
+    );
 
   const upperData = transformedData.filter((d) => Object.hasOwn(d, topCol));
 
@@ -282,8 +287,6 @@ const buildChart = (
       chr,
       midpoint: (scale.range()[0] + scale.range()[1]) / 2,
     }));
-
-  //TODO: when drawing x scale, check ranges on all chrCumSumScales, if smaller than some threshold, rotate x labels and add extra space to lower
 
   xAxisSelection
     .selectAll<SVGGElement, { chr: string; midpoint: number }>("g.tick-rr")
@@ -483,7 +486,7 @@ const buildChart = (
     .data(circleDataUpper)
     .join("circle")
     .attr("class", "upper")
-    .attr("r", circleWidthScale(transformedData.length))
+    .attr("r", circleRadius)
     .attr("fill", pvalScale(topCol))
     .attr("opacity", 0.5)
     .attr("cx", (d) =>
@@ -496,7 +499,7 @@ const buildChart = (
     .data(circleDataLower)
     .join("circle")
     .attr("class", "lower")
-    .attr("r", circleWidthScale(transformedData.length))
+    .attr("r", circleRadius)
     .attr("fill", pvalScale(bottomCol))
     .attr("opacity", 0.5)
     .attr("cx", (d) =>
@@ -510,10 +513,7 @@ const buildChart = (
     .data(diamondDataUpper)
     .join("path")
     .attr("class", "upper")
-    .attr(
-      "d",
-      symbol(symbolDiamond, circleWidthScale(transformedData.length) * 15),
-    )
+    .attr("d", symbol(symbolDiamond, circleRadius * 15))
     .attr("opacity", 0.5)
     .attr("fill", pvalScale(topCol))
     .attr(
@@ -530,10 +530,7 @@ const buildChart = (
     .join("path")
     .attr("class", "lower")
     .attr("opacity", 0.5)
-    .attr(
-      "d",
-      symbol(symbolDiamond, circleWidthScale(transformedData.length) * 15),
-    )
+    .attr("d", symbol(symbolDiamond, circleRadius * 15))
     .attr("fill", pvalScale(bottomCol))
     .attr(
       "transform",
@@ -611,8 +608,8 @@ const buildChart = (
     .attr("class", "tooltip")
     .style("z-index", 999)
     .style("position", "absolute")
-    .style("background-color", "black")
-    .style("opacity", 0.85)
+    .style("background-color", "#262727")
+    .style("opacity", 0.9)
     .style("color", "white")
     .style("border-radius", "5px")
     .style("visibility", "hidden")
