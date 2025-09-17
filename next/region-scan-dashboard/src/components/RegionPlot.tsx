@@ -486,8 +486,6 @@ class RegionChart {
       .join("rect")
       .attr("class", "region")
       //x and y are upper-left corner
-      .transition()
-      .duration(100)
       .attr("x", (d) => xScale(d.start))
       .attr("y", (d) => yScalePval(d.pvalue))
       .attr("fill", (d) => this.pvalScale(d.variable))

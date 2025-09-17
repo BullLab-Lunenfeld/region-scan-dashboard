@@ -13,10 +13,10 @@ import regionDetail from "../../public/region-detail.png";
 
 const plots = [
   {
-    height: 362,
+    height: 525,
     plot: miamiPlot,
     title: "Miami Plot",
-    width: 718,
+    width: 1066,
   },
   {
     cssWidth: "auto",
@@ -27,16 +27,16 @@ const plots = [
     width: 488,
   },
   {
-    height: 357,
+    height: 526,
     plot: regionBasic,
     title: "Region Plot (Basic)",
-    width: 869,
+    width: 1191,
   },
   {
-    height: 384,
+    height: 522,
     plot: regionDetail,
     title: "Region Plot (Detail)",
-    width: 895,
+    width: 1194,
   },
 ];
 
