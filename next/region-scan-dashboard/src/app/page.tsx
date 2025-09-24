@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Button, Grid2 as Grid, Typography } from "@mui/material";
+import { Button, Grid2 as Grid, lighten, Typography } from "@mui/material";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image, { StaticImageData } from "next/image";
@@ -67,6 +67,14 @@ const LandingPage: React.FC = () => {
         <Button
           onClick={() => router.push("/visualization")}
           variant="contained"
+          size="large"
+          sx={(theme) => ({
+            margin: 3,
+            padding: 2,
+            fontSize: 24,
+            borderRadius: 3,
+            backgroundColor: theme.palette.primary.main,
+          })}
         >
           Get Started
         </Button>
@@ -121,7 +129,9 @@ const LandingPageImage: React.FC<LandingPageImageProps> = ({
   >
     <Grid
       padding={2}
-      sx={(theme) => ({ backgroundColor: theme.palette.primary.light })}
+      sx={(theme) => ({
+        backgroundColor: lighten(theme.palette.primary.light, 0.2),
+      })}
     >
       <Typography
         sx={(theme) => ({
