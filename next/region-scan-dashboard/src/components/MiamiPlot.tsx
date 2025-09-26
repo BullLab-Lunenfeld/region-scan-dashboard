@@ -434,9 +434,10 @@ const buildChart = (
               }
             });
 
-            const posScale = getPlottingXScale(chr0);
-            const pos0 = posScale.invert(x0);
-            const pos1 = posScale.invert(x1);
+            const pos0Scale = getPlottingXScale(chr0);
+            const pos0 = pos0Scale.invert(x0);
+            const pos1Scale = getPlottingXScale(chr1);
+            const pos1 = pos1Scale.invert(x1);
 
             const filter: BrushFilter = {
               x0Lim: {
