@@ -15,7 +15,10 @@ import {
 } from "d3-scale";
 import { BaseType, select, selectAll, Selection } from "d3-selection";
 import { Box } from "@mui/material";
-import { VisualizationDataContext } from "./AppContainer";
+import {
+  OverflowScaleSettings,
+  VisualizationDataContext,
+} from "./AppContainer";
 import { LoadingOverlay, PlotDownloadButton } from "@/components";
 import {
   AssembyInfo,
@@ -91,19 +94,13 @@ export interface BrushFilter {
   };
 }
 
-const legendSpace = 20;
-const marginMiddle = 20;
-const marginBottom = 25;
 const marginRight = 20;
 const yLabelMargin = 28;
 const yAxisMargin = 20;
 const marginLeft = yLabelMargin + yAxisMargin;
 const marginTop = 25;
-
-// for 2-part yscale
-
-const y1Seg = 50; // 50px for outlier y
-const y1SegP = 10; // any pvalue greater than 10 (as -log10) will use this scale
+const legendSpace = 20;
+const marginBottom = 5;
 
 const buildChart = (
   assemblyInfo: AssembyInfo,
@@ -119,10 +116,15 @@ const buildChart = (
   _topThresh: number,
   width: number,
   transformPval: (pval: number) => number,
+  yOverflowSettings: OverflowScaleSettings,
   selectedRegionDetailData?: SelectedRegionDetailData,
 ) => {
   const topThresh = transformPval(_topThresh);
   const bottomThresh = transformPval(_bottomThresh);
+
+  const {
+    upper: { pThresh: y1SegP, range: y1Seg },
+  } = yOverflowSettings;
 
   // get unique chromosomes, convert to string, sort asc
   const chrs = data
@@ -192,6 +194,12 @@ const buildChart = (
       {},
     );
 
+  const rotateXLabels = !!Object.values(chrCumSumScale).filter(
+    (s) => s.range()[1] - s.range()[0] < 50,
+  ).length;
+
+  const marginMiddle = rotateXLabels ? 40 : 25;
+
   const upperData = transformedData.filter((d) => Object.hasOwn(d, topCol));
 
   const lowerData = transformedData.filter((d) => Object.hasOwn(d, bottomCol));
@@ -229,10 +237,7 @@ const buildChart = (
       : singleChrXScale;
 
   const yScaleLower = scaleLinear()
-    .range([
-      marginTop + height / 2 + marginMiddle,
-      height - marginBottom - legendSpace,
-    ])
+    .range([height / 2 + marginMiddle, height - legendSpace])
     .domain(
       extent(lowerData.map((d) => getPVal(bottomCol, d)) as number[]) as [
         number,
@@ -334,22 +339,19 @@ const buildChart = (
     .attr("class", "label-rr")
     .attr("fill", "black")
     .text((d) => (chrs.length > 1 ? `Chr ${d.chr}` : ""))
-    .attr(
-      "transform",
-      Object.values(chrCumSumScale).filter(
-        (s) => s.range()[1] - s.range()[0] < 50,
-      ).length
-        ? "rotate(90) translate(6,0)"
-        : "",
-    );
+    .attr("transform", rotateXLabels ? "rotate(90) translate(6,0)" : "");
 
   const yAxisUpper0 = axisLeft(yScaleUpper0)
     .tickFormat((t) => (+t).toString())
-    .ticks(7);
+    .ticks(
+      Math.floor((yScaleUpper0.range()[1] - yScaleUpper0.range()[0]) / 15),
+    );
 
   const yAxisUpper1 = axisLeft(yScaleUpper1)
     .tickFormat((t) => (+t).toString())
-    .ticks(2);
+    .ticks(
+      Math.floor((yScaleUpper1.range()[1] - yScaleUpper1.range()[0]) / 15),
+    );
 
   const yAxisLower = axisLeft(yScaleLower)
     .tickFormat((t) => (+t).toString())
@@ -390,7 +392,7 @@ const buildChart = (
 
   // Add y axis labels
 
-  const upperMidPoint = (height / 2 - marginTop - marginMiddle) / 2;
+  const upperMidPoint = (height / 2 - marginMiddle) / 2 + marginTop / 2;
   const lowerMidPoint = (yScaleLower.range()[0] + yScaleLower.range()[1]) / 2;
 
   container
@@ -441,7 +443,7 @@ const buildChart = (
     .attr("width", (d) => !!d && d[1] - d[0])
     .attr("x", () => posRange && posRange[0])
     .attr("y", marginTop)
-    .attr("height", height - marginBottom - marginTop - legendSpace)
+    .attr("height", height - marginMiddle - marginBottom - marginTop)
     .attr("stroke", "gold")
     .attr("stroke-width", "3px")
     .attr("fill", "none")
@@ -612,7 +614,7 @@ const buildChart = (
       item
         .attr(
           "transform",
-          `translate(${width / 2 + textOffset}, ${height - legendSpace})`,
+          `translate(${width / 2 + textOffset}, ${height - legendSpace / 2})`,
         )
         .append("circle")
         .attr("cx", -7)
@@ -620,7 +622,7 @@ const buildChart = (
         .attr("r", 5)
         .attr("fill", pvalScale(d));
 
-      item.append("text").text(d);
+      item.append("text").text(d).attr("font-size", "14px");
     });
 
   drawDottedLine(
@@ -641,18 +643,17 @@ const buildChart = (
     width - marginRight,
   );
 
-  if (hasUpperY1Scale) {
-    drawDottedLine(
-      container,
-      "upper-y-1",
-      yScaleUpper1.range()[1],
-      yScaleUpper1.range()[1],
-      marginLeft,
-      width - marginRight,
-      pvalScale(topCol),
-      2,
-    );
-  }
+  drawDottedLine(
+    container,
+    "upper-y-1",
+    yScaleUpper1.range()[1],
+    yScaleUpper1.range()[1],
+    marginLeft,
+    width - marginRight,
+    pvalScale(topCol),
+    2,
+    hasUpperY1Scale,
+  );
 
   container
     .selectAll("text.title")
@@ -724,6 +725,7 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
   }, []);
 
   const {
+    overflows,
     thresholds: { miamiTop: topThresh, miamiBottom: bottomThresh },
     transformPValue,
   } = useContext(VisualizationDataContext);
@@ -745,6 +747,7 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
           topThresh,
           _width,
           transformPValue,
+          overflows,
           selectedRegionDetailData,
         ),
       ).finally(() => setLoading(false));
@@ -757,6 +760,7 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
     filter,
     filterCb,
     onCircleClick,
+    overflows,
     pvalScale,
     selectedRegionDetailData,
     topCol,

@@ -41,6 +41,7 @@ export const drawDottedLine = (
   x2: number,
   color: string = "gray",
   lineWidth: number = 5,
+  visible: boolean = true,
 ) => {
   const m = (y2 - y1) / (x2 - x1);
 
@@ -69,7 +70,7 @@ export const drawDottedLine = (
 
   container
     .selectAll(`g.${cls}`)
-    .data([1], () => `${y1}-${y2}-${x1}-${x2}`)
+    .data(visible ? [1] : [], () => `${y1}-${y2}-${x1}-${x2}`)
     .join("g")
     .attr("class", cls)
     .transition()
