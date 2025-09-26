@@ -100,7 +100,6 @@ const yAxisMargin = 20;
 const marginLeft = yLabelMargin + yAxisMargin;
 const marginTop = 25;
 const legendSpace = 20;
-const marginBottom = 5;
 
 const buildChart = (
   assemblyInfo: AssembyInfo,
@@ -443,7 +442,7 @@ const buildChart = (
     .attr("width", (d) => !!d && d[1] - d[0])
     .attr("x", () => posRange && posRange[0])
     .attr("y", marginTop)
-    .attr("height", height - marginMiddle - marginBottom - marginTop)
+    .attr("height", height - legendSpace - marginTop)
     .attr("stroke", "gold")
     .attr("stroke-width", "3px")
     .attr("fill", "none")
@@ -460,7 +459,7 @@ const buildChart = (
     brushX<number>()
       .extent([
         [marginLeft, marginTop],
-        [width - marginRight, height - marginBottom - legendSpace],
+        [width - marginRight, height - legendSpace],
       ])
       .on("start brush end", function (event: D3BrushEvent<number>) {
         if (!event.sourceEvent || !event.selection) return;
@@ -612,17 +611,14 @@ const buildChart = (
       const item = select(this);
       const textOffset = i === 0 ? -100 : 100;
       item
-        .attr(
-          "transform",
-          `translate(${width / 2 + textOffset}, ${height - legendSpace / 2})`,
-        )
+        .attr("transform", `translate(${width / 2 + textOffset}, -4)`)
         .append("circle")
         .attr("cx", -7)
         .attr("cy", -5)
         .attr("r", 5)
         .attr("fill", pvalScale(d));
 
-      item.append("text").text(d).attr("font-size", "14px");
+      item.append("text").text(d).attr("font-size", "12px");
     });
 
   drawDottedLine(
