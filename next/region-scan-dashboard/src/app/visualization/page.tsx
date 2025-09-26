@@ -145,12 +145,6 @@ export default function Visualization() {
     return data;
   }, [regionData, miamiData, selectedRegionDetailData]);
 
-  useEffect(() => {
-    if (regionVariantData.length) {
-      //do something
-    }
-  }, [regionVariantData]);
-
   // compute regionPlot data, which is a subset of the data currently visible in the MiamiPlot
   useEffect(() => {
     if (selectedRegion && regionRestartPoints) {

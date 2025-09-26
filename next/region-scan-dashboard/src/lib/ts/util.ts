@@ -39,6 +39,8 @@ export const drawDottedLine = (
   y2: number,
   x1: number,
   x2: number,
+  color: string = "gray",
+  lineWidth: number = 5,
 ) => {
   const m = (y2 - y1) / (x2 - x1);
 
@@ -52,7 +54,7 @@ export const drawDottedLine = (
     const previous = i > 0 ? coords[i - 1] : null;
     const prevX1 = previous ? previous[1][0] : x1;
     const prevY1 = previous ? previous[1][1] : b;
-    _x2 = prevX1 + 5;
+    _x2 = prevX1 + lineWidth;
     _y2 = m * _x2 + b;
     coords.push([
       [prevX1, prevY1],
@@ -77,7 +79,7 @@ export const drawDottedLine = (
     .data(coords.slice(1).filter((_, i) => i % 2))
     .join("path")
     .attr("d", (d) => lineGen(d))
-    .attr("stroke", "grey");
+    .attr("stroke", color);
 };
 
 export const getEntries = <T extends Record<any, any>>(obj: T) =>

@@ -100,6 +100,11 @@ const yAxisMargin = 20;
 const marginLeft = yLabelMargin + yAxisMargin;
 const marginTop = 25;
 
+// for 2-part yscale
+
+const y1Seg = 50; // 50px for outlier y
+const y1SegP = 10; // any pvalue greater than 10 (as -log10) will use this scale
+
 const buildChart = (
   assemblyInfo: AssembyInfo,
   bottomCol: keyof RegionResult | keyof VariantResult,
@@ -235,13 +240,39 @@ const buildChart = (
       ],
     );
 
-  const yScaleUpper = scaleLinear()
-    .range([marginTop, height / 2 - marginMiddle])
+  const yScale0Data = upperData.filter(
+    (d) => !!getPVal(topCol, d) && getPVal(topCol, d)! <= y1SegP,
+  );
+
+  const yScale1Data = upperData.filter(
+    (d) => !!getPVal(topCol, d) && getPVal(topCol, d)! > y1SegP,
+  );
+
+  const hasUpperY1Scale = !!yScale1Data.length;
+
+  const yScaleUpper0 = scaleLinear()
+    .range([
+      marginTop + (hasUpperY1Scale ? y1Seg : 0),
+      height / 2 - marginMiddle,
+    ])
     .domain(
       extent(
-        upperData.map((d) => getPVal(topCol, d)) as number[],
+        yScale0Data.map((d) => getPVal(topCol, d)) as number[],
       ).reverse() as [number, number],
     );
+
+  const yScaleUpper1 = hasUpperY1Scale
+    ? scaleLinear()
+        .range([marginTop, marginTop + y1Seg])
+        .domain(
+          extent(
+            yScale1Data.map((d) => getPVal(topCol, d)) as number[],
+          ).reverse() as [number, number],
+        )
+    : yScaleUpper0;
+
+  const getYScale = (pval: number) =>
+    pval < y1SegP ? yScaleUpper0(pval) : yScaleUpper1(pval);
 
   const svg = select(selector)
     .selectAll<SVGElement, number>("svg")
@@ -312,23 +343,38 @@ const buildChart = (
         : "",
     );
 
-  const yAxisUpper = axisLeft(yScaleUpper)
+  const yAxisUpper0 = axisLeft(yScaleUpper0)
     .tickFormat((t) => (+t).toString())
     .ticks(7);
+
+  const yAxisUpper1 = axisLeft(yScaleUpper1)
+    .tickFormat((t) => (+t).toString())
+    .ticks(2);
 
   const yAxisLower = axisLeft(yScaleLower)
     .tickFormat((t) => (+t).toString())
     .ticks(7);
 
   container
-    .selectAll<SVGGElement, number>("g.y-axis-upper")
-    .data([1], () => yScaleUpper.range().toString())
+    .selectAll<SVGGElement, number>("g.y-axis-upper-0")
+    .data([1], () => yScaleUpper0.range().toString())
     .join("g")
-    .attr("class", "y-axis-upper")
+    .attr("class", "y-axis-upper-0")
     .attr("transform", `translate(${marginLeft},0)`)
     .transition()
     .duration(500)
-    .call(yAxisUpper)
+    .call(yAxisUpper0)
+    .selection();
+
+  container
+    .selectAll<SVGGElement, number>("g.y-axis-upper-1")
+    .data(hasUpperY1Scale ? [1] : [], () => yScaleUpper1.range().toString())
+    .join("g")
+    .attr("class", "y-axis-upper-1")
+    .attr("transform", `translate(${marginLeft},0)`)
+    .transition()
+    .duration(500)
+    .call(yAxisUpper1)
     .selection();
 
   container
@@ -344,7 +390,7 @@ const buildChart = (
 
   // Add y axis labels
 
-  const upperMidPoint = (yScaleUpper.range()[0] + yScaleUpper.range()[1]) / 2;
+  const upperMidPoint = (height / 2 - marginTop - marginMiddle) / 2;
   const lowerMidPoint = (yScaleLower.range()[0] + yScaleLower.range()[1]) / 2;
 
   container
@@ -496,7 +542,7 @@ const buildChart = (
     .attr("cx", (d) =>
       getPlottingXScale(d.chr.toString())(getVariantOrRegionLocation(d)),
     )
-    .attr("cy", (d) => yScaleUpper(getPVal(topCol, d)!));
+    .attr("cy", (d) => getYScale(getPVal(topCol, d)!));
 
   circleContainer
     .selectAll("circle.lower")
@@ -525,7 +571,7 @@ const buildChart = (
       (d) =>
         `translate(${getPlottingXScale(d.chr.toString())(
           getVariantOrRegionLocation(d),
-        )}, ${yScaleUpper(getPVal(topCol, d) as number)})`,
+        )}, ${getYScale(getPVal(topCol, d) as number)})`,
     );
 
   circleContainer
@@ -580,8 +626,8 @@ const buildChart = (
   drawDottedLine(
     container,
     "top-thresh",
-    yScaleUpper(topThresh),
-    yScaleUpper(topThresh),
+    getYScale(topThresh),
+    getYScale(topThresh),
     marginLeft,
     width - marginRight,
   );
@@ -594,6 +640,19 @@ const buildChart = (
     marginLeft,
     width - marginRight,
   );
+
+  if (hasUpperY1Scale) {
+    drawDottedLine(
+      container,
+      "upper-y-1",
+      yScaleUpper1.range()[1],
+      yScaleUpper1.range()[1],
+      marginLeft,
+      width - marginRight,
+      pvalScale(topCol),
+      2,
+    );
+  }
 
   container
     .selectAll("text.title")
