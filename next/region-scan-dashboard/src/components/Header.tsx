@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import {
   AppBar,
   Button,
@@ -17,6 +17,7 @@ import { Check, Settings, Upload } from "@mui/icons-material";
 import { usePathname } from "next/navigation";
 import NavLink from "./NavLink";
 import {
+  OverflowSetting,
   transformPLog10,
   transformPLog10Log10,
   VisualizationDataContext,
@@ -24,6 +25,7 @@ import {
 import LoadingOverlay from "./LoadingOverlay";
 import ValidationModal from "./ValidationModal";
 import { UploadButtonMulti } from "./UploadButton";
+import NumberInput from "./NumberInput";
 import {
   RegionResult,
   RegionResultRaw,
@@ -311,9 +313,8 @@ const UploadDataDropdown: React.FC<UploadDataDropdownProps> = ({
 const SettingsDropdown: React.FC = () => {
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
 
-  const { transformPValue, setTransformPValue } = useContext(
-    VisualizationDataContext,
-  );
+  const { transformPValue, setTransformPValue, overflows, setOverflows } =
+    useContext(VisualizationDataContext);
 
   return (
     <>
@@ -352,6 +353,12 @@ const SettingsDropdown: React.FC = () => {
           selected={transformPValue == transformPLog10Log10}
           onClick={() => setTransformPValue(() => transformPLog10Log10)}
         />
+        <ListSubheader>MIAMI Y-AXIS OVERFLOW</ListSubheader>
+        <OverflowMenuItem
+          title="Upper variable"
+          onChange={(d) => setOverflows({ ...overflows, ...{ upper: d } })}
+          values={overflows["upper"]}
+        />
       </Menu>
     </>
   );
@@ -380,5 +387,77 @@ const Log10MenuItem: React.FC<Log10MenuItemProps> = ({
     </Grid>
   </MenuItem>
 );
+
+interface OverflowMenuItemProps {
+  onChange: (setting: OverflowSetting) => void;
+  title: string;
+  values: OverflowSetting;
+}
+
+const OverflowMenuItem: React.FC<OverflowMenuItemProps> = ({
+  onChange,
+  title,
+  values,
+}) => {
+  const [pThresh, setPThresh] = useState(values.pThresh);
+  const [range, setRange] = useState(values.range);
+  const [rangeError, setRangeError] = useState(false);
+
+  useEffect(() => {
+    if (range > 100 || range < 0) {
+      setRangeError(true);
+    } else if (rangeError) {
+      setRangeError(false);
+    }
+  }, [range, rangeError]);
+
+  return (
+    <MenuItem
+      onKeyDown={(e) => {
+        //prevent closing the menu
+        if (e.key === "Tab") {
+          e.stopPropagation();
+        }
+      }}
+    >
+      {/* submit on enter keypress */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!rangeError) {
+            onChange({ pThresh, range });
+          }
+        }}
+      >
+        <Grid
+          container
+          flexGrow={1}
+          justifyContent="space-between"
+          alignItems="center"
+          direction="column"
+          spacing={1}
+        >
+          <Grid>{title}</Grid>
+          <Grid>
+            <NumberInput
+              label="P-threshold (-log10)"
+              onChange={setPThresh}
+              value={pThresh}
+            />
+          </Grid>
+          <Grid>
+            <NumberInput
+              label="Pixel range"
+              onChange={setRange}
+              value={range}
+              error={rangeError ? "Range must be betwee 1 and 100" : undefined}
+            />
+          </Grid>
+          <Button type="submit" sx={{ display: "none" }} />
+        </Grid>
+      </form>
+    </MenuItem>
+  );
+};
 
 export default Header;
