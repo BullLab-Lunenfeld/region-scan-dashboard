@@ -316,6 +316,19 @@ const SettingsDropdown: React.FC = () => {
   const { transformPValue, setTransformPValue, overflows, setOverflows } =
     useContext(VisualizationDataContext);
 
+  const [upperPThresh, setUpperPThresh] = useState(overflows.upper.pThresh);
+  const [lowerPThresh, setLowerPThresh] = useState(overflows.lower.pThresh);
+  const [upperRange, setUpperRange] = useState(overflows.upper.range);
+  const [lowerRange, setLowerRange] = useState(overflows.lower.range);
+  const [overfloweErrorUpper, setOverflowErrorUpper] = useState(false);
+  const [overfloweErrorLower, setOverflowErrorLower] = useState(false);
+
+  const submitOverflowSettings = () =>
+    setOverflows({
+      upper: { range: upperRange, pThresh: upperPThresh },
+      lower: { range: lowerRange, pThresh: lowerPThresh },
+    });
+
   return (
     <>
       <IconButton
@@ -356,14 +369,28 @@ const SettingsDropdown: React.FC = () => {
         <ListSubheader>MIAMI Y-AXIS OVERFLOW</ListSubheader>
         <OverflowMenuItem
           title="Upper variable"
-          onChange={(d) => setOverflows({ ...overflows, ...{ upper: d } })}
-          values={overflows["upper"]}
+          onChangePThresh={setUpperPThresh}
+          onChangeRange={setUpperRange}
+          pThresh={upperPThresh}
+          range={upperRange}
+          setError={setOverflowErrorUpper}
         />
         <OverflowMenuItem
           title="Lower variable"
-          onChange={(d) => setOverflows({ ...overflows, ...{ lower: d } })}
-          values={overflows["lower"]}
+          onChangePThresh={setLowerPThresh}
+          onChangeRange={setLowerRange}
+          range={lowerRange}
+          pThresh={lowerPThresh}
+          setError={setOverflowErrorLower}
         />
+        <Grid textAlign="center">
+          <Button
+            onClick={submitOverflowSettings}
+            disabled={overfloweErrorLower || overfloweErrorUpper}
+          >
+            Submit
+          </Button>
+        </Grid>
       </Menu>
     </>
   );
@@ -394,73 +421,87 @@ const Log10MenuItem: React.FC<Log10MenuItemProps> = ({
 );
 
 interface OverflowMenuItemProps {
-  onChange: (setting: OverflowSetting) => void;
+  onChangePThresh: (val: number) => void;
+  onChangeRange: (val: number) => void;
+  pThresh: number;
+  range: number;
+  setError: (hasError: boolean) => void;
   title: string;
-  values: OverflowSetting;
 }
 
 const OverflowMenuItem: React.FC<OverflowMenuItemProps> = ({
-  onChange,
+  onChangePThresh,
+  onChangeRange,
+  pThresh,
+  range,
+  setError,
   title,
-  values,
 }) => {
-  const [pThresh, setPThresh] = useState(values.pThresh);
-  const [range, setRange] = useState(values.range);
   const [rangeError, setRangeError] = useState(false);
+  const [threshError, setThreshError] = useState(false);
 
-  useEffect(() => {
+  const setRange = (range: number) => {
     if (range > 100 || range < 0) {
       setRangeError(true);
-    } else if (rangeError) {
-      setRangeError(false);
+      setError(true);
+    } else {
+      if (rangeError) {
+        setRangeError(false);
+        setError(false);
+      }
+      onChangeRange(range);
     }
-  }, [range, rangeError]);
+  };
+
+  const setPThresh = (thresh: number) => {
+    if (thresh < 0) {
+      setThreshError(true);
+      setError(true);
+    } else {
+      if (threshError) {
+        setError(false);
+        setThreshError(false);
+      }
+      onChangePThresh(range);
+    }
+  };
 
   return (
     <MenuItem
       onKeyDown={(e) => {
-        //prevent closing the menu
+        //prevent closing the menu on tab
         if (e.key === "Tab") {
           e.stopPropagation();
         }
       }}
     >
-      {/* submit on enter keypress */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!rangeError) {
-            onChange({ pThresh, range });
-          }
-        }}
+      <Grid
+        container
+        flexGrow={1}
+        justifyContent="space-between"
+        alignItems="center"
+        direction="column"
+        spacing={1}
       >
-        <Grid
-          container
-          flexGrow={1}
-          justifyContent="space-between"
-          alignItems="center"
-          direction="column"
-          spacing={1}
-        >
-          <Grid>{title}</Grid>
-          <Grid>
-            <NumberInput
-              label="P-threshold (-log10)"
-              onChange={setPThresh}
-              value={pThresh}
-            />
-          </Grid>
-          <Grid>
-            <NumberInput
-              label="Pixel range"
-              onChange={setRange}
-              value={range}
-              error={rangeError ? "Range must be betwee 1 and 100" : undefined}
-            />
-          </Grid>
-          <Button type="submit" sx={{ display: "none" }} />
+        <Grid>{title}</Grid>
+        <Grid>
+          <NumberInput
+            label="P-threshold (-log10)"
+            onChange={setPThresh}
+            value={pThresh}
+            error={threshError ? "Threshold cannot be negative" : undefined}
+          />
         </Grid>
-      </form>
+        <Grid>
+          <NumberInput
+            label="Pixel range"
+            onChange={setRange}
+            value={range}
+            error={rangeError ? "Range must be betwee 1 and 100" : undefined}
+          />
+        </Grid>
+        <Button type="submit" sx={{ display: "none" }} />
+      </Grid>
     </MenuItem>
   );
 };
