@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, { useCallback, useContext, useState } from "react";
 import {
   AppBar,
   Button,
@@ -17,7 +17,6 @@ import { Check, Settings, Upload } from "@mui/icons-material";
 import { usePathname } from "next/navigation";
 import NavLink from "./NavLink";
 import {
-  OverflowSetting,
   transformPLog10,
   transformPLog10Log10,
   VisualizationDataContext,
