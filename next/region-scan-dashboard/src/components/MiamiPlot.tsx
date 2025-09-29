@@ -98,8 +98,7 @@ const marginRight = 20;
 const yLabelMargin = 28;
 const yAxisMargin = 20;
 const marginLeft = yLabelMargin + yAxisMargin;
-const marginTop = 25;
-const legendSpace = 20;
+const yMargin = 25;
 
 const buildChart = (
   assemblyInfo: AssembyInfo,
@@ -122,7 +121,8 @@ const buildChart = (
   const bottomThresh = transformPval(_bottomThresh);
 
   const {
-    upper: { pThresh: y1SegP, range: y1Seg },
+    upper: { pThresh: y1SegPUpper, range: y1SegUpper },
+    lower: { pThresh: y1SegPLower, range: y1SegLower },
   } = yOverflowSettings;
 
   // get unique chromosomes, convert to string, sort asc
@@ -235,48 +235,73 @@ const buildChart = (
           )
       : singleChrXScale;
 
-  const yScaleLower = scaleLinear()
-    .range([height / 2 + marginMiddle, height - legendSpace])
+  const yScale0DataLower = lowerData.filter(
+    (d) => getPVal(bottomCol, d)! <= y1SegPLower,
+  );
+
+  const yScale1DataLower = lowerData.filter(
+    (d) => getPVal(bottomCol, d)! > y1SegPLower,
+  );
+
+  const hasLowerY1Scale = !!yScale1DataLower.length;
+
+  const yScaleLower0 = scaleLinear()
+    .range([
+      height / 2 + marginMiddle,
+      height - yMargin - (hasLowerY1Scale ? y1SegLower : 0),
+    ])
     .domain(
-      extent(lowerData.map((d) => getPVal(bottomCol, d)) as number[]) as [
-        number,
-        number,
-      ],
+      extent(
+        yScale0DataLower.map((d) => getPVal(bottomCol, d)) as number[],
+      ) as [number, number],
     );
 
-  const yScale0Data = upperData.filter(
-    (d) => !!getPVal(topCol, d) && getPVal(topCol, d)! <= y1SegP,
+  const yScaleLower1 = hasLowerY1Scale
+    ? scaleLinear()
+        .range([height - yMargin - y1SegLower, height - yMargin])
+        .domain(
+          extent(
+            yScale1DataLower.map((d) => getPVal(bottomCol, d)) as number[],
+          ) as [number, number],
+        )
+    : yScaleLower0;
+
+  const getYScaleLower = (pval: number) =>
+    pval < y1SegPLower ? yScaleLower0(pval) : yScaleLower1(pval);
+
+  const yScale0DataUpper = upperData.filter(
+    (d) => getPVal(topCol, d)! <= y1SegPUpper,
   );
 
-  const yScale1Data = upperData.filter(
-    (d) => !!getPVal(topCol, d) && getPVal(topCol, d)! > y1SegP,
+  const yScale1DataUpper = upperData.filter(
+    (d) => getPVal(topCol, d)! > y1SegPUpper,
   );
 
-  const hasUpperY1Scale = !!yScale1Data.length;
+  const hasUpperY1Scale = !!yScale1DataUpper.length;
 
   const yScaleUpper0 = scaleLinear()
     .range([
-      marginTop + (hasUpperY1Scale ? y1Seg : 0),
+      yMargin + (hasUpperY1Scale ? y1SegUpper : 0),
       height / 2 - marginMiddle,
     ])
     .domain(
       extent(
-        yScale0Data.map((d) => getPVal(topCol, d)) as number[],
+        yScale0DataUpper.map((d) => getPVal(topCol, d)) as number[],
       ).reverse() as [number, number],
     );
 
   const yScaleUpper1 = hasUpperY1Scale
     ? scaleLinear()
-        .range([marginTop, marginTop + y1Seg])
+        .range([yMargin, yMargin + y1SegUpper])
         .domain(
           extent(
-            yScale1Data.map((d) => getPVal(topCol, d)) as number[],
+            yScale1DataUpper.map((d) => getPVal(topCol, d)) as number[],
           ).reverse() as [number, number],
         )
     : yScaleUpper0;
 
-  const getYScale = (pval: number) =>
-    pval < y1SegP ? yScaleUpper0(pval) : yScaleUpper1(pval);
+  const getYScaleUpper = (pval: number) =>
+    pval < y1SegPUpper ? yScaleUpper0(pval) : yScaleUpper1(pval);
 
   const svg = select(selector)
     .selectAll<SVGElement, number>("svg")
@@ -352,9 +377,17 @@ const buildChart = (
       Math.floor((yScaleUpper1.range()[1] - yScaleUpper1.range()[0]) / 15),
     );
 
-  const yAxisLower = axisLeft(yScaleLower)
+  const yAxisLower0 = axisLeft(yScaleLower0)
     .tickFormat((t) => (+t).toString())
-    .ticks(7);
+    .ticks(
+      Math.floor((yScaleLower0.range()[1] - yScaleLower0.range()[0]) / 15),
+    );
+
+  const yAxisLower1 = axisLeft(yScaleLower1)
+    .tickFormat((t) => (+t).toString())
+    .ticks(
+      Math.floor((yScaleLower1.range()[1] - yScaleLower1.range()[0]) / 15),
+    );
 
   container
     .selectAll<SVGGElement, number>("g.y-axis-upper-0")
@@ -379,20 +412,32 @@ const buildChart = (
     .selection();
 
   container
-    .selectAll<SVGGElement, number>("g.y-axis-lower")
-    .data([1], () => yScaleLower.range().toString())
+    .selectAll<SVGGElement, number>("g.y-axis-lower-0")
+    .data([1], () => yScaleLower0.range().toString())
     .join("g")
-    .attr("class", "y-axis-lower")
+    .attr("class", "y-axis-lower-0")
     .attr("transform", `translate(${marginLeft},0)`)
     .transition()
     .duration(500)
-    .call(yAxisLower)
+    .call(yAxisLower0)
+    .selection();
+
+  container
+    .selectAll<SVGGElement, number>("g.y-axis-lower-1")
+    .data(hasLowerY1Scale ? [1] : [], () => yScaleLower1.range().toString())
+    .join("g")
+    .attr("class", "y-axis-lower-1")
+    .attr("transform", `translate(${marginLeft},0)`)
+    .transition()
+    .duration(500)
+    .call(yAxisLower1)
     .selection();
 
   // Add y axis labels
 
-  const upperMidPoint = (height / 2 - marginMiddle) / 2 + marginTop / 2;
-  const lowerMidPoint = (yScaleLower.range()[0] + yScaleLower.range()[1]) / 2;
+  const axisHeight = height / 2 - marginMiddle / 2 - yMargin;
+  const upperMidPoint = (height / 2 - marginMiddle) / 2 + yMargin / 2;
+  const lowerMidPoint = height - yMargin - axisHeight / 2;
 
   container
     .selectAll("g.y-upper-label")
@@ -441,8 +486,8 @@ const buildChart = (
     .attr("class", "selected")
     .attr("width", (d) => !!d && d[1] - d[0])
     .attr("x", () => posRange && posRange[0])
-    .attr("y", marginTop)
-    .attr("height", height - legendSpace - marginTop)
+    .attr("y", yMargin)
+    .attr("height", height - yMargin - yMargin)
     .attr("stroke", "gold")
     .attr("stroke-width", "3px")
     .attr("fill", "none")
@@ -458,8 +503,8 @@ const buildChart = (
   circleContainer.call(
     brushX<number>()
       .extent([
-        [marginLeft, marginTop],
-        [width - marginRight, height - legendSpace],
+        [marginLeft, yMargin],
+        [width - marginRight, height - yMargin],
       ])
       .on("start brush end", function (event: D3BrushEvent<number>) {
         if (!event.sourceEvent || !event.selection) return;
@@ -543,7 +588,7 @@ const buildChart = (
     .attr("cx", (d) =>
       getPlottingXScale(d.chr.toString())(getVariantOrRegionLocation(d)),
     )
-    .attr("cy", (d) => getYScale(getPVal(topCol, d)!));
+    .attr("cy", (d) => getYScaleUpper(getPVal(topCol, d)!));
 
   circleContainer
     .selectAll("circle.lower")
@@ -556,7 +601,7 @@ const buildChart = (
     .attr("cx", (d) =>
       getPlottingXScale(d.chr.toString())(getVariantOrRegionLocation(d)),
     )
-    .attr("cy", (d) => yScaleLower(getPVal(bottomCol, d)!));
+    .attr("cy", (d) => getYScaleLower(getPVal(bottomCol, d)!));
 
   //diamonds
   circleContainer
@@ -572,7 +617,7 @@ const buildChart = (
       (d) =>
         `translate(${getPlottingXScale(d.chr.toString())(
           getVariantOrRegionLocation(d),
-        )}, ${getYScale(getPVal(topCol, d) as number)})`,
+        )}, ${getYScaleUpper(getPVal(topCol, d) as number)})`,
     );
 
   circleContainer
@@ -588,7 +633,7 @@ const buildChart = (
       (d) =>
         `translate(${getPlottingXScale(d.chr.toString())(
           getVariantOrRegionLocation(d),
-        )}, ${yScaleLower(getPVal(bottomCol, d) as number)})`,
+        )}, ${getYScaleLower(getPVal(bottomCol, d) as number)})`,
     );
 
   circleContainer
@@ -624,8 +669,8 @@ const buildChart = (
   drawDottedLine(
     container,
     "top-thresh",
-    getYScale(topThresh),
-    getYScale(topThresh),
+    getYScaleUpper(topThresh),
+    getYScaleUpper(topThresh),
     marginLeft,
     width - marginRight,
   );
@@ -633,8 +678,8 @@ const buildChart = (
   drawDottedLine(
     container,
     "bottom-thresh",
-    yScaleLower(bottomThresh),
-    yScaleLower(bottomThresh),
+    getYScaleLower(bottomThresh),
+    getYScaleLower(bottomThresh),
     marginLeft,
     width - marginRight,
   );
@@ -649,6 +694,18 @@ const buildChart = (
     pvalScale(topCol),
     2,
     hasUpperY1Scale,
+  );
+
+  drawDottedLine(
+    container,
+    "lower-y-1",
+    yScaleLower1.range()[0],
+    yScaleLower1.range()[0],
+    marginLeft,
+    width - marginRight,
+    pvalScale(bottomCol),
+    2,
+    hasLowerY1Scale,
   );
 
   container

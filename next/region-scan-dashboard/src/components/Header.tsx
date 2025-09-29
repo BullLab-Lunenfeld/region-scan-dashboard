@@ -359,6 +359,11 @@ const SettingsDropdown: React.FC = () => {
           onChange={(d) => setOverflows({ ...overflows, ...{ upper: d } })}
           values={overflows["upper"]}
         />
+        <OverflowMenuItem
+          title="Lower variable"
+          onChange={(d) => setOverflows({ ...overflows, ...{ lower: d } })}
+          values={overflows["lower"]}
+        />
       </Menu>
     </>
   );
