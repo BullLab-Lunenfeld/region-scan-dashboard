@@ -492,7 +492,10 @@ class RegionChart {
       .transition()
       .duration(250)
       .attr("height", regionRectHeight)
-      .attr("width", (d) => xScale(d.end) - xScale(d.start))
+      .attr("width", (d) => {
+        const width = xScale(d.end) - xScale(d.start);
+        return width >= 1 ? width : 1;
+      })
       .selection()
       .on("mouseover", (e: MouseEvent, d) =>
         showToolTip(e, [
