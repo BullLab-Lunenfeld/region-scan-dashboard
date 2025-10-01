@@ -35,6 +35,7 @@ import {
   showToolTip,
 } from "@/lib/ts/util";
 import useDownloadPlot from "@/lib/hooks/useDownloadPlot";
+import { formatFloat } from "@/util/columnConfigs";
 
 const className = "miami-plot";
 
@@ -46,12 +47,17 @@ const getVariantOrRegionLocation = (datum: VariantResult | RegionResult) => {
   }
 };
 
-const showMiamiTooltip = (d: VariantResult | RegionResult, e: MouseEvent) => {
+const showMiamiTooltip = (
+  d: VariantResult | RegionResult,
+  e: React.MouseEvent,
+  pval: number | null,
+) => {
   const sharedText = [`Region: ${d.region}`, `Chr: ${d.chr}`];
 
   const regionText = [
     `Start: ${formatComma(d.start_bp)}`,
     `End: ${formatComma(d.end_bp)}`,
+    `p-val: ${pval ? formatFloat(pval) : "null"} (-log10)`,
   ];
 
   const varText = [
@@ -77,6 +83,27 @@ const getPVal = (
 
   return typeof val === "string" ? +val : val;
 };
+
+const makeTicks = (
+  scale: ScaleLinear<number, number>,
+  overflowScaleVisible: boolean,
+) =>
+  ticks(
+    scale.domain()[0],
+    scale.domain()[1],
+    Math.floor((scale.range()[1] - scale.range()[0]) / 14),
+  )
+    .concat(
+      overflowScaleVisible
+        ? ticks(
+            scale.domain()[2],
+            scale.domain()[3],
+            Math.floor((scale.range()[3] - scale.range()[2]) / 14),
+          )
+        : [],
+    )
+    //unfortunately does not always round as promised
+    .map((d) => +format(".2")(d));
 
 const circleWidthScale = scaleLinear()
   .range([3, 5])
@@ -255,7 +282,7 @@ const buildChart = (
             yMargin + y1SegUpper + yScaleGapSize,
             height / 2 - marginMiddle,
           ]
-        : [yMargin, yMargin + height / 2 - marginMiddle],
+        : [yMargin, height / 2 - marginMiddle],
     )
     .domain(
       hasUpperY1Scale
@@ -370,38 +397,13 @@ const buildChart = (
     .text((d) => (chrs.length > 1 ? `Chr ${d.chr}` : ""))
     .attr("transform", rotateXLabels ? "rotate(90) translate(6,0)" : "");
 
-  const yAxisUpperTicks = ticks(
-    yscaleUpper.domain()[0],
-    yscaleUpper.domain()[1],
-    Math.floor((yscaleUpper.range()[1] - yscaleUpper.range()[0]) / 14),
-  ).concat(
-    hasUpperY1Scale
-      ? ticks(
-          yscaleUpper.domain()[2],
-          yscaleUpper.domain()[3],
-          Math.floor((yscaleUpper.range()[3] - yscaleUpper.range()[2]) / 14),
-        )
-      : [],
-  );
+  const yAxisUpperTicks = makeTicks(yscaleUpper, hasLowerY1Scale);
 
   const yAxisUpper = axisLeft(yscaleUpper)
     .tickFormat((t) => (+t).toString())
     .tickValues(yAxisUpperTicks);
 
-  //todo: if this works then just move into a function for both axes
-  const yAxisLowerTicks = ticks(
-    yscaleLower.domain()[0],
-    yscaleLower.domain()[1],
-    Math.floor((yscaleLower.range()[1] - yscaleLower.range()[0]) / 14),
-  ).concat(
-    hasLowerY1Scale
-      ? ticks(
-          yscaleLower.domain()[2],
-          yscaleLower.domain()[3],
-          Math.floor((yscaleLower.range()[3] - yscaleLower.range()[2]) / 14),
-        )
-      : [],
-  );
+  const yAxisLowerTicks = makeTicks(yscaleLower, hasLowerY1Scale);
 
   const yAxisLower = axisLeft(yscaleLower)
     .tickFormat((t) => (+t).toString())
@@ -716,7 +718,15 @@ const buildChart = (
   circleContainer
     .selectAll<BaseType, RegionResult>("circle, path")
     .on("click", (_, d: RegionResult) => onCircleClick(d))
-    .on("mouseover", (e: MouseEvent, d: RegionResult) => showMiamiTooltip(d, e))
+    .on("mouseover", (e: React.MouseEvent, d: RegionResult | VariantResult) => {
+      let pval: null | number = null;
+      if (isRegionResult(d)) {
+        pval = [...e.currentTarget.classList].includes("upper")
+          ? getPVal(topCol, d)!
+          : getPVal(bottomCol, d)!;
+      }
+      return showMiamiTooltip(d, e, pval);
+    })
     .on("mouseout", () => selectAll(".tooltip").style("visibility", "hidden"));
 
   container
@@ -724,6 +734,7 @@ const buildChart = (
     .data([1])
     .join("g")
     .attr("class", "legend")
+    .attr("transform", `translate(0, ${height})`)
     .selectAll<SVGGElement, string>("g.legend-item")
     //we'll just force a redraw rather than doing all the enters and joins
     .data([topCol, bottomCol], () => Math.random().toString(36).slice(2))
@@ -736,11 +747,12 @@ const buildChart = (
         .attr("transform", `translate(${width / 2 + textOffset}, -4)`)
         .append("circle")
         .attr("cx", -7)
-        .attr("cy", -5)
+        .attr("cy", -3)
         .attr("r", 5)
         .attr("fill", pvalScale(d));
 
       item.append("text").text(d).attr("font-size", "12px");
+      //.attr("text-anchor", "middle");
     });
 
   drawDottedLine(
@@ -760,30 +772,6 @@ const buildChart = (
     marginLeft,
     width - marginRight,
   );
-
-  // drawDottedLine(
-  //   container,
-  //   "upper-y-1",
-  //   yScaleUpper1.range()[1],
-  //   yScaleUpper1.range()[1],
-  //   marginLeft,
-  //   width - marginRight,
-  //   pvalScale(topCol),
-  //   2,
-  //   hasUpperY1Scale,
-  // );
-
-  // drawDottedLine(
-  //   container,
-  //   "lower-y-1",
-  //   yScaleLower1.range()[0],
-  //   yScaleLower1.range()[0],
-  //   marginLeft,
-  //   width - marginRight,
-  //   pvalScale(bottomCol),
-  //   2,
-  //   false,
-  // );
 
   container
     .selectAll("text.title")

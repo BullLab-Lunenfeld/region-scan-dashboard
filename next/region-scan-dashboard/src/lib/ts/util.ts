@@ -194,7 +194,7 @@ export const processRegionVariants = async (
   return transformRegionVariants(parsed, chrs, posRange, selectedRegions);
 };
 
-export const showToolTip = (e: MouseEvent, text: string[]) =>
+export const showToolTip = (e: MouseEvent | React.MouseEvent, text: string[]) =>
   select(".tooltip")
     .style("left", `${e.pageX + 15}px`)
     .style("top", `${e.pageY - 15}px`)

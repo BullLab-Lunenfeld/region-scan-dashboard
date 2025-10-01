@@ -12,9 +12,9 @@ import { PaginatedTableColumn } from "@/components/PaginatedTable";
 import { RegionResult } from "@/lib/ts/types";
 import { NumberInput } from "@/components";
 
-const formatPval = format(".3e");
+export const formatPval = format(".3e");
 
-const formatFloat = format(".3f");
+export const formatFloat = format(".3f");
 
 const chromSort =
   (direction: GridSortDirection): GridComparatorFn<number> =>
@@ -203,8 +203,8 @@ export const RegionResultCols: PaginatedTableColumn<RegionResult>[] = [
   },
   { field: "simpleM_df", headerName: "simpleM_df", sortable: true },
   {
-    field: "SimpleM_p",
-    headerName: "SimpleM_p",
+    field: "simpleM_p",
+    headerName: "simpleM_p",
     sortable: true,
     valueFormatter: formatPval,
     filterOperators: getGridNumericOperators(),
