@@ -85,23 +85,12 @@ const getPVal = (
 };
 
 const makeTicks = (
-  scale: ScaleLinear<number, number>,
-  overflowScaleVisible: boolean,
+  domainStart: number,
+  domainEnd: number,
+  rangeStart: number,
+  rangeEnd: number,
 ) =>
-  ticks(
-    scale.domain()[0],
-    scale.domain()[1],
-    Math.floor((scale.range()[1] - scale.range()[0]) / 14),
-  )
-    .concat(
-      overflowScaleVisible
-        ? ticks(
-            scale.domain()[2],
-            scale.domain()[3],
-            Math.floor((scale.range()[3] - scale.range()[2]) / 14),
-          )
-        : [],
-    )
+  ticks(domainStart, domainEnd, Math.floor((rangeEnd - rangeStart) / 14))
     //unfortunately does not always round as promised
     .map((d) => +format(".2")(d));
 
@@ -397,27 +386,116 @@ const buildChart = (
     .text((d) => (chrs.length > 1 ? `Chr ${d.chr}` : ""))
     .attr("transform", rotateXLabels ? "rotate(90) translate(6,0)" : "");
 
-  const yAxisUpperTicks = makeTicks(yscaleUpper, hasLowerY1Scale);
+  const yAxisUpperTicks0 = makeTicks(
+    ...(yscaleUpper.domain().slice(0, 2) as [number, number]),
+    ...(yscaleUpper.range().slice(0, 2) as [number, number]),
+  );
 
-  const yAxisUpper = axisLeft(yscaleUpper)
+  // We have single y scales with potentially multiple domain/ranges
+  // So we'll create separate axis for them b/c we want a gap between them
+  // For exports, this needs to be a true gap and not something papered over.
+  // We do this by creating dummy scales to pass to the axis constructor as needed.
+  const yAxisUpper0 = axisLeft(
+    scaleLinear()
+      .range(yscaleUpper.range().slice(0, 2))
+      .domain(yscaleUpper.domain().slice(0, 2)),
+  )
     .tickFormat((t) => (+t).toString())
-    .tickValues(yAxisUpperTicks);
+    .tickValues(yAxisUpperTicks0)
+    .tickSizeOuter(0);
 
-  const yAxisLowerTicks = makeTicks(yscaleLower, hasLowerY1Scale);
+  const yAxisUpper1Ticks = hasUpperY1Scale
+    ? makeTicks(
+        ...(yscaleUpper.domain().slice(2, 4) as [number, number]),
+        ...(yscaleUpper.range().slice(2, 4) as [number, number]),
+      )
+    : [];
 
-  const yAxisLower = axisLeft(yscaleLower)
-    .tickFormat((t) => (+t).toString())
-    .tickValues(yAxisLowerTicks);
+  const yAxisUpper1 = hasUpperY1Scale
+    ? axisLeft(
+        scaleLinear()
+          .range(yscaleUpper.range().slice(2, 4))
+          .domain(yscaleUpper.domain().slice(2, 4)),
+      )
+        .tickFormat((t) => (+t).toString())
+        .tickValues(yAxisUpper1Ticks)
+        .tickSizeOuter(0)
+    : yAxisUpper0;
 
   container
-    .selectAll<SVGGElement, number>("g.y-axis-upper")
+    .selectAll<SVGGElement, number>("g.y-axis-upper-0")
     .data([1], () => yscaleUpper.range().toString())
     .join("g")
-    .attr("class", "y-axis-upper")
+    .attr("class", "y-axis-upper-0")
     .attr("transform", `translate(${marginLeft},0)`)
     .transition()
     .duration(500)
-    .call(yAxisUpper)
+    .call(yAxisUpper0)
+    .selection();
+
+  container
+    .selectAll<SVGGElement, number>("g.y-axis-upper-1")
+    .data(hasUpperY1Scale ? [1] : [], () => yscaleUpper.range().toString())
+    .join("g")
+    .attr("class", "y-axis-upper-1")
+    .attr("transform", `translate(${marginLeft},0)`)
+    .transition()
+    .duration(500)
+    .call(yAxisUpper1)
+    .selection();
+
+  const yAxisLowerTicks0 = makeTicks(
+    ...(yscaleLower.domain().slice(0, 2) as [number, number]),
+    ...(yscaleLower.range().slice(0, 2) as [number, number]),
+  );
+
+  const yAxisLower0 = axisLeft(
+    scaleLinear()
+      .range(yscaleLower.range().slice(0, 2))
+      .domain(yscaleLower.domain().slice(0, 2)),
+  )
+    .tickFormat((t) => (+t).toString())
+    .tickValues(yAxisLowerTicks0)
+    .tickSizeOuter(0);
+
+  const yAxisLower1Ticks = hasLowerY1Scale
+    ? makeTicks(
+        ...(yscaleLower.domain().slice(2, 4) as [number, number]),
+        ...(yscaleLower.range().slice(2, 4) as [number, number]),
+      )
+    : [];
+
+  const yAxisLower1 = hasLowerY1Scale
+    ? axisLeft(
+        scaleLinear()
+          .range(yscaleLower.range().slice(2, 4))
+          .domain(yscaleLower.domain().slice(2, 4)),
+      )
+        .tickFormat((t) => (+t).toString())
+        .tickValues(yAxisLower1Ticks)
+        .tickSizeOuter(0)
+    : yAxisLower0;
+
+  container
+    .selectAll<SVGGElement, number>("g.y-axis-lower-0")
+    .data([1], () => yscaleLower.range().toString())
+    .join("g")
+    .attr("class", "y-axis-lower-0")
+    .attr("transform", `translate(${marginLeft},0)`)
+    .transition()
+    .duration(500)
+    .call(yAxisLower0)
+    .selection();
+
+  container
+    .selectAll<SVGGElement, number>("g.y-axis-lower-1")
+    .data(hasLowerY1Scale ? [1] : [], () => yscaleLower.range().toString())
+    .join("g")
+    .attr("class", "y-axis-lower-1")
+    .attr("transform", `translate(${marginLeft},0)`)
+    .transition()
+    .duration(500)
+    .call(yAxisLower1)
     .selection();
 
   const breakLine = line(
@@ -462,17 +540,6 @@ const buildChart = (
       "transform",
       (d) => `rotate(-25, ${(d[0][0] + d[1][0]) / 2}, ${d[0][1]})`,
     );
-
-  container
-    .selectAll<SVGGElement, number>("g.y-axis-lower")
-    .data([1], () => yscaleLower.range().toString())
-    .join("g")
-    .attr("class", "y-axis-lower")
-    .attr("transform", `translate(${marginLeft},0)`)
-    .transition()
-    .duration(500)
-    .call(yAxisLower)
-    .selection();
 
   container
     .selectAll("rect.axis-break-lower")
