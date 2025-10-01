@@ -2,8 +2,8 @@
 
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import "d3-transition"; // must be imported before selection
-import { symbolDiamond, symbol } from "d3-shape";
-import { cumsum, extent, sum } from "d3-array";
+import { symbolDiamond, symbol, line } from "d3-shape";
+import { cumsum, extent, sum, ticks } from "d3-array";
 import { axisBottom, axisLeft } from "d3-axis";
 import { brushX, D3BrushEvent } from "d3-brush";
 import { format } from "d3-format";
@@ -99,6 +99,7 @@ const yLabelMargin = 28;
 const yAxisMargin = 20;
 const marginLeft = yLabelMargin + yAxisMargin;
 const yMargin = 25;
+const yScaleGapSize = 2;
 
 const buildChart = (
   assemblyInfo: AssembyInfo,
@@ -235,40 +236,6 @@ const buildChart = (
           )
       : singleChrXScale;
 
-  const yScale0DataLower = lowerData.filter(
-    (d) => getPVal(bottomCol, d)! <= y1SegPLower,
-  );
-
-  const yScale1DataLower = lowerData.filter(
-    (d) => getPVal(bottomCol, d)! > y1SegPLower,
-  );
-
-  const hasLowerY1Scale = !!yScale1DataLower.length;
-
-  const yScaleLower0 = scaleLinear()
-    .range([
-      height / 2 + marginMiddle,
-      height - yMargin - (hasLowerY1Scale ? y1SegLower : 0),
-    ])
-    .domain(
-      extent(
-        yScale0DataLower.map((d) => getPVal(bottomCol, d)) as number[],
-      ) as [number, number],
-    );
-
-  const yScaleLower1 = hasLowerY1Scale
-    ? scaleLinear()
-        .range([height - yMargin - y1SegLower + 10, height - yMargin])
-        .domain(
-          extent(
-            yScale1DataLower.map((d) => getPVal(bottomCol, d)) as number[],
-          ) as [number, number],
-        )
-    : yScaleLower0;
-
-  const getYScaleLower = (pval: number) =>
-    pval < y1SegPLower ? yScaleLower0(pval) : yScaleLower1(pval);
-
   const yScale0DataUpper = upperData.filter(
     (d) => getPVal(topCol, d)! <= y1SegPUpper,
   );
@@ -279,29 +246,67 @@ const buildChart = (
 
   const hasUpperY1Scale = !!yScale1DataUpper.length;
 
-  const yScaleUpper0 = scaleLinear()
-    .range([
-      yMargin + (hasUpperY1Scale ? y1SegUpper : 0),
-      height / 2 - marginMiddle,
-    ])
+  const yscaleUpper = scaleLinear()
+    .range(
+      hasUpperY1Scale
+        ? [
+            yMargin,
+            yMargin + y1SegUpper - yScaleGapSize,
+            yMargin + y1SegUpper + yScaleGapSize,
+            height / 2 - marginMiddle,
+          ]
+        : [yMargin, yMargin + height / 2 - marginMiddle],
+    )
     .domain(
-      extent(
-        yScale0DataUpper.map((d) => getPVal(topCol, d)) as number[],
-      ).reverse() as [number, number],
+      hasUpperY1Scale
+        ? [
+            ...(extent(
+              yScale1DataUpper.map((d) => getPVal(topCol, d)) as number[],
+            ).reverse() as [number, number]),
+            ...(extent(
+              yScale0DataUpper.map((d) => getPVal(topCol, d)) as number[],
+            ).reverse() as [number, number]),
+          ]
+        : (extent(
+            yScale0DataUpper.map((d) => getPVal(topCol, d)) as number[],
+          ).reverse() as [number, number]),
     );
 
-  const yScaleUpper1 = hasUpperY1Scale
-    ? scaleLinear()
-        .range([yMargin, yMargin + y1SegUpper])
-        .domain(
-          extent(
-            yScale1DataUpper.map((d) => getPVal(topCol, d)) as number[],
-          ).reverse() as [number, number],
-        )
-    : yScaleUpper0;
+  const yScale0DataLower = lowerData.filter(
+    (d) => getPVal(bottomCol, d)! <= y1SegPLower,
+  );
 
-  const getYScaleUpper = (pval: number) =>
-    pval < y1SegPUpper ? yScaleUpper0(pval) : yScaleUpper1(pval);
+  const yScale1DataLower = lowerData.filter(
+    (d) => getPVal(bottomCol, d)! > y1SegPLower,
+  );
+
+  const hasLowerY1Scale = !!yScale1DataLower.length;
+
+  const yscaleLower = scaleLinear()
+    .range(
+      hasLowerY1Scale
+        ? [
+            height / 2 + marginMiddle,
+            height - yMargin - y1SegLower - yScaleGapSize,
+            height - yMargin - y1SegLower + yScaleGapSize,
+            height - yMargin,
+          ]
+        : [height / 2 + marginMiddle, height - yMargin],
+    )
+    .domain(
+      hasLowerY1Scale
+        ? [
+            ...(extent(
+              yScale0DataLower.map((d) => getPVal(bottomCol, d)) as number[],
+            ) as [number, number]),
+            ...(extent(
+              yScale1DataLower.map((d) => getPVal(bottomCol, d)) as number[],
+            ) as [number, number]),
+          ]
+        : (extent(
+            yScale0DataLower.map((d) => getPVal(bottomCol, d)) as number[],
+          ) as [number, number]),
+    );
 
   const svg = select(selector)
     .selectAll<SVGElement, number>("svg")
@@ -365,73 +370,145 @@ const buildChart = (
     .text((d) => (chrs.length > 1 ? `Chr ${d.chr}` : ""))
     .attr("transform", rotateXLabels ? "rotate(90) translate(6,0)" : "");
 
-  const yAxisUpper0 = axisLeft(yScaleUpper0)
-    .tickFormat((t) => (+t).toString())
-    .ticks(
-      Math.floor((yScaleUpper0.range()[1] - yScaleUpper0.range()[0]) / 15),
-    );
+  const yAxisUpperTicks = ticks(
+    yscaleUpper.domain()[0],
+    yscaleUpper.domain()[1],
+    Math.floor((yscaleUpper.range()[1] - yscaleUpper.range()[0]) / 14),
+  ).concat(
+    hasUpperY1Scale
+      ? ticks(
+          yscaleUpper.domain()[2],
+          yscaleUpper.domain()[3],
+          Math.floor((yscaleUpper.range()[3] - yscaleUpper.range()[2]) / 14),
+        )
+      : [],
+  );
 
-  const yAxisUpper1 = axisLeft(yScaleUpper1)
+  const yAxisUpper = axisLeft(yscaleUpper)
     .tickFormat((t) => (+t).toString())
-    .ticks(
-      Math.floor((yScaleUpper1.range()[1] - yScaleUpper1.range()[0]) / 15),
-    );
+    .tickValues(yAxisUpperTicks);
 
-  const yAxisLower0 = axisLeft(yScaleLower0)
-    .tickFormat((t) => (+t).toString())
-    .ticks(
-      Math.floor((yScaleLower0.range()[1] - yScaleLower0.range()[0]) / 15),
-    );
+  //todo: if this works then just move into a function for both axes
+  const yAxisLowerTicks = ticks(
+    yscaleLower.domain()[0],
+    yscaleLower.domain()[1],
+    Math.floor((yscaleLower.range()[1] - yscaleLower.range()[0]) / 14),
+  ).concat(
+    hasLowerY1Scale
+      ? ticks(
+          yscaleLower.domain()[2],
+          yscaleLower.domain()[3],
+          Math.floor((yscaleLower.range()[3] - yscaleLower.range()[2]) / 14),
+        )
+      : [],
+  );
 
-  const yAxisLower1 = axisLeft(yScaleLower1)
+  const yAxisLower = axisLeft(yscaleLower)
     .tickFormat((t) => (+t).toString())
-    .ticks(
-      Math.floor((yScaleLower1.range()[1] - yScaleLower1.range()[0]) / 15),
-    );
+    .tickValues(yAxisLowerTicks);
 
   container
-    .selectAll<SVGGElement, number>("g.y-axis-upper-0")
-    .data([1], () => yScaleUpper0.range().toString())
+    .selectAll<SVGGElement, number>("g.y-axis-upper")
+    .data([1], () => yscaleUpper.range().toString())
     .join("g")
-    .attr("class", "y-axis-upper-0")
+    .attr("class", "y-axis-upper")
     .attr("transform", `translate(${marginLeft},0)`)
     .transition()
     .duration(500)
-    .call(yAxisUpper0)
+    .call(yAxisUpper)
     .selection();
 
+  const breakLine = line(
+    (d) => d[0],
+    (d) => d[1],
+  );
+
   container
-    .selectAll<SVGGElement, number>("g.y-axis-upper-1")
-    .data(hasUpperY1Scale ? [1] : [], () => yScaleUpper1.range().toString())
+    .selectAll("rect.axis-break-upper")
+    .data(hasUpperY1Scale ? [1] : [], () => yscaleUpper.range().toString())
+    .join("rect")
+    .attr("class", "axis-break-upper")
+    .attr("x", marginLeft - 5)
+    .attr("width", 10)
+    .attr("y", yscaleUpper.range()[1])
+    .attr("height", 4)
+    .attr("fill", "white");
+
+  container
+    .selectAll("path.y-upper-axis-break-line")
+    .data(
+      hasUpperY1Scale
+        ? [
+            [
+              [marginLeft - 5, yscaleUpper.range()[1]] as [number, number],
+              [marginLeft + 5, yscaleUpper.range()[1]] as [number, number],
+            ],
+            [
+              [marginLeft - 5, yscaleUpper.range()[2]] as [number, number],
+              [marginLeft + 5, yscaleUpper.range()[2]] as [number, number],
+            ],
+          ]
+        : [],
+      () => yscaleUpper.range().toString(),
+    )
+    .join("path")
+    .attr("class", "y-upper-axis-break-line")
+    .attr("d", (d) => breakLine(d))
+    .attr("stroke", "black")
+    .attr("stroke-width", "1px")
+    .attr(
+      "transform",
+      (d) => `rotate(-25, ${(d[0][0] + d[1][0]) / 2}, ${d[0][1]})`,
+    );
+
+  container
+    .selectAll<SVGGElement, number>("g.y-axis-lower")
+    .data([1], () => yscaleLower.range().toString())
     .join("g")
-    .attr("class", "y-axis-upper-1")
+    .attr("class", "y-axis-lower")
     .attr("transform", `translate(${marginLeft},0)`)
     .transition()
     .duration(500)
-    .call(yAxisUpper1)
+    .call(yAxisLower)
     .selection();
 
   container
-    .selectAll<SVGGElement, number>("g.y-axis-lower-0")
-    .data([1], () => yScaleLower0.range().toString())
-    .join("g")
-    .attr("class", "y-axis-lower-0")
-    .attr("transform", `translate(${marginLeft},0)`)
-    .transition()
-    .duration(500)
-    .call(yAxisLower0)
-    .selection();
+    .selectAll("rect.axis-break-lower")
+    .data(hasLowerY1Scale ? [1] : [], () => yscaleLower.range().toString())
+    .join("rect")
+    .attr("class", "axis-break-lower")
+    .attr("x", marginLeft - 5)
+    .attr("width", 10)
+    .attr("y", yscaleLower.range()[1])
+    .attr("height", 4)
+    .attr("fill", "white");
 
   container
-    .selectAll<SVGGElement, number>("g.y-axis-lower-1")
-    .data(hasLowerY1Scale ? [1] : [], () => yScaleLower1.range().toString())
-    .join("g")
-    .attr("class", "y-axis-lower-1")
-    .attr("transform", `translate(${marginLeft},0)`)
-    .transition()
-    .duration(500)
-    .call(yAxisLower1)
-    .selection();
+    .selectAll("path.y-lower-axis-break-line")
+    .data(
+      hasLowerY1Scale
+        ? [
+            [
+              [marginLeft - 5, yscaleLower.range()[1]] as [number, number],
+              [marginLeft + 5, yscaleLower.range()[1]] as [number, number],
+            ],
+            [
+              [marginLeft - 5, yscaleLower.range()[2]] as [number, number],
+              [marginLeft + 5, yscaleLower.range()[2]] as [number, number],
+            ],
+          ]
+        : [],
+      () => yscaleLower.range().toString(),
+    )
+    .join("path")
+    .attr("class", "y-lower-axis-break-line")
+    .attr("d", (d) => breakLine(d))
+    .attr("stroke", "black")
+    .attr("stroke-width", "1px")
+    .attr(
+      "transform",
+      (d) => `rotate(-25, ${(d[0][0] + d[1][0]) / 2}, ${d[0][1]})`,
+    );
 
   // Add y axis labels
 
@@ -588,7 +665,7 @@ const buildChart = (
     .attr("cx", (d) =>
       getPlottingXScale(d.chr.toString())(getVariantOrRegionLocation(d)),
     )
-    .attr("cy", (d) => getYScaleUpper(getPVal(topCol, d)!));
+    .attr("cy", (d) => yscaleUpper(getPVal(topCol, d)!));
 
   circleContainer
     .selectAll("circle.lower")
@@ -601,7 +678,7 @@ const buildChart = (
     .attr("cx", (d) =>
       getPlottingXScale(d.chr.toString())(getVariantOrRegionLocation(d)),
     )
-    .attr("cy", (d) => getYScaleLower(getPVal(bottomCol, d)!));
+    .attr("cy", (d) => yscaleLower(getPVal(bottomCol, d)!));
 
   //diamonds
   circleContainer
@@ -617,7 +694,7 @@ const buildChart = (
       (d) =>
         `translate(${getPlottingXScale(d.chr.toString())(
           getVariantOrRegionLocation(d),
-        )}, ${getYScaleUpper(getPVal(topCol, d) as number)})`,
+        )}, ${yscaleUpper(getPVal(topCol, d) as number)})`,
     );
 
   circleContainer
@@ -633,7 +710,7 @@ const buildChart = (
       (d) =>
         `translate(${getPlottingXScale(d.chr.toString())(
           getVariantOrRegionLocation(d),
-        )}, ${getYScaleLower(getPVal(bottomCol, d) as number)})`,
+        )}, ${yscaleLower(getPVal(bottomCol, d) as number)})`,
     );
 
   circleContainer
@@ -669,8 +746,8 @@ const buildChart = (
   drawDottedLine(
     container,
     "top-thresh",
-    getYScaleUpper(topThresh),
-    getYScaleUpper(topThresh),
+    yscaleUpper(topThresh),
+    yscaleUpper(topThresh),
     marginLeft,
     width - marginRight,
   );
@@ -678,35 +755,35 @@ const buildChart = (
   drawDottedLine(
     container,
     "bottom-thresh",
-    getYScaleLower(bottomThresh),
-    getYScaleLower(bottomThresh),
+    yscaleLower(bottomThresh),
+    yscaleLower(bottomThresh),
     marginLeft,
     width - marginRight,
   );
 
-  drawDottedLine(
-    container,
-    "upper-y-1",
-    yScaleUpper1.range()[1],
-    yScaleUpper1.range()[1],
-    marginLeft,
-    width - marginRight,
-    pvalScale(topCol),
-    2,
-    hasUpperY1Scale,
-  );
+  // drawDottedLine(
+  //   container,
+  //   "upper-y-1",
+  //   yScaleUpper1.range()[1],
+  //   yScaleUpper1.range()[1],
+  //   marginLeft,
+  //   width - marginRight,
+  //   pvalScale(topCol),
+  //   2,
+  //   hasUpperY1Scale,
+  // );
 
-  drawDottedLine(
-    container,
-    "lower-y-1",
-    yScaleLower1.range()[0],
-    yScaleLower1.range()[0],
-    marginLeft,
-    width - marginRight,
-    pvalScale(bottomCol),
-    2,
-    false,
-  );
+  // drawDottedLine(
+  //   container,
+  //   "lower-y-1",
+  //   yScaleLower1.range()[0],
+  //   yScaleLower1.range()[0],
+  //   marginLeft,
+  //   width - marginRight,
+  //   pvalScale(bottomCol),
+  //   2,
+  //   false,
+  // );
 
   container
     .selectAll("text.title")
