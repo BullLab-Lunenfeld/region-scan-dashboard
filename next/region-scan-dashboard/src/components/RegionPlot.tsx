@@ -494,7 +494,7 @@ class RegionChart {
       .attr("height", regionRectHeight)
       .attr("width", (d) => {
         const width = xScale(d.end) - xScale(d.start);
-        return width >= 1 ? width : 1;
+        return width >= 4 ? width : 4;
       })
       .selection()
       .on("mouseover", (e: MouseEvent, d) =>
