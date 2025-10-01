@@ -258,7 +258,7 @@ const buildChart = (
 
   const yScaleLower1 = hasLowerY1Scale
     ? scaleLinear()
-        .range([height - yMargin - y1SegLower, height - yMargin])
+        .range([height - yMargin - y1SegLower + 10, height - yMargin])
         .domain(
           extent(
             yScale1DataLower.map((d) => getPVal(bottomCol, d)) as number[],
@@ -705,7 +705,7 @@ const buildChart = (
     width - marginRight,
     pvalScale(bottomCol),
     2,
-    hasLowerY1Scale,
+    false,
   );
 
   container
