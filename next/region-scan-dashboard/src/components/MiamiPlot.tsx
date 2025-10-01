@@ -221,7 +221,7 @@ const buildChart = (
   const lowerData = transformedData.filter((d) => Object.hasOwn(d, bottomCol));
 
   const singleChrXScale = scaleLinear()
-    .range([marginLeft, width - marginRight])
+    .range([marginLeft + 5, width - marginRight])
     .domain(
       extent(
         upperData
