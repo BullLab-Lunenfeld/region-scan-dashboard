@@ -81,6 +81,7 @@ export default function Visualization() {
   >("");
 
   const {
+    palette,
     regionData,
     regionVariantData,
     setRegionData,
@@ -104,7 +105,7 @@ export default function Visualization() {
   const pvalScale = useMemo(() => {
     if (regionDataSet) {
       return scaleOrdinal<string, string>()
-        .range(schemeTableau10)
+        .range(palette)
         .domain(
           Object.keys(regionData[0])
             .concat(regionVariantData.length ? "sglm_pvalue" : [])
@@ -113,7 +114,7 @@ export default function Visualization() {
             .filter((k, i, a) => a.findIndex((d) => d === k) === i) as string[],
         );
     }
-  }, [regionData, regionVariantData]);
+  }, [regionData, regionVariantData, palette]);
 
   // save where the regions restart (~centromeres)
   const regionRestartPoints = useMemo(() => {
