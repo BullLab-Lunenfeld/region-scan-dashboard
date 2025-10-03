@@ -344,7 +344,13 @@ const SettingsDropdown: React.FC = () => {
         aria-labelledby="settings-menu"
         anchorEl={anchorEl}
         open={!!anchorEl}
-        onClose={() => setAnchorEl(null)}
+        onClose={() => {
+          setUpperPThresh(overflows.upper.pThresh);
+          setLowerPThresh(overflows.lower.pThresh);
+          setUpperRange(overflows.upper.range);
+          setLowerRange(overflows.lower.range);
+          setAnchorEl(null);
+        }}
         anchorOrigin={{
           vertical: "top",
           horizontal: "left",
@@ -378,8 +384,8 @@ const SettingsDropdown: React.FC = () => {
           title="Lower variable"
           onChangePThresh={setLowerPThresh}
           onChangeRange={setLowerRange}
-          range={lowerRange}
           pThresh={lowerPThresh}
+          range={lowerRange}
           setError={setOverflowErrorLower}
         />
         <Grid textAlign="center">
@@ -461,7 +467,7 @@ const OverflowMenuItem: React.FC<OverflowMenuItemProps> = ({
         setError(false);
         setThreshError(false);
       }
-      onChangePThresh(range);
+      onChangePThresh(thresh);
     }
   };
 
