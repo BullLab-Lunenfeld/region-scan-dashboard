@@ -17,7 +17,6 @@ import {
   MenuItem,
   Typography,
 } from "@mui/material";
-import { schemeTableau10 } from "d3-scale-chromatic";
 import { scaleOrdinal } from "d3-scale";
 import { extent, groups } from "d3-array";
 import { DeselectSharp, UndoSharp } from "@mui/icons-material";

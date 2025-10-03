@@ -17,7 +17,7 @@ import {
 } from "@mui/material";
 import { extent } from "d3-array";
 import { schemeTableau10 } from "d3-scale-chromatic";
-import { Check, Settings, Upload } from "@mui/icons-material";
+import { Settings, Upload } from "@mui/icons-material";
 import { usePathname } from "next/navigation";
 import NavLink from "./NavLink";
 import {
@@ -338,7 +338,6 @@ const SettingsDropdown: React.FC = () => {
     palette,
     setPalette,
   } = useContext(VisualizationDataContext);
-  const [paletteName, setPaletteName] = useState("default");
   const [upperPThresh, setUpperPThresh] = useState(overflows.upper.pThresh);
   const [lowerPThresh, setLowerPThresh] = useState(overflows.lower.pThresh);
   const [upperRange, setUpperRange] = useState(overflows.upper.range);
@@ -388,7 +387,6 @@ const SettingsDropdown: React.FC = () => {
         <MenuItem>
           <RadioGroup
             onChange={(e) => {
-              setPaletteName(e.currentTarget.value);
               if (e.currentTarget.value === "default") {
                 setPalette(schemeTableau10);
               } else {
@@ -399,28 +397,42 @@ const SettingsDropdown: React.FC = () => {
             <FormControlLabel
               checked={palette === schemeTableau10}
               value={"default"}
-              control={<Radio />}
+              control={<Radio size="small" />}
               label="Default"
             />
             <FormControlLabel
               checked={palette === COLOR_BLIND_PALETTE}
               value="color-blind"
-              control={<Radio />}
+              control={<Radio size="small" />}
               label="Colour Blind"
             />
           </RadioGroup>
         </MenuItem>
         <ListSubheader>P VALUE FORMAT</ListSubheader>
-        <Log10MenuItem
-          val="-log10"
-          selected={transformPValue == transformPLog10}
-          onClick={() => setTransformPValue(() => transformPLog10)}
-        />
-        <Log10MenuItem
-          val="log10(-log10)"
-          selected={transformPValue == transformPLog10Log10}
-          onClick={() => setTransformPValue(() => transformPLog10Log10)}
-        />
+        <MenuItem>
+          <RadioGroup
+            onChange={(e) => {
+              if (e.currentTarget.value === "log10") {
+                setTransformPValue(() => transformPLog10);
+              } else {
+                setTransformPValue(() => transformPLog10Log10);
+              }
+            }}
+          >
+            <FormControlLabel
+              checked={transformPValue === transformPLog10}
+              value={"log10"}
+              control={<Radio size="small" />}
+              label="log10"
+            />
+            <FormControlLabel
+              checked={transformPValue === transformPLog10Log10}
+              value="log10(-log10)"
+              control={<Radio size="small" />}
+              label="log10(-log10)"
+            />
+          </RadioGroup>
+        </MenuItem>
         <ListSubheader>MIAMI Y-AXIS OVERFLOW</ListSubheader>
         <OverflowMenuItem
           title="Upper variable"
@@ -450,30 +462,6 @@ const SettingsDropdown: React.FC = () => {
     </>
   );
 };
-
-interface Log10MenuItemProps {
-  onClick: () => void;
-  selected?: boolean;
-  val: string;
-}
-
-const Log10MenuItem: React.FC<Log10MenuItemProps> = ({
-  onClick,
-  selected,
-  val,
-}) => (
-  <MenuItem onClick={onClick}>
-    <Grid
-      container
-      flexGrow={1}
-      justifyContent="space-between"
-      alignItems="center"
-    >
-      <Grid>{val}</Grid>
-      <Grid>{selected ? <Check fontSize="small" /> : ""}</Grid>
-    </Grid>
-  </MenuItem>
-);
 
 interface OverflowMenuItemProps {
   onChangePThresh: (val: number) => void;
