@@ -7,6 +7,7 @@ import React, {
   useState,
 } from "react";
 import { Box, Container } from "@mui/material";
+import { schemeTableau10 } from "d3-scale-chromatic";
 import Header from "./Header";
 import { RegionResult, VariantResult } from "@/lib/ts/types";
 
@@ -33,9 +34,11 @@ export const transformPLog10Log10 = (pval: number) =>
 
 interface VisualizationDataContext {
   overflows: OverflowScaleSettings;
+  palette: readonly string[];
   regionData: RegionResult[];
   regionVariantData: VariantResult[];
   setOverflows: (data: OverflowScaleSettings) => void;
+  setPalette: (palette: readonly string[]) => void;
   setRegionData: (data: RegionResult[]) => void;
   setRegionVariantData: (data: VariantResult[]) => void;
   setThreshold: (name: keyof PlotThresholds, val: number) => void;
@@ -50,10 +53,12 @@ interface AppContainerProps {
 
 export const VisualizationDataContext = createContext<VisualizationDataContext>(
   {
+    palette: schemeTableau10,
     transformPValue: () => 0,
     regionData: [],
     regionVariantData: [],
     setOverflows: () => null,
+    setPalette: () => null,
     setTransformPValue: () => null,
     setThreshold: () => null,
     setRegionData: () => null,
@@ -78,6 +83,7 @@ export const VisualizationDataContext = createContext<VisualizationDataContext>(
 );
 
 const AppContainer: React.FC<AppContainerProps> = ({ children }) => {
+  const [palette, setPalette] = useState<readonly string[]>(schemeTableau10);
   const [transformPValue, setTransformPValue] = useState<
     (pval: number) => number
   >(() => transformPLog10);
@@ -110,9 +116,11 @@ const AppContainer: React.FC<AppContainerProps> = ({ children }) => {
     <VisualizationDataContext.Provider
       value={{
         overflows,
+        palette,
         regionData,
         regionVariantData,
         setOverflows,
+        setPalette,
         setRegionData,
         setRegionVariantData,
         setThreshold,

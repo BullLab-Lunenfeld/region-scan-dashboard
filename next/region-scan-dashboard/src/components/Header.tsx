@@ -4,15 +4,19 @@ import React, { useCallback, useContext, useState } from "react";
 import {
   AppBar,
   Button,
+  FormControlLabel,
   Grid2 as Grid,
   IconButton,
   ListSubheader,
   Menu,
   MenuItem,
+  Radio,
+  RadioGroup,
   Toolbar,
   Typography,
 } from "@mui/material";
 import { extent } from "d3-array";
+import { schemeTableau10 } from "d3-scale-chromatic";
 import { Check, Settings, Upload } from "@mui/icons-material";
 import { usePathname } from "next/navigation";
 import NavLink from "./NavLink";
@@ -148,6 +152,20 @@ const validateRegionVariantUpload = (uploadedData: any[]) => {
     return `The following fields are missing: ${missing.join(", ")}`;
   } else return "";
 };
+
+// https://davidmathlogic.com/colorblind/#%23332288-%23117733-%2344AA99-%2388CCEE-%23CC6677-%23AA4499-%23882255-%232ff55d-%237b40c1-%23457df4
+const COLOR_BLIND_PALETTE: readonly string[] = [
+  "#332288",
+  "#117733",
+  "#44AA99",
+  "#88CCEE",
+  "#CC6677",
+  "#AA4499",
+  "#882255",
+  "#2FF55D",
+  "#7B40C1",
+  "#457DF4",
+];
 
 const Header: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -312,9 +330,15 @@ const UploadDataDropdown: React.FC<UploadDataDropdownProps> = ({
 const SettingsDropdown: React.FC = () => {
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
 
-  const { transformPValue, setTransformPValue, overflows, setOverflows } =
-    useContext(VisualizationDataContext);
-
+  const {
+    transformPValue,
+    setTransformPValue,
+    overflows,
+    setOverflows,
+    palette,
+    setPalette,
+  } = useContext(VisualizationDataContext);
+  const [paletteName, setPaletteName] = useState("default");
   const [upperPThresh, setUpperPThresh] = useState(overflows.upper.pThresh);
   const [lowerPThresh, setLowerPThresh] = useState(overflows.lower.pThresh);
   const [upperRange, setUpperRange] = useState(overflows.upper.range);
@@ -360,6 +384,32 @@ const SettingsDropdown: React.FC = () => {
           horizontal: "left",
         }}
       >
+        <ListSubheader>PALETTE</ListSubheader>
+        <MenuItem>
+          <RadioGroup
+            onChange={(e) => {
+              setPaletteName(e.currentTarget.value);
+              if (e.currentTarget.value === "default") {
+                setPalette(schemeTableau10);
+              } else {
+                setPalette(COLOR_BLIND_PALETTE);
+              }
+            }}
+          >
+            <FormControlLabel
+              checked={palette === schemeTableau10}
+              value={"default"}
+              control={<Radio />}
+              label="Default"
+            />
+            <FormControlLabel
+              checked={palette === COLOR_BLIND_PALETTE}
+              value="color-blind"
+              control={<Radio />}
+              label="Colour Blind"
+            />
+          </RadioGroup>
+        </MenuItem>
         <ListSubheader>P VALUE FORMAT</ListSubheader>
         <Log10MenuItem
           val="-log10"
