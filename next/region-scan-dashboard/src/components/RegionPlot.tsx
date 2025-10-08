@@ -27,6 +27,7 @@ import {
   Grid2 as Grid,
   Menu,
   MenuItem,
+  TextField,
   Typography,
 } from "@mui/material";
 import { CompareArrows } from "@mui/icons-material";
@@ -873,6 +874,21 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   const [warningMessage, setWarningMessage] = useState("");
 
+  // get initial thresholds from context
+  const {
+    thresholds: {
+      regionRegion: _pvalThresholdRegion,
+      regionVariant: _pvalThresholdVariant,
+    },
+    transformPValue,
+  } = useContext(VisualizationDataContext);
+
+  const [pvalThresholdRegion, setpvalThresholdRegion] =
+    useState(_pvalThresholdRegion);
+  const [pvalThresholdVariant, setPvalThresholdVariant] = useState(
+    _pvalThresholdVariant,
+  );
+
   const { anchorEl, handlePopoverOpen } = useDownloadPlot();
 
   // pull data for convenience
@@ -984,15 +1000,6 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
       return { regionVariants: [], plinkVariants: [] };
     }
   }, [plinkVariants, filteredVariants, variantsVisible]);
-
-  // get thresholds from context
-  const {
-    thresholds: {
-      regionRegion: pvalThresholdRegion,
-      regionVariant: pvalThresholdVariant,
-    },
-    transformPValue,
-  } = useContext(VisualizationDataContext);
 
   // fetch all recomb rates that might be displayed with this data
   useEffect(() => {
@@ -1263,35 +1270,47 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
             open={annotationMenuOpen}
             onClose={() => setAnnotationMenuOpen(false)}
           >
-            <AnnotationItem
+            <AnnotationToggle
               onChange={() => setRecombVisible(!recombVisible)}
               title="Recombination visible"
               value={recombVisible}
             />
-            <AnnotationItem
+            <AnnotationToggle
               onChange={() => setRegionLabelsVisible(!regionLabelsVisible)}
               title="Region labels visible"
               value={regionLabelsVisible}
             />
             {(!!filteredVariants.length || !!plinkVariants.length) && (
-              <AnnotationItem
+              <AnnotationToggle
                 onChange={() => setVariantsVisible(!variantsVisible)}
                 title="Variants visible"
                 value={variantsVisible}
               />
             )}
             {!!genes.length && (
-              <AnnotationItem
+              <AnnotationToggle
                 onChange={() => setGeneLabelsVisible(!geneLabelsVisible)}
                 title="Gene names visible"
                 value={geneLabelsVisible}
               />
             )}
             {!!genes.length && (
-              <AnnotationItem
+              <AnnotationToggle
                 onChange={() => setProteinGenesOnly(!proteinGenesOnly)}
                 title="Protein coding only"
                 value={proteinGenesOnly}
+              />
+            )}
+            <AnnotationInput
+              onChange={setpvalThresholdRegion}
+              title="Region Threshold"
+              value={pvalThresholdRegion}
+            />
+            {variantsVisible && (
+              <AnnotationInput
+                onChange={setPvalThresholdVariant}
+                title="Variant Threshold"
+                value={pvalThresholdVariant}
               />
             )}
           </Menu>
@@ -1470,13 +1489,13 @@ const RegionRangeInputEnd: React.FC<RegionRangeInputProps> = ({
   );
 };
 
-interface AnnotationItemProps {
+interface AnnotationToggleProps {
   onChange: () => void;
   title: string;
   value: boolean;
 }
 
-const AnnotationItem: React.FC<AnnotationItemProps> = ({
+const AnnotationToggle: React.FC<AnnotationToggleProps> = ({
   onChange,
   title,
   value,
@@ -1495,5 +1514,21 @@ const AnnotationItem: React.FC<AnnotationItemProps> = ({
         }
       />
     </FormControl>
+  </MenuItem>
+);
+
+interface AnnotationInputProps {
+  onChange: (val: number) => void;
+  title: string;
+  value: number;
+}
+
+const AnnotationInput: React.FC<AnnotationInputProps> = ({
+  onChange,
+  title,
+  value,
+}) => (
+  <MenuItem>
+    <NumberInput label={title} value={value} onChange={onChange} />
   </MenuItem>
 );
