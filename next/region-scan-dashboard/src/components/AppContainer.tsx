@@ -51,6 +51,24 @@ interface AppContainerProps {
   children: React.ReactNode;
 }
 
+const DEFAULT_THRESHOLDS = {
+  miamiBottom: 5e-6,
+  miamiTop: 5e-6,
+  regionRegion: 5e-6,
+  regionVariant: 5e-6,
+};
+
+const DEFAULT_OVERFLOWS = {
+  upper: {
+    pThresh: 250,
+    range: 50,
+  },
+  lower: {
+    pThresh: 250,
+    range: 50,
+  },
+};
+
 export const VisualizationDataContext = createContext<VisualizationDataContext>(
   {
     palette: schemeTableau10,
@@ -63,22 +81,8 @@ export const VisualizationDataContext = createContext<VisualizationDataContext>(
     setThreshold: () => null,
     setRegionData: () => null,
     setRegionVariantData: () => null,
-    thresholds: {
-      miamiBottom: 5e-6,
-      miamiTop: 5e-6,
-      regionRegion: 5e-6,
-      regionVariant: 5e-6,
-    },
-    overflows: {
-      upper: {
-        pThresh: 250,
-        range: 50,
-      },
-      lower: {
-        pThresh: 250,
-        range: 50,
-      },
-    },
+    thresholds: DEFAULT_THRESHOLDS,
+    overflows: DEFAULT_OVERFLOWS,
   },
 );
 
@@ -91,23 +95,11 @@ const AppContainer: React.FC<AppContainerProps> = ({ children }) => {
   const [regionVariantData, setRegionVariantData] = useState<VariantResult[]>(
     [],
   );
-  const [thresholds, setThresholds] = useState<PlotThresholds>({
-    miamiBottom: 5e-6,
-    miamiTop: 5e-6,
-    regionRegion: 5e-6,
-    regionVariant: 5e-7,
-  });
+  const [thresholds, setThresholds] =
+    useState<PlotThresholds>(DEFAULT_THRESHOLDS);
 
-  const [overflows, setOverflows] = useState<OverflowScaleSettings>({
-    upper: {
-      pThresh: 250,
-      range: 20,
-    },
-    lower: {
-      pThresh: 250,
-      range: 20,
-    },
-  });
+  const [overflows, setOverflows] =
+    useState<OverflowScaleSettings>(DEFAULT_OVERFLOWS);
 
   const setThreshold = (name: keyof PlotThresholds, val: number) =>
     setThresholds((thresholds) => ({ ...thresholds, [name]: val }));

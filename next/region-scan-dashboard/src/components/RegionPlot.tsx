@@ -168,7 +168,7 @@ const marginBottom = 35;
 const yLabelMargin = 28;
 const yAxisMargin = 20;
 const marginLeft = yLabelMargin + yAxisMargin;
-const marginTop = 25;
+const marginTop = 30;
 const marginRight = 15;
 const geneRectHeight = 3;
 
@@ -186,29 +186,20 @@ class RegionChart {
   dragCb: (dist: number) => void;
   height: number;
   mainWidth: number;
-  pvalScale: ScaleOrdinal<string, string, never>;
-  pvalThresholdRegion: number;
-  pvalThresholdVariant: number;
   selector: string;
   selectedGeneRange: [[number, number]] | null;
   svg: Selection<SVGElement, number, BaseType, unknown>;
   width: number;
 
   constructor(
-    pvalScale: ScaleOrdinal<string, string, never>,
-    pvalThresholdRegion: number,
-    pvalThresholdVariant: number,
     selector: string,
     mainWidth: number,
     dragCb: (dist: number) => void,
   ) {
     //display properties
-    this.pvalScale = pvalScale;
-    this.pvalThresholdRegion = pvalThresholdRegion;
-    this.pvalThresholdVariant = pvalThresholdVariant;
     this.selector = selector;
     this.mainWidth = mainWidth;
-    this.width = this.mainWidth + 240;
+    this.width = this.mainWidth + 180;
     this.height = 0.4 * this.width;
     this.selectedGeneRange = null;
     this.dragCb = dragCb;
@@ -246,6 +237,9 @@ class RegionChart {
     unconveredRegions: number[],
     regionPeaks: RegionPeak[],
     transformPval: (pval: number) => number,
+    pvalScale: ScaleOrdinal<string, string, never>,
+    pvalThresholdRegion: number,
+    pvalThresholdVariant: number,
   ) => {
     const regionData = groups(data, (d) => d.region).flatMap(
       ([region, members]) => {
@@ -488,7 +482,7 @@ class RegionChart {
       //x and y are upper-left corner
       .attr("x", (d) => xScale(d.start))
       .attr("y", (d) => yScalePval(d.pvalue))
-      .attr("fill", (d) => this.pvalScale(d.variable))
+      .attr("fill", (d) => pvalScale(d.variable))
       .transition()
       .duration(250)
       .attr("height", regionRectHeight)
@@ -542,7 +536,7 @@ class RegionChart {
       .attr("class", "region-variant")
       .attr("cx", (d) => xScale(d.bp))
       .attr("cy", (d) => yScalePval(transformPval(d.sglm_pvalue)))
-      .attr("fill", this.pvalScale("sglm_pvalue"))
+      .attr("fill", pvalScale("sglm_pvalue"))
       .transition()
       .duration(300)
       .selection()
@@ -605,6 +599,9 @@ class RegionChart {
           unconveredRegions,
           regionPeaks,
           transformPval,
+          pvalScale,
+          pvalThresholdRegion,
+          pvalThresholdVariant,
         );
       });
 
@@ -617,7 +614,7 @@ class RegionChart {
       .attr("x", (d) => getGeneLabelXCoord(d, xScale))
       .attr("y", (d) => yScaleGene(geneHeightMap[d.id]) - 1)
       .text((d) => d.external_name)
-      .style("font-size", "9px")
+      .style("font-size", "10px")
       .style("font-style", "italic")
       .style("text-anchor", "middle")
       .on("mouseover", (e: MouseEvent, d: EnsemblGeneResult) =>
@@ -650,10 +647,10 @@ class RegionChart {
       .data([1], () => `${visibleDataRange[0]}-${visibleDataRange[1]}`)
       .join("text")
       .attr("class", "title")
-      .attr("font-size", "14px")
+      .attr("font-size", "16px")
       .text(`Chr${chr} Regions ${visibleDataRange[0]}-${visibleDataRange[1]}`)
       .attr("text-anchor", "middle")
-      .attr("transform", `translate(${this.mainWidth / 2}, 12)`);
+      .attr("transform", `translate(${this.mainWidth / 2}, 16)`);
 
     this.container
       .selectAll<SVGGElement, number>("g.y-axis")
@@ -754,7 +751,7 @@ class RegionChart {
       .attr("height", 10)
       .attr("x", 0)
       .attr("y", (_, i) => 5 + i * 18)
-      .attr("fill", (d) => this.pvalScale(d));
+      .attr("fill", (d) => pvalScale(d));
 
     legendContainer
       .selectAll("text.region")
@@ -772,7 +769,7 @@ class RegionChart {
       )
       .concat(
         filteredRegionVariants.length
-          ? { text: "sglm_p", color: this.pvalScale("sglm_pvalue") }
+          ? { text: "sglm_p", color: pvalScale("sglm_pvalue") }
           : null,
       )
       .filter(Boolean);
@@ -802,8 +799,8 @@ class RegionChart {
     drawDottedLine(
       this.container,
       "region-p-line",
-      yScalePval(transformPval(this.pvalThresholdRegion)),
-      yScalePval(transformPval(this.pvalThresholdRegion)),
+      yScalePval(transformPval(pvalThresholdRegion)),
+      yScalePval(transformPval(pvalThresholdRegion)),
       xScale.range()[0],
       xScale.range()[1],
     );
@@ -812,8 +809,8 @@ class RegionChart {
       drawDottedLine(
         this.container,
         "variant-p-line",
-        yScalePval(transformPval(this.pvalThresholdVariant)),
-        yScalePval(transformPval(this.pvalThresholdVariant)),
+        yScalePval(transformPval(pvalThresholdVariant)),
+        yScalePval(transformPval(pvalThresholdVariant)),
         xScale.range()[0],
         xScale.range()[1],
       );
@@ -1157,14 +1154,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   //initial render
   useLayoutEffect(() => {
-    const Chart = new RegionChart(
-      pvalScale,
-      pvalThresholdRegion,
-      pvalThresholdVariant,
-      selector,
-      mainWidth,
-      dragCb,
-    );
+    const Chart = new RegionChart(selector, mainWidth, dragCb);
     setChart(Chart);
   }, [mainWidth]);
 
@@ -1195,6 +1185,9 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
         uncoveredRegions,
         regionLabelsVisible ? regionPeaks : [],
         transformPValue,
+        pvalScale,
+        pvalThresholdRegion,
+        pvalThresholdVariant,
       );
     }
     setUploadKey(Math.random().toString(36).slice(2));
@@ -1215,6 +1208,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     regionPeaks,
     regionLabelsVisible,
     transformPValue,
+    pvalScale,
   ]);
 
   const toggleAnnotationsButtonRef = useRef<HTMLButtonElement | null>(null);

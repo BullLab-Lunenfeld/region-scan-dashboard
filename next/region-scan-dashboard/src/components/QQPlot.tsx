@@ -186,6 +186,7 @@ const buildChart = (
     .data([1])
     .join("text")
     .attr("class", "title")
+    .attr("font-size", "16px")
     .text("QQ Plot")
     .attr("transform", `translate(${mainWidth / 2}, 12)`);
 

@@ -615,8 +615,8 @@ const buildChart = (
     .data([1])
     .join("text")
     .text(makePvalAxisLabel(transformPval))
-    .attr("transform", "rotate(-90)")
     .attr("font-size", "12px")
+    .attr("transform", "rotate(-90)")
     .attr("text-anchor", "middle");
 
   const posRange = selectedRegionDetailData
@@ -847,6 +847,7 @@ const buildChart = (
     .attr("class", "title")
     .text(`Miami Plot${chrs.length === 1 ? ` Chr ${chrs[0]}` : ""}`)
     .attr("text-anchor", "middle")
+    .attr("font-size", "16px")
     .attr("transform", `translate(${width / 2}, 12)`);
 
   //append tooltip
