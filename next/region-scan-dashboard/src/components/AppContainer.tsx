@@ -72,11 +72,11 @@ export const VisualizationDataContext = createContext<VisualizationDataContext>(
     overflows: {
       upper: {
         pThresh: 250,
-        range: 20,
+        range: 50,
       },
       lower: {
         pThresh: 250,
-        range: 20,
+        range: 50,
       },
     },
   },
