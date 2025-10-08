@@ -1,9 +1,14 @@
 "use client";
 
 import React from "react";
-import { Button, Grid2 as Grid, lighten, Typography } from "@mui/material";
+import {
+  Button,
+  Grid2 as Grid,
+  lighten,
+  Typography,
+  Link as MuiLink,
+} from "@mui/material";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import Image, { StaticImageData } from "next/image";
 
 import miamiPlot from "../../public/miami-plot.png";
@@ -52,16 +57,34 @@ const LandingPage: React.FC = () => {
         spacing={4}
         size={{ xs: 12, md: 6 }}
       >
-        <Typography textAlign="center" variant="h5">
-          RegionScan Visualization allows users to interact with the results of{" "}
-          <Link
-            target="_blank"
-            href="https://academic.oup.com/bioinformaticsadvances/article/5/1/vbaf052/8075147?login=false"
-          >
-            RegionScan analyses
-          </Link>
-          .
-        </Typography>
+        <Grid>
+          <Typography variant="h6">
+            RegionScan Visualization allows users to interact with the results
+            of RegionScan analyses. You can learn more about RegionScan by
+            reading the{" "}
+            <MuiLink
+              target="_blank"
+              href="https://academic.oup.com/bioinformaticsadvances/article/5/1/vbaf052/8075147?login=false"
+            >
+              paper
+            </MuiLink>
+            , visiting the{" "}
+            <MuiLink
+              target="_blank"
+              href="https://github.com/brossardMyriam/RegionScan"
+            >
+              GitHub repository
+            </MuiLink>
+            , or viewing the{" "}
+            <MuiLink
+              target="_blank"
+              href="https://github.com/brossardMyriam/RegionScan/blob/main/vignettes/RegionScan.pdf"
+            >
+              Tutorial
+            </MuiLink>
+            .
+          </Typography>
+        </Grid>
         <Grid textAlign="center">
           <Button
             onClick={() => router.push("/visualization")}
