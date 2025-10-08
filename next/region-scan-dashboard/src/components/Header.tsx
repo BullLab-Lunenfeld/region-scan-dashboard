@@ -232,7 +232,7 @@ const Header: React.FC = () => {
         </Grid>
         <Grid flexGrow={1} size={{ xs: 4 }}>
           <NavLink noDecoration href="/">
-            <Typography textAlign="center" variant="h4">
+            <Typography textAlign="center" variant="h3">
               RegionScan Visualization
             </Typography>
           </NavLink>

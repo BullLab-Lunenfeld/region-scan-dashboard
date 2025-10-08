@@ -19,14 +19,6 @@ const plots = [
     width: 1066,
   },
   {
-    cssWidth: "auto",
-    cssHeight: "auto",
-    height: 476,
-    plot: qqPlot,
-    title: "QQ Plot",
-    width: 488,
-  },
-  {
     height: 526,
     plot: regionBasic,
     title: "Region Plot (Basic)",
@@ -38,21 +30,29 @@ const plots = [
     title: "Region Plot (Detail)",
     width: 1194,
   },
+  {
+    cssWidth: "auto",
+    cssHeight: "auto",
+    height: 476,
+    plot: qqPlot,
+    title: "QQ Plot",
+    width: 488,
+  },
 ];
 
 const LandingPage: React.FC = () => {
   const router = useRouter();
 
   return (
-    <Grid
-      container
-      direction="column"
-      alignContent="center"
-      spacing={4}
-      wrap="nowrap"
-    >
-      <Grid offset={3} size={{ xs: 6 }}>
-        <Typography textAlign="center" variant="h4">
+    <Grid container direction="row" spacing={3} wrap="nowrap" marginTop={4}>
+      <Grid
+        container
+        direction="column"
+        alignContent="center"
+        spacing={4}
+        size={{ xs: 12, md: 6 }}
+      >
+        <Typography textAlign="center" variant="h5">
           RegionScan Visualization allows users to interact with the results of{" "}
           <Link
             target="_blank"
@@ -62,24 +62,28 @@ const LandingPage: React.FC = () => {
           </Link>
           .
         </Typography>
+        <Grid textAlign="center">
+          <Button
+            onClick={() => router.push("/visualization")}
+            variant="contained"
+            size="large"
+            sx={(theme) => ({
+              padding: 2,
+              fontSize: 16,
+              borderRadius: 3,
+              backgroundColor: theme.palette.primary.main,
+            })}
+          >
+            Get Started
+          </Button>
+        </Grid>
       </Grid>
-      <Grid textAlign="center">
-        <Button
-          onClick={() => router.push("/visualization")}
-          variant="contained"
-          size="large"
-          sx={(theme) => ({
-            margin: 3,
-            padding: 2,
-            fontSize: 24,
-            borderRadius: 3,
-            backgroundColor: theme.palette.primary.main,
-          })}
-        >
-          Get Started
-        </Button>
-      </Grid>
-      <Grid container direction="row">
+      <Grid
+        container
+        direction="column"
+        size={{ xs: 12, md: 6 }}
+        alignItems="center"
+      >
         {plots.map(({ cssHeight, cssWidth, height, plot, title, width }) => (
           <LandingPageImage
             key={title}
@@ -120,12 +124,12 @@ const LandingPageImage: React.FC<LandingPageImageProps> = ({
     container
     direction="column"
     spacing={2}
+    maxWidth="500px"
     sx={{
       border: "solid lightgrey 1px",
       borderRadius: "4px",
       img: { width: cssWidth ?? "100%", height: cssHeight ?? "auto" },
     }}
-    size={{ xs: 12, md: 6 }}
   >
     <Grid
       padding={2}
