@@ -20,11 +20,7 @@ import { schemeTableau10 } from "d3-scale-chromatic";
 import { Settings, Upload } from "@mui/icons-material";
 import { usePathname } from "next/navigation";
 import NavLink from "./NavLink";
-import {
-  transformPLog10,
-  transformPLog10Log10,
-  VisualizationDataContext,
-} from "./AppContainer";
+import { VisualizationDataContext } from "./AppContainer";
 import LoadingOverlay from "./LoadingOverlay";
 import ValidationModal from "./ValidationModal";
 import { UploadButtonMulti } from "./UploadButton";
@@ -330,14 +326,9 @@ const UploadDataDropdown: React.FC<UploadDataDropdownProps> = ({
 const SettingsDropdown: React.FC = () => {
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
 
-  const {
-    transformPValue,
-    setTransformPValue,
-    overflows,
-    setOverflows,
-    palette,
-    setPalette,
-  } = useContext(VisualizationDataContext);
+  const { overflows, setOverflows, palette, setPalette } = useContext(
+    VisualizationDataContext,
+  );
   const [upperPThresh, setUpperPThresh] = useState(overflows.upper.pThresh);
   const [lowerPThresh, setLowerPThresh] = useState(overflows.lower.pThresh);
   const [upperRange, setUpperRange] = useState(overflows.upper.range);
@@ -405,31 +396,6 @@ const SettingsDropdown: React.FC = () => {
               value="color-blind"
               control={<Radio size="small" />}
               label="Colour Blind"
-            />
-          </RadioGroup>
-        </MenuItem>
-        <ListSubheader>P VALUE FORMAT</ListSubheader>
-        <MenuItem>
-          <RadioGroup
-            onChange={(e) => {
-              if (e.currentTarget.value === "log10") {
-                setTransformPValue(() => transformPLog10);
-              } else {
-                setTransformPValue(() => transformPLog10Log10);
-              }
-            }}
-          >
-            <FormControlLabel
-              checked={transformPValue === transformPLog10}
-              value={"log10"}
-              control={<Radio size="small" />}
-              label="log10"
-            />
-            <FormControlLabel
-              checked={transformPValue === transformPLog10Log10}
-              value="log10(-log10)"
-              control={<Radio size="small" />}
-              label="log10(-log10)"
             />
           </RadioGroup>
         </MenuItem>
