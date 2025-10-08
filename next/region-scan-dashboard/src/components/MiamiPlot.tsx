@@ -384,7 +384,7 @@ const buildChart = (
     .attr("class", "label-rr")
     .attr("fill", "black")
     .text((d) => (chrs.length > 1 ? `Chr ${d.chr}` : ""))
-    .attr("transform", rotateXLabels ? "rotate(90) translate(6,0)" : "");
+    .attr("transform", rotateXLabels ? "rotate(90) translate(6,7)" : "");
 
   const yAxisUpperTicks0 = makeTicks(
     ...(yscaleUpper.domain().slice(0, 2) as [number, number]),
