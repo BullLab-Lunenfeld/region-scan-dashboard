@@ -281,7 +281,6 @@ const QQPlot: React.FC<QQPlotProps> = ({
   const { anchorEl, handlePopoverOpen } = useDownloadPlot();
 
   const pvals = useMemo(() => {
-    console.log("recomputing ps");
     const ps = getPs(regionData, variables).concat(
       getPs(variantData, variables),
     );
@@ -300,7 +299,6 @@ const QQPlot: React.FC<QQPlotProps> = ({
       const grouped = groups(pvals, (p) => p.pValType);
 
       const pvalRefs = {} as PvalRef;
-      console.log("recomputing RVs");
 
       for (let i = 0; i < grouped.length; i++) {
         const [key, vals] = grouped[i];

@@ -32,11 +32,15 @@ export const transformPLog10 = (pval: number) => -Math.log10(pval);
 export const transformPLog10Log10 = (pval: number) =>
   Math.log10(-Math.log10(pval));
 
+export type MiamiYType = "dynamic" | "static";
+
 interface VisualizationDataContext {
+  miamiYType: MiamiYType;
   overflows: OverflowScaleSettings;
   palette: readonly string[];
   regionData: RegionResult[];
   regionVariantData: VariantResult[];
+  setMiamiYType: (type: MiamiYType) => void;
   setOverflows: (data: OverflowScaleSettings) => void;
   setPalette: (palette: readonly string[]) => void;
   setRegionData: (data: RegionResult[]) => void;
@@ -71,10 +75,13 @@ const DEFAULT_OVERFLOWS = {
 
 export const VisualizationDataContext = createContext<VisualizationDataContext>(
   {
+    miamiYType: "dynamic",
+    overflows: DEFAULT_OVERFLOWS,
     palette: schemeTableau10,
     transformPValue: () => 0,
     regionData: [],
     regionVariantData: [],
+    setMiamiYType: () => null,
     setOverflows: () => null,
     setPalette: () => null,
     setTransformPValue: () => null,
@@ -82,11 +89,12 @@ export const VisualizationDataContext = createContext<VisualizationDataContext>(
     setRegionData: () => null,
     setRegionVariantData: () => null,
     thresholds: DEFAULT_THRESHOLDS,
-    overflows: DEFAULT_OVERFLOWS,
   },
 );
 
 const AppContainer: React.FC<AppContainerProps> = ({ children }) => {
+  const [miamiYType, setMiamiYType] = useState<MiamiYType>("dynamic");
+
   const [palette, setPalette] = useState<readonly string[]>(schemeTableau10);
   const [transformPValue, setTransformPValue] = useState<
     (pval: number) => number
@@ -107,10 +115,12 @@ const AppContainer: React.FC<AppContainerProps> = ({ children }) => {
   return (
     <VisualizationDataContext.Provider
       value={{
+        miamiYType,
         overflows,
         palette,
         regionData,
         regionVariantData,
+        setMiamiYType,
         setOverflows,
         setPalette,
         setRegionData,

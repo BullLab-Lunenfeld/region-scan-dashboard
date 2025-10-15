@@ -20,7 +20,7 @@ import { schemeTableau10 } from "d3-scale-chromatic";
 import { Settings, Upload } from "@mui/icons-material";
 import { usePathname } from "next/navigation";
 import NavLink from "./NavLink";
-import { VisualizationDataContext } from "./AppContainer";
+import { MiamiYType, VisualizationDataContext } from "./AppContainer";
 import LoadingOverlay from "./LoadingOverlay";
 import ValidationModal from "./ValidationModal";
 import { UploadButtonMulti } from "./UploadButton";
@@ -326,9 +326,14 @@ const UploadDataDropdown: React.FC<UploadDataDropdownProps> = ({
 const SettingsDropdown: React.FC = () => {
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
 
-  const { overflows, setOverflows, palette, setPalette } = useContext(
-    VisualizationDataContext,
-  );
+  const {
+    miamiYType,
+    setMiamiYType,
+    overflows,
+    setOverflows,
+    palette,
+    setPalette,
+  } = useContext(VisualizationDataContext);
   const [upperPThresh, setUpperPThresh] = useState(overflows.upper.pThresh);
   const [lowerPThresh, setLowerPThresh] = useState(overflows.lower.pThresh);
   const [upperRange, setUpperRange] = useState(overflows.upper.range);
@@ -396,6 +401,27 @@ const SettingsDropdown: React.FC = () => {
               value="color-blind"
               control={<Radio size="small" />}
               label="Colour Blind"
+            />
+          </RadioGroup>
+        </MenuItem>
+        <ListSubheader>MIAMI Y-AXIS Type</ListSubheader>
+        <MenuItem>
+          <RadioGroup
+            onChange={(e) => {
+              setMiamiYType(e.currentTarget.value as MiamiYType);
+            }}
+          >
+            <FormControlLabel
+              checked={miamiYType === "dynamic"}
+              value={"dynamic"}
+              control={<Radio size="small" />}
+              label="Dynamic"
+            />
+            <FormControlLabel
+              checked={miamiYType === "static"}
+              value="static"
+              control={<Radio size="small" />}
+              label="Static"
             />
           </RadioGroup>
         </MenuItem>

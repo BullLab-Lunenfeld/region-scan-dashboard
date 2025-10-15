@@ -3,7 +3,7 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import "d3-transition"; // must be imported before selection
 import { symbolDiamond, symbol, line } from "d3-shape";
-import { cumsum, extent, sum, ticks } from "d3-array";
+import { cumsum, extent, max, min, sum, ticks } from "d3-array";
 import { axisBottom, axisLeft } from "d3-axis";
 import { brushX, D3BrushEvent } from "d3-brush";
 import { format } from "d3-format";
@@ -16,6 +16,7 @@ import {
 import { BaseType, select, selectAll, Selection } from "d3-selection";
 import { Box } from "@mui/material";
 import {
+  MiamiYType,
   OverflowScaleSettings,
   VisualizationDataContext,
 } from "./AppContainer";
@@ -45,6 +46,10 @@ const getVariantOrRegionLocation = (datum: VariantResult | RegionResult) => {
   } else {
     return datum.bp;
   }
+};
+
+type TransformedData = {
+  [Property in keyof RegionResult | keyof VariantResult]: number;
 };
 
 const showMiamiTooltip = (
@@ -132,6 +137,7 @@ const buildChart = (
   width: number,
   transformPval: (pval: number) => number,
   yOverflowSettings: OverflowScaleSettings,
+  yAxisType: MiamiYType,
   selectedRegionDetailData?: SelectedRegionDetailData,
 ) => {
   const topThresh = transformPval(_topThresh);
@@ -178,19 +184,29 @@ const buildChart = (
         !!new Set(Object.keys(d)).intersection(new Set([topCol, bottomCol]))
           .size,
     )
-    .map((d) =>
-      Object.fromEntries(
-        getEntries(d)
-          .filter(([, v]) => !!v)
-          .map(([k, v]) => {
-            if ([topCol, bottomCol].includes(k)) {
-              return [k, transformPval(v)];
-            } else {
-              return [k, v];
-            }
-          }),
-      ),
-    ) as unknown as (RegionResult | VariantResult)[];
+    .map(
+      (d) =>
+        Object.fromEntries(
+          getEntries(d)
+            .filter(([, v]) => !!v)
+            .map(
+              ([k, v]: [keyof RegionResult | keyof VariantResult, number]) => {
+                if ([topCol, bottomCol].includes(k)) {
+                  return [k, transformPval(v)];
+                } else {
+                  return [k, v];
+                }
+              },
+            ),
+        ) as TransformedData,
+    );
+
+  const maxP = max(
+    transformedData.flatMap((d) => [
+      getPVal(topCol, d) as number,
+      getPVal(bottomCol, d) as number,
+    ]),
+  ) as number;
 
   const circleRadius = circleWidthScale(transformedData.length);
 
@@ -276,16 +292,20 @@ const buildChart = (
     .domain(
       hasUpperY1Scale
         ? [
-            ...(extent(
-              yScale1DataUpper.map((d) => getPVal(topCol, d)) as number[],
-            ).reverse() as [number, number]),
+            yAxisType === "dynamic"
+              ? (max(yScale1DataUpper, (d) => getPVal(topCol, d)) as number)
+              : maxP,
+            min(yScale1DataUpper, (d) => getPVal(topCol, d)) as number,
             ...(extent(
               yScale0DataUpper.map((d) => getPVal(topCol, d)) as number[],
             ).reverse() as [number, number]),
           ]
-        : (extent(
-            yScale0DataUpper.map((d) => getPVal(topCol, d)) as number[],
-          ).reverse() as [number, number]),
+        : [
+            yAxisType === "dynamic"
+              ? (max(yScale0DataUpper, (d) => getPVal(topCol, d)) as number)
+              : maxP,
+            min(yScale0DataUpper, (d) => getPVal(topCol, d)) as number,
+          ],
     );
 
   const yScale0DataLower = lowerData.filter(
@@ -315,13 +335,18 @@ const buildChart = (
             ...(extent(
               yScale0DataLower.map((d) => getPVal(bottomCol, d)) as number[],
             ) as [number, number]),
-            ...(extent(
-              yScale1DataLower.map((d) => getPVal(bottomCol, d)) as number[],
-            ) as [number, number]),
+
+            min(yScale1DataLower, (d) => getPVal(bottomCol, d)) as number,
+            yAxisType === "dynamic"
+              ? (max(yScale1DataLower, (d) => getPVal(bottomCol, d)) as number)
+              : maxP,
           ]
-        : (extent(
-            yScale0DataLower.map((d) => getPVal(bottomCol, d)) as number[],
-          ) as [number, number]),
+        : [
+            min(yScale0DataLower, (d) => getPVal(bottomCol, d)) as number,
+            yAxisType === "dynamic"
+              ? (max(yScale0DataLower, (d) => getPVal(bottomCol, d)) as number)
+              : maxP,
+          ],
     );
 
   const svg = select(selector)
@@ -391,9 +416,9 @@ const buildChart = (
     ...(yscaleUpper.range().slice(0, 2) as [number, number]),
   );
 
-  // We have single y scales with potentially multiple domain/ranges
-  // So we'll create separate axis for them b/c we want a gap between them
-  // For exports, this needs to be a true gap and not something papered over.
+  // We have single y scales with potentially multiple domains/ranges from overflow
+  // So we'll create separate axos for them b/c we want a gap between them
+  // For exports, this needs to be a true gap and not something papered over with a rect.
   // We do this by creating dummy scales to pass to the axis constructor as needed.
   const yAxisUpper0 = axisLeft(
     scaleLinear()
@@ -911,6 +936,7 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
   }, []);
 
   const {
+    miamiYType: yAxisType,
     overflows,
     thresholds: { miamiTop: topThresh, miamiBottom: bottomThresh },
     transformPValue,
@@ -934,6 +960,7 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
           _width,
           transformPValue,
           overflows,
+          yAxisType,
           selectedRegionDetailData,
         ),
       ).finally(() => setLoading(false));
@@ -955,6 +982,7 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
     renderFlag,
     _width,
     transformPValue,
+    yAxisType,
   ]);
 
   return (

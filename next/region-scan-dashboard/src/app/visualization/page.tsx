@@ -213,52 +213,57 @@ export default function Visualization() {
   }, [upperVariable, lowerVariable]);
 
   //compute region display data, which is the data for the MiamiPlot
-  useEffect(() => {
-    if (upperVariable && lowerVariable) {
-      let newMiamiData = (
-        regionData as (RegionResult | VariantResult)[]
-      ).concat(regionVariantData);
-      if (!!brushFilterHistory.length) {
-        const { x0Lim, x1Lim } =
-          brushFilterHistory[brushFilterHistory.length - 1];
+  useEffect(
+    () => {
+      if (upperVariable && lowerVariable) {
+        let newMiamiData = (
+          regionData as (RegionResult | VariantResult)[]
+        ).concat(regionVariantData);
+        if (!!brushFilterHistory.length) {
+          const { x0Lim, x1Lim } =
+            brushFilterHistory[brushFilterHistory.length - 1];
 
-        newMiamiData = newMiamiData.filter((d) => {
-          const x0Pass =
-            d.chr > +x0Lim.chr ||
-            (d.chr === +x0Lim.chr && d.start_bp >= x0Lim.pos);
+          newMiamiData = newMiamiData.filter((d) => {
+            const x0Pass =
+              d.chr > +x0Lim.chr ||
+              (d.chr === +x0Lim.chr && d.start_bp >= x0Lim.pos);
 
-          const x1Pass =
-            d.chr < +x1Lim.chr ||
-            (d.chr === +x1Lim.chr && d.end_bp <= x1Lim.pos);
+            const x1Pass =
+              d.chr < +x1Lim.chr ||
+              (d.chr === +x1Lim.chr && d.end_bp <= x1Lim.pos);
 
-          return x0Pass && x1Pass;
-        });
+            return x0Pass && x1Pass;
+          });
 
-        //optionally reset region chart data if we've zoomed out of range
-        if (selectedRegionDetailData) {
-          const { chr } = selectedRegionDetailData.region;
-          const { bpRange } = selectedRegionDetailData;
-          //if selected chr is no longer in view
-          if (+x0Lim.chr > chr || +x1Lim.chr < chr) {
-            setSelectedRegionDetailData(undefined);
-          } else if (
-            +x0Lim.chr == +x1Lim.chr &&
-            +x1Lim.chr === chr &&
-            (x0Lim.pos > bpRange[0] || x1Lim.pos < bpRange[0])
-          ) {
-            setSelectedRegionDetailData(undefined);
+          //optionally reset region chart data if we've zoomed out of range
+          if (selectedRegionDetailData) {
+            const { chr } = selectedRegionDetailData.region;
+            const { bpRange } = selectedRegionDetailData;
+            //if selected chr is no longer in view
+            if (+x0Lim.chr > chr || +x1Lim.chr < chr) {
+              setSelectedRegionDetailData(undefined);
+            } else if (
+              +x0Lim.chr == +x1Lim.chr &&
+              +x1Lim.chr === chr &&
+              (x0Lim.pos > bpRange[0] || x1Lim.pos < bpRange[0])
+            ) {
+              setSelectedRegionDetailData(undefined);
+            }
           }
         }
+        setMiamiData(newMiamiData);
       }
-      setMiamiData(newMiamiData);
-    }
-  }, [
-    brushFilterHistory,
-    upperVariable,
-    lowerVariable,
-    regionData,
-    regionVariantData,
-  ]);
+    },
+    // we set selectedRegionDetailData here so we'll get circular if we include it as a dep
+    //eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      brushFilterHistory,
+      upperVariable,
+      lowerVariable,
+      regionData,
+      regionVariantData,
+    ],
+  );
 
   useEffect(() => {
     setQqVariables(
