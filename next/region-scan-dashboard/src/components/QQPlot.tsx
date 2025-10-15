@@ -13,6 +13,30 @@ import { drawDottedLine, getEntries, showToolTip } from "@/lib/ts/util";
 import useDownloadPlot from "@/lib/hooks/useDownloadPlot";
 import { PlotDownloadButton } from "@/components";
 
+interface Pval {
+  region: number;
+  pValType: keyof RegionResult;
+  pval: number;
+  chr: number;
+}
+
+const getPs = <T extends (VariantResult | RegionResult)[]>(
+  data: T,
+  variables: (keyof RegionResult | keyof VariantResult | "")[],
+) =>
+  data.flatMap((d) => {
+    return getEntries(d)
+      .filter(([k, v]) => variables.includes(k) && !!v)
+      .flatMap(([pValType, pval]) => {
+        return {
+          region: d.region,
+          pValType,
+          chr: d.chr,
+          pval,
+        } as Pval;
+      });
+  });
+
 const marginBottom = 40;
 const yLabelMargin = 28;
 const yAxisMargin = 20;
@@ -231,7 +255,8 @@ type PvalRef = Record<
 >;
 
 interface QQPlotProps {
-  data: (RegionResult | VariantResult)[];
+  regionData: RegionResult[];
+  variantData: VariantResult[];
   pvalScale: ScaleOrdinal<string, string, never>;
   selector: string;
   variables: (keyof RegionResult | keyof VariantResult | "")[];
@@ -240,8 +265,9 @@ interface QQPlotProps {
 }
 
 const QQPlot: React.FC<QQPlotProps> = ({
-  data,
   pvalScale,
+  regionData,
+  variantData,
   selector,
   variables,
   visibleVariables,
@@ -254,35 +280,14 @@ const QQPlot: React.FC<QQPlotProps> = ({
 
   const { anchorEl, handlePopoverOpen } = useDownloadPlot();
 
-  interface Pval {
-    region: number;
-    pValType: keyof RegionResult;
-    pval: number;
-    chr: number;
-  }
+  const pvals = useMemo(() => {
+    console.log("recomputing ps");
+    const ps = getPs(regionData, variables).concat(
+      getPs(variantData, variables),
+    );
 
-  const pvals = useMemo(
-    () =>
-      data.flatMap((d) => {
-        const ps = [];
-
-        for (const k in d) {
-          if (
-            variables.includes(k as keyof RegionResult) &&
-            !!(d as RegionResult)[k as keyof RegionResult]
-          ) {
-            const ret = {} as Pval;
-            ret.region = d.region;
-            ret.pValType = k as keyof RegionResult;
-            ret.chr = d.chr;
-            ret.pval = (d as RegionResult)[k as keyof RegionResult] as number;
-            ps.push(ret);
-          }
-        }
-        return ps;
-      }),
-    [variables, data],
-  );
+    return ps;
+  }, [variables, variantData, regionData]);
 
   //we want to wait a tick so we can show the loading indicator while calculating these
   useEffect(() => {
@@ -295,6 +300,7 @@ const QQPlot: React.FC<QQPlotProps> = ({
       const grouped = groups(pvals, (p) => p.pValType);
 
       const pvalRefs = {} as PvalRef;
+      console.log("recomputing RVs");
 
       for (let i = 0; i < grouped.length; i++) {
         const [key, vals] = grouped[i];

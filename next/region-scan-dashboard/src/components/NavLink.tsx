@@ -18,7 +18,7 @@ const NavLink: React.FC<
         color: palette.primary.contrastText,
         textDecoration: active && !noDecoration ? "underline" : "inherit",
         "&: hover": {
-          textDecoration: "underline",
+          textDecoration: !noDecoration ? "underline" : "inherit",
         },
       })}
       component={Link}

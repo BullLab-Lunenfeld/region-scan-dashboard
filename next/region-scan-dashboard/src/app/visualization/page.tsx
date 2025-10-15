@@ -113,7 +113,7 @@ export default function Visualization() {
             .filter((k, i, a) => a.findIndex((d) => d === k) === i) as string[],
         );
     }
-  }, [regionData, regionVariantData, palette]);
+  }, [regionData, regionDataSet, regionVariantData, palette]);
 
   // save where the regions restart (~centromeres)
   const regionRestartPoints = useMemo(() => {
@@ -542,10 +542,11 @@ export default function Visualization() {
                 <Grid>
                   <QQPlot
                     pvalScale={pvalScale}
-                    data={regionData}
+                    regionData={regionData}
                     selector="qq"
                     visibleVariables={qqVariables}
                     variables={pVars}
+                    variantData={regionVariantData}
                     width={qqChartContainerRef.current.clientWidth}
                   />
                 </Grid>

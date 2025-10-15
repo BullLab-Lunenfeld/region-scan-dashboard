@@ -213,7 +213,7 @@ const Header: React.FC = () => {
           spacing={2}
           container
           flexGrow={1}
-          size={{ xs: 4 }}
+          size={{ xs: 4, lg: 2 }}
         >
           {pathname === "/visualization" && (
             <>
@@ -230,7 +230,7 @@ const Header: React.FC = () => {
             </>
           )}
         </Grid>
-        <Grid flexGrow={1} size={{ xs: 4 }}>
+        <Grid flexGrow={1} size={{ xs: 4, lg: 8 }}>
           <NavLink noDecoration href="/">
             <Typography textAlign="center" variant="h3">
               RegionScan Visualization
@@ -239,7 +239,7 @@ const Header: React.FC = () => {
         </Grid>
         <Grid
           flexGrow={1}
-          size={{ xs: 4 }}
+          size={{ xs: 4, lg: 2 }}
           justifyContent="flex-end"
           container
           spacing={3}
