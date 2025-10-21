@@ -248,7 +248,7 @@ const Header: React.FC = () => {
             <NavLink href="/visualization">Visualizations</NavLink>
           </Grid>
           <Grid>
-            <NavLink href="/about">About</NavLink>
+            <NavLink href="/tutorial">Tutorial</NavLink>
           </Grid>
         </Grid>
       </Toolbar>
