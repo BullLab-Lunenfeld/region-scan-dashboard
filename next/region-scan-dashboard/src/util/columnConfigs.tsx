@@ -16,9 +16,9 @@ export const formatPval = format(".3e");
 
 export const formatFloat = format(".3f");
 
-const chromSort =
+const regionSort =
   (direction: GridSortDirection): GridComparatorFn<number> =>
-  (v1, v2, cellParams1, cellParams2) => {
+  (region1, region2, cellParams1, cellParams2) => {
     const chr1: number = cellParams1.api.getRowParams(cellParams1.id).row.chr;
     const chr2: number = cellParams1.api.getRowParams(cellParams2.id).row.chr;
 
@@ -27,9 +27,9 @@ const chromSort =
         ? -1
         : chr1 > chr2
           ? 1
-          : v1 < v2
+          : region1 < region2
             ? -1
-            : v1 > v2
+            : region1 > region2
               ? 1
               : 0;
     } else if (direction == "desc") {
@@ -37,9 +37,9 @@ const chromSort =
         ? 1
         : chr1 > chr2
           ? -1
-          : v1 < v2
+          : region1 < region2
             ? 1
-            : v1 > v2
+            : region1 > region2
               ? -1
               : 0;
     } else return 0;
@@ -120,7 +120,7 @@ export const RegionResultCols: PaginatedTableColumn<RegionResult>[] = [
     field: "region",
     headerName: "region",
     sortable: true,
-    getSortComparator: chromSort,
+    getSortComparator: regionSort,
     filterOperators: isBetweenOperators.concat(getGridNumericOperators()),
   },
   {

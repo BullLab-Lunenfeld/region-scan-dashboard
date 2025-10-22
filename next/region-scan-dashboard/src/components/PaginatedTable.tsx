@@ -14,7 +14,6 @@ import {
 import {
   DataGrid,
   GridColumnVisibilityModel,
-  GridFilterModel,
   GridPaginationModel,
   GridPreferencePanelsValue,
   GridSlots,
@@ -37,9 +36,7 @@ export type PaginatedTableColumn<T extends GridValidRowModel> =
 interface PaginatedTableProps<T extends GridValidRowModel> {
   cols: PaginatedTableColumn<T>[];
   data: T[];
-  filterModel?: GridFilterModel;
   loading?: boolean;
-  onFilterModelChange?: (filterModel?: GridFilterModel) => void;
   onSelect?: (model: T) => void;
   selected?: number;
   total?: number;
@@ -48,9 +45,7 @@ interface PaginatedTableProps<T extends GridValidRowModel> {
 function PaginatedTable<T extends GridValidRowModel>({
   cols,
   data,
-  filterModel,
   loading,
-  onFilterModelChange,
   onSelect,
   selected,
   total,
@@ -63,6 +58,10 @@ function PaginatedTable<T extends GridValidRowModel>({
     page: 0,
     pageSize: DEFAULT_PAGE_SIZE,
   });
+
+  const key = useMemo(() => {
+    return Math.random().toString(36).slice(2);
+  }, [data]);
 
   const columnVisibilityModel = useMemo(() => {
     return cols.reduce<GridColumnVisibilityModel>(
@@ -80,10 +79,11 @@ function PaginatedTable<T extends GridValidRowModel>({
 
   return (
     <DataGrid
+      //reset on data change
+      key={key}
       columns={cols}
       density="compact"
       filterMode="client"
-      filterModel={filterModel}
       getCellClassName={({ field, value }) => {
         let cn = "";
         if (isNumber(activeThreshold)) {
@@ -118,10 +118,9 @@ function PaginatedTable<T extends GridValidRowModel>({
         },
       }}
       loading={loading}
-      onFilterModelChange={onFilterModelChange}
       onPaginationModelChange={onPaginationModelChange}
       onRowClick={(params) => (onSelect ? onSelect(params.row) : () => null)}
-      pageSizeOptions={[10, 20]}
+      pageSizeOptions={[10, 20, 50]}
       paginationMode="client"
       paginationModel={paginationModel}
       resetPageOnSortFilter
@@ -139,7 +138,6 @@ function PaginatedTable<T extends GridValidRowModel>({
           setActiveThreshold,
         } as PropsFromSlot<GridSlots["toolbar"]>,
       }}
-      sortingMode="client"
       sx={(theme) => ({
         "& .region-scane-theme--PvalHighlight": {
           backgroundColor: lighten(theme.palette.primary.light, 0.7),

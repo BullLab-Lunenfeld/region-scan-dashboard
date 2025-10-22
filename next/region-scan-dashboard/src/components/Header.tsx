@@ -50,7 +50,7 @@ const oldColsToDrop = ["GATES.df", "SKAT.pLiu", "SKAT"];
 
 export const transformRegionUpload = (parsed: RegionResultRaw[], i: number) =>
   parsed.map((val, j) => {
-    val.id = +`${i}${j}`;
+    val.id = +`${i + 1}${j + 1}` * Math.random();
     return Object.fromEntries(
       getEntries(val)
         .map<[keyof RegionResultRaw, number | null]>(([k, v]) => {
