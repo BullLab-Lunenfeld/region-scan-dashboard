@@ -131,7 +131,7 @@ const AppContainer: React.FC<AppContainerProps> = ({ children }) => {
         transformPValue,
       }}
     >
-      <Container maxWidth={false}>
+      <Container maxWidth={false} sx={{ minHeight: "92vh" }}>
         <Header />
         <Box flexGrow={1} overflow="auto" padding={2}>
           {children}

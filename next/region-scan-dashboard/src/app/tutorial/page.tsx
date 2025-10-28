@@ -307,10 +307,26 @@ export default function page() {
             src={plinkPlot}
           />
         </Grid>
-        {/* <Grid container direction="column">
-          <Typography variant="h5">The Data Table</Typography>
+        <Grid container direction="column">
+          <Typography variant="h4">5. Performance</Typography>
+
+          <Grid>
+            <Typography>
+              The application will become slower and the visualisations less
+              responsive as more data is loaded into the browser. For best
+              performance, it's recommended to load only the data needed for a
+              given analysis or graphic. To get an overview, a user might begin
+              by uploading the entire genome, and then, once a region of
+              interest has been identified, re-uploading the file or files
+              associated with that area and browsing further with a region plot.
+              This approach will reduce memory usage and make the application
+              more efficient, and it is particularly recommended for users who
+              intend to upload large variant files in addition to region files.
+            </Typography>
+          </Grid>
         </Grid>
-        <Grid>
+
+        {/*<Grid>
           <Typography variant="h5">Exporting</Typography>
         </Grid>
         <Grid>

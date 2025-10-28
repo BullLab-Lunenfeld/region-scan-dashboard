@@ -8,7 +8,7 @@ import { ThemeProvider } from "@mui/material/styles";
 
 import theme from "../lib/mui/theme";
 import { AppContainer } from "@/components";
-//import { Footer } from "@/components";
+import { Footer } from "@/components";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -32,6 +32,7 @@ export default function RootLayout({
           <ThemeProvider theme={theme}>
             <CssBaseline />
             <AppContainer>{children}</AppContainer>
+            <Footer />
           </ThemeProvider>
         </AppRouterCacheProvider>
       </body>

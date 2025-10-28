@@ -1,25 +1,34 @@
 "use client";
 
 import React from "react";
-import { AppBar, Grid2 as Grid, Toolbar } from "@mui/material";
+import { Grid2 as Grid, Typography } from "@mui/material";
 
-const Footer: React.FC = () => (
-  <AppBar
-    position="relative"
-    color="primary"
-    sx={{
-      top: "auto",
-      bottom: 0,
-      marginTop: 2,
-      backgroundColor: (theme) => theme.palette.grey["700"],
-    }}
-  >
-    <Toolbar>
-      <Grid container justifyContent="center" flexGrow={1}>
-        Copyright {new Date().getFullYear()} RegionScan
+const Footer: React.FC = () => {
+  return (
+    <Grid
+      container
+      justifyContent="center"
+      alignItems="center"
+      flexGrow={1}
+      sx={{
+        top: "auto",
+        bottom: 0,
+        backgroundColor: (theme) => theme.palette.grey["700"],
+        height: "8vh",
+      }}
+    >
+      <Grid>
+        <Typography
+          sx={(theme) => ({
+            color: theme.palette.getContrastText(theme.palette.grey["700"]),
+          })}
+          variant="h6"
+        >
+          Copyright {new Date().getFullYear()} RegionScan
+        </Typography>
       </Grid>
-    </Toolbar>
-  </AppBar>
-);
+    </Grid>
+  );
+};
 
 export default Footer;
