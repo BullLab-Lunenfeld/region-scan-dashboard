@@ -1,13 +1,6 @@
 "use client";
 
-import React, {
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   alpha,
   Box,
@@ -34,6 +27,7 @@ import {
   AssembyInfo,
   isKeyOfRegionResult,
   isRegionResult,
+  MiamiData,
   RegionResult,
   RegionResultRaw,
   SelectedRegionDetailData,
@@ -57,9 +51,7 @@ export default function Visualization() {
     [],
   );
 
-  const [miamiData, setMiamiData] = useState<(RegionResult | VariantResult)[]>(
-    [],
-  );
+  const [miamiData, setMiamiData] = useState<MiamiData | null>(null);
 
   const [lowerVariable, setLowerVariable] = useState<
     keyof RegionResult | keyof VariantResult | ""
@@ -131,19 +123,19 @@ export default function Visualization() {
     }
 
     return mapping;
-  }, [regionData]);
+  }, [regionData, regionDataSet]);
 
   const tableData = useMemo(() => {
     let data: RegionResult[] = [];
     if (selectedRegionDetailData?.data.length) {
       data = selectedRegionDetailData.data;
-    } else if (miamiData.length) {
-      data = miamiData.filter((d) => isRegionResult(d));
+    } else if (miamiData?.data.length) {
+      data = miamiData?.data.filter((d) => isRegionResult(d));
     } else if (regionDataSet) {
       data = regionData;
     }
     return data;
-  }, [regionData, miamiData, selectedRegionDetailData]);
+  }, [regionData, regionDataSet, miamiData, selectedRegionDetailData]);
 
   // compute regionPlot data, which is a subset of the data currently visible in the MiamiPlot
   useEffect(() => {
@@ -172,13 +164,13 @@ export default function Visualization() {
       }
 
       // finally, if we're already zoomed in to single chr, trim to that range
-      if (miamiData.length) {
+      if (miamiData?.data.length) {
         if (
-          unique<RegionResult | VariantResult, "chr">(miamiData, "chr")
+          unique<RegionResult | VariantResult, "chr">(miamiData.data, "chr")
             .length === 1
         ) {
           const [minVisibleBp, maxVisibleBp] = extent(
-            miamiData.flatMap((d) => [d.start_bp, d.end_bp]),
+            miamiData.data.flatMap((d) => [d.start_bp, d.end_bp]),
           ) as [number, number];
           if (maxVisibleBp < maxBp) {
             maxBp = maxVisibleBp;
@@ -189,13 +181,13 @@ export default function Visualization() {
         }
       }
 
-      const regionDetailData = miamiData.filter(
+      const regionDetailData = (miamiData?.data.filter(
         (d) =>
           isRegionResult(d) &&
           d.end_bp <= maxBp &&
           d.start_bp >= minBp &&
           d.chr == chr,
-      ) as RegionResult[];
+      ) || []) as RegionResult[];
 
       setSelectedRegionDetailData({
         data: regionDetailData,
@@ -251,11 +243,18 @@ export default function Visualization() {
             }
           }
         }
-        setMiamiData(newMiamiData);
+        setMiamiData({
+          data: newMiamiData,
+          upperVariable,
+          lowerVariable,
+          setBrushFilterHistory: (f: BrushFilter) =>
+            setBrushFilterHistory(brushFilterHistory.concat(f)),
+        });
       }
     },
-    // we set selectedRegionDetailData here so we'll get circular if we include it as a dep
-    //eslint-disable-next-line react-hooks/exhaustive-deps
+    // We set selectedRegionDetailData here so we'll get circular if we include it as a dep.
+    // Also we do all the miami updates here and save data in a single object to save on renders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       brushFilterHistory,
       upperVariable,
@@ -312,11 +311,6 @@ export default function Visualization() {
       }),
     );
 
-  const filterCb = useCallback(
-    (f: BrushFilter) => setBrushFilterHistory(brushFilterHistory.concat(f)),
-    [brushFilterHistory],
-  );
-
   const resetVisualizationVariables = () => {
     setRegionVariantData([]);
     setSelectedRegion(undefined);
@@ -330,7 +324,10 @@ export default function Visualization() {
   const variablesSelected = !!lowerVariable && !!upperVariable;
 
   const miamiVarsSet =
-    variablesSelected && !!miamiChartContainerRef.current && !!pvalScale;
+    variablesSelected &&
+    !!miamiChartContainerRef.current &&
+    !!pvalScale &&
+    !!miamiData;
 
   const regionVarsSet =
     miamiVarsSet && !!selectedRegion && !!selectedRegionDetailData?.data.length;
@@ -503,13 +500,9 @@ export default function Visualization() {
                 <MiamiPlot
                   assemblyInfo={assemblyInfo}
                   pvalScale={pvalScale}
-                  bottomCol={lowerVariable}
                   data={miamiData}
                   onCircleClick={setSelectedRegion}
-                  filter={brushFilterHistory[brushFilterHistory.length - 1]}
-                  filterCb={filterCb}
                   selectedRegionDetailData={selectedRegionDetailData}
-                  topCol={upperVariable}
                   width={miamiChartContainerRef.current!.clientWidth}
                 />
               ) : (

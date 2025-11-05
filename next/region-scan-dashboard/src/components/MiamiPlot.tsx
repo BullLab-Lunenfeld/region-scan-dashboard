@@ -24,6 +24,7 @@ import { LoadingOverlay, PlotDownloadButton } from "@/components";
 import {
   AssembyInfo,
   isRegionResult,
+  MiamiData,
   RegionResult,
   SelectedRegionDetailData,
   VariantResult,
@@ -899,27 +900,19 @@ const buildChart = (
 
 interface MiamiPlotProps {
   assemblyInfo: AssembyInfo;
-  bottomCol: keyof RegionResult | keyof VariantResult;
-  data: (RegionResult | VariantResult)[];
-  filterCb: (filter: BrushFilter) => void;
-  filter?: BrushFilter;
+  data: MiamiData;
   onCircleClick: (d: RegionResult | VariantResult) => void;
   pvalScale: ScaleOrdinal<string, string, never>;
   selectedRegionDetailData?: SelectedRegionDetailData;
-  topCol: keyof RegionResult | keyof VariantResult;
   width: number;
 }
 
 const MiamiPlot: React.FC<MiamiPlotProps> = ({
   assemblyInfo,
-  bottomCol,
   data,
-  filter,
-  filterCb,
   onCircleClick,
   pvalScale,
   selectedRegionDetailData,
-  topCol,
   width,
 }) => {
   const [loading, setLoading] = useState(true);
@@ -944,18 +937,25 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
 
   useEffect(() => {
     if (renderFlag) {
+      const {
+        data: miamiData,
+        upperVariable,
+        lowerVariable,
+        setBrushFilterHistory,
+      } = data;
+
       Promise.resolve(
         buildChart(
           assemblyInfo,
-          bottomCol,
+          lowerVariable,
           bottomThresh,
-          data,
-          filterCb,
+          miamiData,
+          setBrushFilterHistory,
           0.5 * width,
           onCircleClick,
           pvalScale,
           `.${className}`,
-          topCol,
+          upperVariable,
           topThresh,
           _width,
           transformPValue,
@@ -967,16 +967,12 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
     }
   }, [
     assemblyInfo,
-    bottomCol,
     bottomThresh,
     data,
-    filter,
-    filterCb,
     onCircleClick,
     overflows,
     pvalScale,
     selectedRegionDetailData,
-    topCol,
     topThresh,
     width,
     renderFlag,

@@ -1,3 +1,5 @@
+import { BrushFilter } from "@/components/MiamiPlot";
+
 export type FileType = "region" | "bin" | "variant" | "plink variant";
 
 export interface EnsemblGeneResult {
@@ -191,6 +193,13 @@ export interface VariantResult {
   ref?: string; //these are in new but not old
   alt?: string;
   LC_codechange?: number;
+}
+
+export interface MiamiData {
+  data: (RegionResult | VariantResult)[];
+  upperVariable: keyof RegionResult | keyof VariantResult;
+  lowerVariable: keyof RegionResult | keyof VariantResult;
+  setBrushFilterHistory: (f: BrushFilter) => void;
 }
 
 export interface AssembyInfo {
