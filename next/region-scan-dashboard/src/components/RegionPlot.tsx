@@ -67,6 +67,23 @@ interface RegionPeak {
   min_p: number;
 }
 
+interface RegionPlotRenderData {
+  chartVariants: ChartVariants;
+  data: RegionResult[];
+  geneLabelsVisible: boolean;
+  genes: EnsemblGeneResult[];
+  pvalScale: ScaleOrdinal<string, string, never>;
+  pvalThresholdRegion: number;
+  pvalThresholdVariant: number;
+  recombData: LocalRecombData[];
+  regionPeaks: RegionPeak[];
+  setCenterRegion: (region: number) => void;
+  transformPValue: (pval: number) => number;
+  uncoveredRegions: number[];
+  visiblePvars: (keyof RegionResult)[];
+  wheelCb: (delta: number, pos: number) => void;
+}
+
 const getEndPos = (
   gene: EnsemblGeneResult,
   labelVisible: boolean,
@@ -225,22 +242,24 @@ class RegionChart {
       .attr("class", "container");
   }
 
-  render = (
-    data: RegionResult[],
-    { plinkVariants, regionVariants }: ChartVariants,
-    genes: EnsemblGeneResult[],
-    wheelCb: (delta: number, pos: number) => void,
-    setCenterRegion: (region: number) => void,
-    recombData: LocalRecombData[],
-    geneLabelsVisible: boolean,
-    visiblePvars: (keyof RegionResult)[],
-    unconveredRegions: number[],
-    regionPeaks: RegionPeak[],
-    transformPval: (pval: number) => number,
-    pvalScale: ScaleOrdinal<string, string, never>,
-    pvalThresholdRegion: number,
-    pvalThresholdVariant: number,
-  ) => {
+  render = (args: RegionPlotRenderData) => {
+    const {
+      chartVariants: { plinkVariants, regionVariants },
+      data,
+      geneLabelsVisible,
+      genes,
+      pvalScale,
+      pvalThresholdRegion,
+      pvalThresholdVariant,
+      recombData,
+      regionPeaks,
+      setCenterRegion,
+      transformPValue,
+      uncoveredRegions,
+      visiblePvars,
+      wheelCb,
+    } = args;
+
     const regionData = groups(data, (d) => d.region).flatMap(
       ([region, members]) => {
         const [start, end] = extent(
@@ -250,7 +269,7 @@ class RegionChart {
         return Object.entries(members[0])
           .filter(([k]) => k.toLowerCase().endsWith("_p"))
           .map(([variable, pvalue]) => {
-            const transformed = transformPval(pvalue);
+            const transformed = transformPValue(pvalue);
             return {
               region,
               start,
@@ -366,8 +385,10 @@ class RegionChart {
     const pvalExtent = extent(
       regionData
         .map((d) => d.pvalue)
-        .concat(filteredRegionVariants.map((v) => transformPval(v.sglm_pvalue)))
-        .concat(filteredPlinkVariants.map((v) => transformPval(v.p!))),
+        .concat(
+          filteredRegionVariants.map((v) => transformPValue(v.sglm_pvalue)),
+        )
+        .concat(filteredPlinkVariants.map((v) => transformPValue(v.p!))),
     ).reverse() as [number, number];
 
     const yScalePval = scaleLinear()
@@ -445,12 +466,12 @@ class RegionChart {
       .join("circle")
       .attr("class", "variant")
       .attr("cx", (d) => xScale(d.pos!))
-      .attr("cy", (d) => yScalePval(transformPval(d.p!)))
+      .attr("cy", (d) => yScalePval(transformPValue(d.p!)))
       .attr("fill", (d) =>
-        unconveredRegions.includes(d.pos!) ? "none" : "black",
+        uncoveredRegions.includes(d.pos!) ? "none" : "black",
       )
       .attr("stroke", (d) =>
-        unconveredRegions.includes(d.pos!) ? "black" : "none",
+        uncoveredRegions.includes(d.pos!) ? "black" : "none",
       )
       .transition()
       .duration(300)
@@ -512,7 +533,7 @@ class RegionChart {
       .attr("text-anchor", "middle")
       .attr("class", "region-label")
       .attr("x", (d) => xScale((d.end_bp + d.start_bp) / 2))
-      .attr("y", (d) => yScalePval(transformPval(d.min_p)) - 8)
+      .attr("y", (d) => yScalePval(transformPValue(d.min_p)) - 8)
       .transition()
       .duration(200)
       .text((d) => d.region)
@@ -535,7 +556,7 @@ class RegionChart {
       .join("circle")
       .attr("class", "region-variant")
       .attr("cx", (d) => xScale(d.bp))
-      .attr("cy", (d) => yScalePval(transformPval(d.sglm_pvalue)))
+      .attr("cy", (d) => yScalePval(transformPValue(d.sglm_pvalue)))
       .attr("fill", pvalScale("sglm_pvalue"))
       .transition()
       .duration(300)
@@ -587,22 +608,7 @@ class RegionChart {
           this.selectedGeneRange = [[d.start, d.end]];
         }
 
-        this.render(
-          data,
-          { plinkVariants, regionVariants },
-          genes,
-          wheelCb,
-          setCenterRegion,
-          recombData,
-          geneLabelsVisible,
-          visiblePvars,
-          unconveredRegions,
-          regionPeaks,
-          transformPval,
-          pvalScale,
-          pvalThresholdRegion,
-          pvalThresholdVariant,
-        );
+        this.render({ ...args, data });
       });
 
     // add gene labels
@@ -674,7 +680,7 @@ class RegionChart {
       .selectAll("text")
       .data([1])
       .join("text")
-      .text(makePvalAxisLabel(transformPval))
+      .text(makePvalAxisLabel(transformPValue))
       .attr("font-size", "12px")
       .attr("transform", "rotate(-90)")
       .attr("text-anchor", "middle");
@@ -799,8 +805,8 @@ class RegionChart {
     drawDottedLine(
       this.container,
       "region-p-line",
-      yScalePval(transformPval(pvalThresholdRegion)),
-      yScalePval(transformPval(pvalThresholdRegion)),
+      yScalePval(transformPValue(pvalThresholdRegion)),
+      yScalePval(transformPValue(pvalThresholdRegion)),
       xScale.range()[0],
       xScale.range()[1],
     );
@@ -809,8 +815,8 @@ class RegionChart {
       drawDottedLine(
         this.container,
         "variant-p-line",
-        yScalePval(transformPval(pvalThresholdVariant)),
-        yScalePval(transformPval(pvalThresholdVariant)),
+        yScalePval(transformPValue(pvalThresholdVariant)),
+        yScalePval(transformPValue(pvalThresholdVariant)),
         xScale.range()[0],
         xScale.range()[1],
       );
@@ -855,7 +861,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   const [proteinGenesOnly, setProteinGenesOnly] = useState(true);
 
-  const [recombData, setRecombData] = useState<LocalRecombData[]>([]);
+  const [recombData, setRecombData] = useState<LocalRecombData[] | null>(null);
 
   const [recombVisible, setRecombVisible] = useState(false);
 
@@ -954,17 +960,19 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
   }, [data, plinkVariants]);
 
   const regionPeaks: RegionPeak[] = useMemo(() => {
-    return data.map((d) => ({
-      region: d.region,
-      start_bp: d.start_bp,
-      end_bp: d.end_bp,
-      min_p: min(
-        getEntries(d)
-          .filter(([k, v]) => !!v && visiblePvars.includes(k))
-          .map(([, v]) => (v ? +v : 0)),
-      ) as number,
-    }));
-  }, [data, visiblePvars]);
+    return regionLabelsVisible
+      ? data.map((d) => ({
+          region: d.region,
+          start_bp: d.start_bp,
+          end_bp: d.end_bp,
+          min_p: min(
+            getEntries(d)
+              .filter(([k, v]) => !!v && visiblePvars.includes(k))
+              .map(([, v]) => (v ? +v : 0)),
+          ) as number,
+        }))
+      : [];
+  }, [data, regionLabelsVisible, visiblePvars]);
 
   //grab chr for convenience, only 1 will be visible at a time, prevent fetching the same data if data changes
   //but chr stays the same
@@ -1002,27 +1010,23 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   // fetch all recomb rates that might be displayed with this data
   useEffect(() => {
-    if (chr) {
+    if (!!chr) {
       fetch(`${process.env.NEXT_PUBLIC_APP_URL}/recomb/chr${chr}`).then((d) =>
         d.json().then((d) => setRecombData(d)),
       );
     }
-  }, [chr]);
-
-  // filter the recomb data by range
-  const filteredRecombData = useMemo(
-    () => recombData.filter((d) => d.pos > posRange[0] && d.pos < posRange[1]),
-    [recombData, posRange],
-  );
+  }, [chr, posRange]);
 
   // toggle recomb data for chart depending on choice
-  const visibleRecomb = useMemo(() => {
-    if (recombVisible) {
-      return filteredRecombData;
+  const filteredRecomb = useMemo(() => {
+    if (!recombData) {
+      return null;
     } else {
-      return [];
+      return recombData.filter(
+        (d) => d.pos > posRange[0] && d.pos < posRange[1],
+      );
     }
-  }, [filteredRecombData, recombVisible]);
+  }, [recombData, posRange]);
 
   // callback for when a user clicks on a region
   const setCenterRegion = useCallback(
@@ -1052,7 +1056,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   const dragCb = useCallback(
     (bpChange: number) => {
-      const { regions: allRegions } = selectedRegionDetailData;
+      const { regions: allRegions, data } = selectedRegionDetailData;
       const [visibleRegionMin, visibleRegionMax] = extent(
         visibleRegions.current,
       ) as [number, number];
@@ -1075,12 +1079,14 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
         );
       }
     },
-    [data],
+    [selectedRegionDetailData],
   );
 
   //zoom callback
   //todo: move copy visibleData into a ref so we can remove the dependency
   //update with same useEffect call as visibleRegion ref
+  //don't think we can do this b/c we need it for inputs but we can just copy in an effect? But does that really help?
+  //yeah it might save a render, nope
   const updateRange = useCallback(
     (delta: number, pos: number) => {
       const [visibleStart, visibleEnd] = getRegionResultRange(visibleData);
@@ -1162,7 +1168,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
   useLayoutEffect(() => {
     const Chart = new RegionChart(selector, mainWidth, dragCb);
     setChart(Chart);
-  }, [mainWidth]);
+  }, [mainWidth, selector, dragCb]);
 
   //new data
   useEffect(() => {
@@ -1176,46 +1182,53 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     /* only clear out if the chart exists */
   }, [selectedRegionDetailData, assemblyInfo]);
 
-  //update chart with new data
-  useEffect(() => {
-    if (!!chart && !!visibleData.length) {
-      chart.render(
-        visibleData,
-        visibleVariants,
-        visibleGenes,
-        updateRange,
-        setCenterRegion,
-        visibleRecomb,
+  const chartArgs: RegionPlotRenderData | null = useMemo(() => {
+    if (!filteredRecomb) {
+      //don't render until recomb has been fetched
+      return null;
+    } else {
+      return {
+        chartVariants: visibleVariants,
+        data: visibleData,
         geneLabelsVisible,
-        visiblePvars,
-        uncoveredRegions,
-        regionLabelsVisible ? regionPeaks : [],
-        transformPValue,
+        genes: visibleGenes,
         pvalScale,
         pvalThresholdRegion,
         pvalThresholdVariant,
-      );
+        recombData: recombVisible ? filteredRecomb : [],
+        regionPeaks,
+        setCenterRegion,
+        transformPValue,
+        uncoveredRegions,
+        visiblePvars,
+        wheelCb: updateRange,
+      };
     }
-    setUploadKey(Math.random().toString(36).slice(2));
   }, [
-    chart,
+    filteredRecomb,
     geneLabelsVisible,
-    updateRange,
+    pvalScale,
+    pvalThresholdRegion,
+    pvalThresholdVariant,
+    regionPeaks,
+    recombVisible,
     setCenterRegion,
+    transformPValue,
     visibleData,
     visibleGenes,
     visiblePvars,
-    visibleRecomb,
     visibleVariants,
-    mainWidth,
-    pvalThresholdRegion,
-    pvalThresholdVariant,
     uncoveredRegions,
-    regionPeaks,
-    regionLabelsVisible,
-    transformPValue,
-    pvalScale,
+    updateRange,
   ]);
+
+  //update chart with new data
+  useEffect(() => {
+    if (!!chart && !!chartArgs && !!chartArgs.data.length) {
+      chart.render(chartArgs);
+    }
+    setUploadKey(Math.random().toString(36).slice(2));
+  }, [chart, chartArgs]);
 
   const toggleAnnotationsButtonRef = useRef<HTMLButtonElement | null>(null);
 

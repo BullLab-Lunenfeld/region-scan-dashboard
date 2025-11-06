@@ -381,11 +381,9 @@ const buildChart = (
     .join("g")
     .attr("class", "x-axis")
     .attr("transform", `translate(0,${height / 2})`)
-    .transition()
-    .duration(500)
     .selection();
 
-  xAxisSelection.call(xAxis);
+  xAxisSelection.transition().duration(1500).call(xAxis);
 
   xAxisSelection
     .selectAll(".tick line")
@@ -417,8 +415,8 @@ const buildChart = (
     ...(yscaleUpper.range().slice(0, 2) as [number, number]),
   );
 
-  // We have single y scales with potentially multiple domains/ranges from overflow
-  // So we'll create separate axos for them b/c we want a gap between them
+  // We have single y scales with potentially multiple domains/ranges from overflow,
+  // so we'll create separate axes for them b/c we want a gap between them.
   // For exports, this needs to be a true gap and not something papered over with a rect.
   // We do this by creating dummy scales to pass to the axis constructor as needed.
   const yAxisUpper0 = axisLeft(
