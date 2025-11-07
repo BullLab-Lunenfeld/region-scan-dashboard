@@ -190,14 +190,16 @@ export default function Visualization() {
           d.chr == chr,
       ) || []) as RegionResult[];
 
-      setSelectedRegionDetailData({
-        data: regionDetailData,
-        region: selectedRegion,
-        regions: unique(regionDetailData, "region"),
-        bpRange: extent(
-          regionDetailData.flatMap((d) => [d.start_bp, d.end_bp]),
-        ) as [number, number],
-      });
+      if (regionDetailData.length) {
+        setSelectedRegionDetailData({
+          data: regionDetailData,
+          region: selectedRegion,
+          regions: unique(regionDetailData, "region"),
+          bpRange: extent(
+            regionDetailData.flatMap((d) => [d.start_bp, d.end_bp]),
+          ) as [number, number],
+        });
+      }
     }
   }, [miamiData, regionRestartPoints, selectedRegion]);
 
@@ -228,7 +230,8 @@ export default function Visualization() {
             return x0Pass && x1Pass;
           });
 
-          //optionally reset region chart data if we've zoomed out of range
+          // optionally reset region chart data if we've zoomed out of range
+
           if (selectedRegionDetailData) {
             const { chr } = selectedRegionDetailData.region;
             const { bpRange } = selectedRegionDetailData;
@@ -255,7 +258,8 @@ export default function Visualization() {
     },
     // We set selectedRegionDetailData here so we'll get circular if we include it as a dep.
     // Also we do all the miami updates here and save data in a single object to save on renders.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // we leave out regionDetailData b/c of circular dep
+    //eslint-disable-next-line react-hooks/exhaustive-deps
     [
       brushFilterHistory,
       upperVariable,
