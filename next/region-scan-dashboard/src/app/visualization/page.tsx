@@ -73,6 +73,7 @@ export default function Visualization() {
 
   const {
     palette,
+    qqPlotVisible,
     regionData,
     regionVariantData,
     setRegionData,
@@ -535,7 +536,7 @@ export default function Visualization() {
             spacing={2}
             justifyContent="flex-start"
           >
-            {miamiVarsSet && !!qqChartContainerRef.current && (
+            {miamiVarsSet && !!qqChartContainerRef.current && qqPlotVisible && (
               <>
                 <Grid>
                   <QQPlot

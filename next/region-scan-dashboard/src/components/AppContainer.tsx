@@ -40,12 +40,14 @@ interface VisualizationDataContext {
   miamiYType: MiamiYType;
   overflows: OverflowScaleSettings;
   palette: readonly string[];
+  qqPlotVisible: boolean;
   regionData: RegionResult[];
   regionVariantData: VariantResult[];
   setMiamiType: (type: MiamiType) => void;
   setMiamiYType: (type: MiamiYType) => void;
   setOverflows: (data: OverflowScaleSettings) => void;
   setPalette: (palette: readonly string[]) => void;
+  setQqPlotVisible: (visible: boolean) => void;
   setRegionData: (data: RegionResult[]) => void;
   setRegionVariantData: (data: VariantResult[]) => void;
   setThreshold: (name: keyof PlotThresholds, val: number) => void;
@@ -82,18 +84,20 @@ export const VisualizationDataContext = createContext<VisualizationDataContext>(
     miamiYType: "dynamic",
     overflows: DEFAULT_OVERFLOWS,
     palette: schemeTableau10,
-    transformPValue: () => 0,
+    qqPlotVisible: true,
     regionData: [],
     regionVariantData: [],
     setMiamiType: () => null,
     setMiamiYType: () => null,
     setOverflows: () => null,
     setPalette: () => null,
+    setQqPlotVisible: () => null,
     setTransformPValue: () => null,
     setThreshold: () => null,
     setRegionData: () => null,
     setRegionVariantData: () => null,
     thresholds: DEFAULT_THRESHOLDS,
+    transformPValue: () => 0,
   },
 );
 
@@ -101,6 +105,7 @@ const AppContainer: React.FC<AppContainerProps> = ({ children }) => {
   const [miamiType, setMiamiType] = useState<MiamiType>("scatter");
   const [miamiYType, setMiamiYType] = useState<MiamiYType>("dynamic");
 
+  const [qqPlotVisible, setQqPlotVisible] = useState(true);
   const [palette, setPalette] = useState<readonly string[]>(schemeTableau10);
   const [transformPValue, setTransformPValue] = useState<
     (pval: number) => number
@@ -125,12 +130,14 @@ const AppContainer: React.FC<AppContainerProps> = ({ children }) => {
         miamiYType,
         overflows,
         palette,
+        qqPlotVisible,
         regionData,
         regionVariantData,
         setMiamiType,
         setMiamiYType,
         setOverflows,
         setPalette,
+        setQqPlotVisible,
         setRegionData,
         setRegionVariantData,
         setThreshold,

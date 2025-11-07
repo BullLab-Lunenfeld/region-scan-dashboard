@@ -463,7 +463,7 @@ const buildChart = (
     .attr("transform", `translate(0,${height / 2})`)
     .selection();
 
-  xAxisSelection.transition().duration(1500).call(xAxis);
+  xAxisSelection.transition().duration(750).call(xAxis);
 
   xAxisSelection
     .selectAll(".tick line")

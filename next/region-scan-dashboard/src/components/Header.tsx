@@ -4,6 +4,7 @@ import React, { useCallback, useContext, useState } from "react";
 import {
   AppBar,
   Button,
+  Checkbox,
   FormControlLabel,
   Grid2 as Grid,
   IconButton,
@@ -338,7 +339,9 @@ const SettingsDropdown: React.FC = () => {
     overflows,
     setOverflows,
     palette,
+    qqPlotVisible,
     setPalette,
+    setQqPlotVisible,
   } = useContext(VisualizationDataContext);
   const [upperPThresh, setUpperPThresh] = useState(overflows.upper.pThresh);
   const [lowerPThresh, setLowerPThresh] = useState(overflows.lower.pThresh);
@@ -409,6 +412,18 @@ const SettingsDropdown: React.FC = () => {
               label="Colour Blind"
             />
           </RadioGroup>
+        </MenuItem>
+        <ListSubheader>QQ PLOT</ListSubheader>
+        <MenuItem>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={qqPlotVisible}
+                onChange={() => setQqPlotVisible(!qqPlotVisible)}
+              />
+            }
+            label="Show QQ Plot"
+          />
         </MenuItem>
         <ListSubheader>MIAMI Y-AXIS Type</ListSubheader>
         <MenuItem>
