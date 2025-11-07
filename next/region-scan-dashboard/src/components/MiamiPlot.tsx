@@ -2,8 +2,18 @@
 
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import "d3-transition"; // must be imported before selection
-import { symbolDiamond, symbol, line } from "d3-shape";
-import { cumsum, extent, max, min, sum, ticks } from "d3-array";
+import { symbolDiamond, symbol, line, area } from "d3-shape";
+import {
+  bin,
+  cumsum,
+  extent,
+  groups,
+  max,
+  maxIndex,
+  min,
+  sum,
+  ticks,
+} from "d3-array";
 import { axisBottom, axisLeft } from "d3-axis";
 import { brushX, D3BrushEvent } from "d3-brush";
 import { format } from "d3-format";
@@ -16,6 +26,7 @@ import {
 import { BaseType, select, selectAll, Selection } from "d3-selection";
 import { Box } from "@mui/material";
 import {
+  MiamiType,
   MiamiYType,
   OverflowScaleSettings,
   VisualizationDataContext,
@@ -52,6 +63,72 @@ const getVariantOrRegionLocation = (datum: VariantResult | RegionResult) => {
 type TransformedData = {
   [Property in keyof RegionResult | keyof VariantResult]: number;
 };
+
+/**
+ * Bin data by range that corresponds to `pixelBinWidth`
+ */
+const binData = (
+  data: TransformedData[],
+  chrScale: Record<string, ScaleLinear<number, number, never>>,
+  assemblyInfo: AssembyInfo,
+  pixelBinWidth: number,
+  pvar: keyof VariantResult | keyof RegionResult,
+) =>
+  groups(data, (d) => d.chr).flatMap(([chr, vals], _, g) => {
+    const scale = chrScale[chr];
+    const pxRange = scale.invert(scale.range()[0] + pixelBinWidth);
+    const binCount = Math.min(Math.ceil(assemblyInfo.lengths[chr] / pxRange));
+
+    let binned: TransformedData[];
+
+    if (vals.length <= binCount) {
+      binned = vals
+        .filter(Boolean)
+        .sort((a, b) => ((a.bp || a.start_bp) < (b.bp || b.start_bp) ? -1 : 1));
+    } else {
+      const chrBinG = bin<TransformedData, number>()
+        .value((d) =>
+          isRegionResult(d)
+            ? (d.start_bp + d.end_bp) / 2
+            : (d as VariantResult).bp,
+        )
+        .thresholds(binCount);
+
+      binned = chrBinG(vals)
+        .flatMap((b) => b[maxIndex(b, (c) => getPVal(pvar, c))])
+        .filter(Boolean);
+    }
+
+    if (g.length === 1) {
+      return binned;
+    } else {
+      // to respect the spacing between chrs in the plot, we need to insert dummy
+      // vals at the beginning and end
+      // note that these require the `id` field b/c that's the discrimator for regiondata
+
+      return [
+        {
+          [pvar]: 0,
+          chr,
+          start_bp: binned[0].bp || binned[0].end_bp,
+          end_bp: binned[0].bp || binned[0].end_bp,
+          id: -1,
+        } as TransformedData,
+      ]
+        .concat(binned)
+        .concat([
+          {
+            [pvar]: 0,
+            chr,
+            start_bp:
+              binned[binned.length - 1].bp || binned[binned.length - 1].end_bp,
+            end_bp:
+              binned[binned.length - 1].bp || binned[binned.length - 1].end_bp,
+            id: -1,
+          } as TransformedData,
+        ]);
+    }
+  });
 
 const showMiamiTooltip = (
   d: VariantResult | RegionResult,
@@ -139,6 +216,7 @@ const buildChart = (
   transformPval: (pval: number) => number,
   yOverflowSettings: OverflowScaleSettings,
   yAxisType: MiamiYType,
+  plotType: MiamiType,
   selectedRegionDetailData?: SelectedRegionDetailData,
 ) => {
   const topThresh = transformPval(_topThresh);
@@ -247,11 +325,13 @@ const buildChart = (
       ) as [number, number],
     );
 
+  // scale for plotting values
   const getPlottingXScale = (chr: string) =>
     chrs.length > 1
       ? chrCumSumScale[chr]
       : (singleChrXScale as ScaleLinear<number, number, never>);
 
+  // scale for making the x-axis
   const xAxisScale =
     chrs.length > 1
       ? scaleThreshold()
@@ -725,46 +805,76 @@ const buildChart = (
   const diamondDataUpper: (VariantResult | RegionResult)[] = [];
   const diamondDataLower: (VariantResult | RegionResult)[] = [];
 
-  upperData.forEach((d) => {
-    const pval = getPVal(topCol, d);
-    if (!!pval) {
-      if (pval < topThresh) {
-        circleDataUpper.push(d);
-      } else {
-        diamondDataUpper.push(d);
+  if (plotType == "scatter") {
+    upperData.forEach((d) => {
+      const pval = getPVal(topCol, d);
+      if (!!pval) {
+        if (pval < topThresh) {
+          circleDataUpper.push(d);
+        } else {
+          diamondDataUpper.push(d);
+        }
       }
-    }
-  });
+    });
 
-  lowerData.forEach((d) => {
-    const pval = getPVal(bottomCol, d);
-    if (!!pval) {
-      if (pval < bottomThresh) {
-        circleDataLower.push(d);
-      } else {
-        diamondDataLower.push(d);
+    lowerData.forEach((d) => {
+      const pval = getPVal(bottomCol, d);
+      if (!!pval) {
+        if (pval < bottomThresh) {
+          circleDataLower.push(d);
+        } else {
+          diamondDataLower.push(d);
+        }
       }
-    }
-  });
+    });
+  }
 
+  const areaCUpper = area<RegionResult | VariantResult>(
+    (d) => getPlottingXScale(d.chr.toString())(getVariantOrRegionLocation(d)),
+    yscaleUpper.range()[yscaleUpper.range().length - 1],
+    (d) => yscaleUpper(getPVal(topCol, d)!),
+  );
+
+  const areaCLower = area<RegionResult | VariantResult>(
+    (d) => getPlottingXScale(d.chr.toString())(getVariantOrRegionLocation(d)),
+    yscaleLower.range()[0],
+    (d) => yscaleLower(getPVal(bottomCol, d)!),
+  );
+
+  const binnedTop: TransformedData[] =
+    plotType === "area"
+      ? binData(upperData, chrCumSumScale, assemblyInfo, 1, topCol)
+      : [];
+
+  const binnedBottom: TransformedData[] =
+    plotType === "area"
+      ? binData(lowerData, chrCumSumScale, assemblyInfo, 1, bottomCol)
+      : [];
+
+  //area
   circleContainer
-    .selectAll<SVGCircleElement, RegionResult>("circle.upper")
-    .data(circleDataUpper)
-    .join("circle")
-    .attr("class", "upper")
-    .attr("r", circleRadius)
+    .selectAll<SVGPathElement, RegionResult>("path.upper-plot")
+    .data(plotType === "area" ? [upperData.length] : [])
+    .join("path")
+    .attr("class", "upper-plot")
+    .attr("d", areaCUpper(binnedTop))
     .attr("fill", pvalScale(topCol))
-    .attr("opacity", 0.5)
-    .attr("cx", (d) =>
-      getPlottingXScale(d.chr.toString())(getVariantOrRegionLocation(d)),
-    )
-    .attr("cy", (d) => yscaleUpper(getPVal(topCol, d)!));
+    .attr("opacity", 0.5);
 
   circleContainer
-    .selectAll("circle.lower")
+    .selectAll<SVGPathElement, RegionResult>("path.lower-plot")
+    .data(plotType === "area" ? [lowerData.length] : [])
+    .join("path")
+    .attr("class", "lower-plot")
+    .attr("d", areaCLower(binnedBottom))
+    .attr("fill", pvalScale(bottomCol))
+    .attr("opacity", 0.5);
+
+  circleContainer
+    .selectAll("circle.lower-plot")
     .data(circleDataLower)
     .join("circle")
-    .attr("class", "lower")
+    .attr("class", "lower-plot")
     .attr("r", circleRadius)
     .attr("fill", pvalScale(bottomCol))
     .attr("opacity", 0.5)
@@ -773,12 +883,25 @@ const buildChart = (
     )
     .attr("cy", (d) => yscaleLower(getPVal(bottomCol, d)!));
 
+  circleContainer
+    .selectAll<SVGCircleElement, RegionResult>("circle.upper-plot")
+    .data(circleDataUpper)
+    .join("circle")
+    .attr("class", "upper-plot")
+    .attr("r", circleRadius)
+    .attr("fill", pvalScale(topCol))
+    .attr("opacity", 0.5)
+    .attr("cx", (d) =>
+      getPlottingXScale(d.chr.toString())(getVariantOrRegionLocation(d)),
+    )
+    .attr("cy", (d) => yscaleUpper(getPVal(topCol, d)!));
+
   //diamonds
   circleContainer
-    .selectAll<SVGPathElement, RegionResult>("path.upper")
+    .selectAll<SVGPathElement, RegionResult>(".upper-plot-diamonds")
     .data(diamondDataUpper)
     .join("path")
-    .attr("class", "upper")
+    .attr("class", "upper-plot-diamonds")
     .attr("d", symbol(symbolDiamond, circleRadius * 15))
     .attr("opacity", 0.5)
     .attr("fill", pvalScale(topCol))
@@ -791,10 +914,10 @@ const buildChart = (
     );
 
   circleContainer
-    .selectAll("path.lower")
+    .selectAll("path.lower-plot-diamonds")
     .data(diamondDataLower)
     .join("path")
-    .attr("class", "lower")
+    .attr("class", "lower-plot-diamonds")
     .attr("opacity", 0.5)
     .attr("d", symbol(symbolDiamond, circleRadius * 15))
     .attr("fill", pvalScale(bottomCol))
@@ -807,7 +930,9 @@ const buildChart = (
     );
 
   circleContainer
-    .selectAll<BaseType, RegionResult>("circle, path")
+    .selectAll<BaseType, RegionResult>(
+      "circle, path.lower-plot-diamonds, path.upper-plot-diamonds",
+    )
     .on("click", (_, d: RegionResult) => onCircleClick(d))
     .on("mouseover", (e: React.MouseEvent, d: RegionResult | VariantResult) => {
       let pval: null | number = null;
@@ -927,6 +1052,7 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
   }, []);
 
   const {
+    miamiType: plotType,
     miamiYType: yAxisType,
     overflows,
     thresholds: { miamiTop: topThresh, miamiBottom: bottomThresh },
@@ -959,6 +1085,7 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
           transformPValue,
           overflows,
           yAxisType,
+          plotType,
           selectedRegionDetailData,
         ),
       ).finally(() => setLoading(false));
@@ -977,6 +1104,7 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
     _width,
     transformPValue,
     yAxisType,
+    plotType,
   ]);
 
   return (
