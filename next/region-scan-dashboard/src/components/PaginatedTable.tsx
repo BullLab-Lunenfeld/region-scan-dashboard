@@ -14,6 +14,7 @@ import {
 import {
   DataGrid,
   GridColumnVisibilityModel,
+  gridExpandedSortedRowEntriesSelector,
   GridPaginationModel,
   GridPreferencePanelsValue,
   GridSlots,
@@ -186,7 +187,9 @@ const RSGridToolbar: React.FC<RSGridToolbarProps> = ({
             <RSExportButton
               download={() => {
                 downloadCsv(
-                  [...apiRef.current.getRowModels()].map((v) => v[1]),
+                  [...gridExpandedSortedRowEntriesSelector(apiRef)].map(
+                    (v) => v.model,
+                  ),
                 );
               }}
             />
