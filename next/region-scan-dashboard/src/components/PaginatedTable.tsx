@@ -184,9 +184,11 @@ const RSGridToolbar: React.FC<RSGridToolbarProps> = ({
           </Grid>
           <Grid>
             <RSExportButton
-              download={() =>
-                downloadCsv([...apiRef.current.getRowModels()].map((v) => v[1]))
-              }
+              download={() => {
+                downloadCsv(
+                  [...apiRef.current.getRowModels()].map((v) => v[1]),
+                );
+              }}
             />
           </Grid>
           <Grid width={200} padding={1}>

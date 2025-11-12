@@ -38,6 +38,7 @@ import { BrushFilter } from "@/components/MiamiPlot";
 import { chromLengths37, chromLengths38 } from "@/util/chromLengths";
 import { transformRegionUpload } from "@/components/Header";
 import { VisualizationDataContext } from "@/components/AppContainer";
+import { useResize } from "@/lib/hooks/useResize";
 
 const VARIANT_PVAL: keyof VariantResult = "sglm_pvalue";
 
@@ -91,6 +92,11 @@ export default function Visualization() {
   const regionDataSet = !!regionData.length;
 
   const miamiChartContainerRef = useRef<HTMLDivElement>(null);
+
+  const { width: miamiChartContainerWidth } = useResize(
+    miamiChartContainerRef,
+    [],
+  );
 
   const qqChartContainerRef = useRef<HTMLDivElement>(null);
 
@@ -494,41 +500,35 @@ export default function Visualization() {
           </Grid>
         </Grid>
         {/* Miami plot container */}
-        <Grid
-          container
-          ref={miamiChartContainerRef}
-          size={{ xs: 5, lg: 6, xl: 6.25 }}
-        >
-          <Grid>
-            {regionDataSet &&
-              (miamiVarsSet ? (
-                <MiamiPlot
-                  assemblyInfo={assemblyInfo}
-                  pvalScale={pvalScale}
-                  data={miamiData}
-                  onCircleClick={setSelectedRegion}
-                  selectedRegionDetailData={selectedRegionDetailData}
-                  width={miamiChartContainerRef.current!.clientWidth}
-                />
-              ) : (
-                <Box
-                  sx={(theme) => ({
-                    backgroundColor: alpha(theme.palette.primary.light, 0.25),
-                    padding: 5,
-                    borderRadius: 4,
-                    display: "flex",
-                    alignItems: "center",
-                    flexGrow: 1,
-                    height: "100%",
-                  })}
-                >
-                  <Typography>
-                    Use the controls on the left to select upper and lower
-                    variables for the Miami Plot
-                  </Typography>
-                </Box>
-              ))}
-          </Grid>
+        <Grid ref={miamiChartContainerRef} size={{ xs: 5, lg: 6, xl: 6.25 }}>
+          {regionDataSet &&
+            (miamiVarsSet ? (
+              <MiamiPlot
+                assemblyInfo={assemblyInfo}
+                pvalScale={pvalScale}
+                data={miamiData}
+                onCircleClick={setSelectedRegion}
+                selectedRegionDetailData={selectedRegionDetailData}
+                width={miamiChartContainerWidth}
+              />
+            ) : (
+              <Box
+                sx={(theme) => ({
+                  backgroundColor: alpha(theme.palette.primary.light, 0.25),
+                  padding: 5,
+                  borderRadius: 4,
+                  display: "flex",
+                  alignItems: "center",
+                  flexGrow: 1,
+                  height: "100%",
+                })}
+              >
+                <Typography>
+                  Use the controls on the left to select upper and lower
+                  variables for the Miami Plot
+                </Typography>
+              </Box>
+            ))}
         </Grid>
         {/* QQ Plot */}
         {!!pvalScale && (

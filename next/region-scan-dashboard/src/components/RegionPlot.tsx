@@ -1,6 +1,7 @@
 "use client";
 
 import React, {
+  use,
   useCallback,
   useContext,
   useEffect,
@@ -228,7 +229,7 @@ class RegionChart {
       .attr("viewBox", [0, 0, this.width, this.height])
       .attr("width", this.width)
       .attr("height", this.height)
-      .attr("style", "max-width: 100%; height: auto;") as Selection<
+      .attr("style", "max-width: 100%;") as Selection<
       SVGElement,
       number,
       BaseType,

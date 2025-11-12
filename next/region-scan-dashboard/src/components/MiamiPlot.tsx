@@ -437,7 +437,7 @@ const buildChart = (
     .attr("viewBox", [0, 0, width, height])
     .attr("width", width)
     .attr("height", height)
-    .attr("style", "max-width: 100%; height: auto;") as Selection<
+    .attr("style", "max-width: 100%;") as Selection<
     SVGElement,
     number,
     BaseType,
@@ -1045,8 +1045,6 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
 
   const { anchorEl, handlePopoverOpen } = useDownloadPlot();
 
-  const _width = useMemo(() => width, [width]);
-
   useEffect(() => {
     setTimeout(() => setRenderFlag(true));
   }, []);
@@ -1081,7 +1079,7 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
           `.${className}`,
           upperVariable,
           topThresh,
-          _width,
+          width,
           transformPValue,
           overflows,
           yAxisType,
@@ -1101,7 +1099,6 @@ const MiamiPlot: React.FC<MiamiPlotProps> = ({
     topThresh,
     width,
     renderFlag,
-    _width,
     transformPValue,
     yAxisType,
     plotType,
