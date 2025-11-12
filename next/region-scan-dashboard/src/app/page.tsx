@@ -11,10 +11,10 @@ import {
 import { useRouter } from "next/navigation";
 import Image, { StaticImageData } from "next/image";
 
-import miamiPlot from "../../public/miami-plot.png";
-import qqPlot from "../../public/qq-plot.png";
-import regionBasic from "../../public/region-basic.png";
-import regionDetail from "../../public/region-detail.png";
+import qqPlot from "/public/qq-plot.png";
+import regionBasic from "/public/region-basic.png";
+import regionDetail from "/public/region-detail.png";
+import miamiPlot from "/public/miami-plot.png";
 
 const plots = [
   {

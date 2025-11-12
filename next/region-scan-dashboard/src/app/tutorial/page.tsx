@@ -8,18 +8,21 @@ import {
   Box,
   alpha,
   darken,
+  List,
+  ListItem,
+  BoxProps,
 } from "@mui/material";
 import { StaticImport } from "next/dist/shared/lib/get-img-props";
 import Image from "next/image";
-import uploadButton from "../../../public/upload-button.png";
-import uploadVariantsButton from "../../../public/upload-variants-button.png";
-import variantDropdown from "../../../public/variant-dropdown.png";
-import miamiDynamic from "../../../public/miami-dynamic-y.png";
-import miamiOverflow1 from "../../../public/miami-overflow-1.png";
-import miamiOverflow2 from "../../../public/miami-overflow-2.png";
-import qqPlot from "../../../public/qq-plot.png";
-import regionAnnotation from "../../../public/region-plot-annotation.png";
-import plinkPlot from "../../../public/plink-plot.png";
+import uploadButton from "/public/upload-button.png";
+import uploadVariantsButton from "/public/upload-variants-button.png";
+import variantDropdown from "/public/variant-dropdown.png";
+import miamiDynamic from "/public/miami-dynamic-y.png";
+import miamiOverflow1 from "/public/miami-overflow-1.png";
+import miamiOverflow2 from "/public/miami-overflow-2.png";
+import qqPlot from "/public/qq-plot.png";
+import regionAnnotation from "/public/region-plot-annotation.png";
+import plinkPlot from "/public/plink-plot.png";
 
 export default function page() {
   return (
@@ -308,21 +311,66 @@ export default function page() {
           />
         </Grid>
         <Grid container direction="column">
-          <Typography variant="h4">5. Performance</Typography>
-
+          <Grid>
+            <Typography variant="h4">5. Performance</Typography>
+          </Grid>
           <Grid>
             <Typography>
               The application will become slower and the visualisations less
-              responsive as more data is loaded into the browser. For best
-              performance, it's recommended to load only the data needed for a
-              given analysis or graphic. To get an overview, a user might begin
-              by uploading the entire genome, and then, once a region of
-              interest has been identified, re-uploading the file or files
-              associated with that area and browsing further with a region plot.
-              This approach will reduce memory usage and make the application
-              more efficient, and it is particularly recommended for users who
-              intend to upload large variant files in addition to region files.
+              responsive as more data is rendered in the browser. For instance,
+              viewing the entire genome in the Miami plot will be slower than
+              viewing a small range in a single chromosome.
             </Typography>
+            <Typography>
+              There are a few ways to improve performance:{" "}
+            </Typography>
+            <List>
+              <ListItemBlock>
+                <Typography>
+                  <Strong>Load only the data you need</Strong>
+                </Typography>
+                <Typography>
+                  If you have identified a region of interest, upload only the
+                  files associated with that region.
+                </Typography>
+              </ListItemBlock>
+              <ListItemBlock>
+                <Typography>
+                  <Strong>Zoom in on the Miami plot</Strong>
+                </Typography>
+                <Typography>
+                  Drag the mouse to select the area of the Miami plot you are
+                  interested in. This will reduce the number of data points
+                  rendered.
+                </Typography>
+              </ListItemBlock>
+              <ListItemBlock>
+                <Typography>
+                  <Strong>Hide the QQ Plot</Strong>
+                </Typography>
+                <Typography>
+                  The QQ Plot can grow to a large size with a large dataset. Try
+                  hiding unneeded variables or hiding the plot completely by
+                  clicking the gear icon and toggling the "Show QQ Plot" option.
+                </Typography>
+              </ListItemBlock>
+              <ListItemBlock>
+                <Typography>
+                  <Strong>View the Miami Plot as an area plot</Strong>
+                </Typography>
+                <Typography>
+                  When looking at large amount of data, consider viewing the
+                  Miami plot as an area plot. This will reduce the amount of
+                  data in the image at the expense of detail. It may be most
+                  useful when viewing a large range, as peaks will still be
+                  visible. You can do this by clicking the gear icon and
+                  selecting the "Area" option under "Miami Plot Type." Zooming
+                  is much faster with the area plot. After identifying an area
+                  of interest, you can toggle the Miami Plot back to "Scatter"
+                  and select a region to view in the region plot.
+                </Typography>
+              </ListItemBlock>
+            </List>
           </Grid>
         </Grid>
 
@@ -336,6 +384,12 @@ export default function page() {
     </Grid>
   );
 }
+
+const ListItemBlock = ({ children, ...props }: BoxProps) => (
+  <Box component={ListItem} {...props} display="block">
+    {children}
+  </Box>
+);
 
 interface FieldNameGridProps {
   names: string[];

@@ -108,7 +108,7 @@ const buildChart = (
     .attr("viewBox", [0, 0, width, height])
     .attr("width", width)
     .attr("height", height)
-    .attr("style", "max-width: 100%; height: auto;") as Selection<
+    .attr("style", "max-width: 100%;") as Selection<
     SVGElement,
     number,
     BaseType,

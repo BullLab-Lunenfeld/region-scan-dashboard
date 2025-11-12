@@ -4,6 +4,7 @@ import React, { useCallback, useContext, useState } from "react";
 import {
   AppBar,
   Button,
+  Checkbox,
   FormControlLabel,
   Grid2 as Grid,
   IconButton,
@@ -20,7 +21,11 @@ import { schemeTableau10 } from "d3-scale-chromatic";
 import { Settings, Upload } from "@mui/icons-material";
 import { usePathname } from "next/navigation";
 import NavLink from "./NavLink";
-import { MiamiYType, VisualizationDataContext } from "./AppContainer";
+import {
+  MiamiType,
+  MiamiYType,
+  VisualizationDataContext,
+} from "./AppContainer";
 import LoadingOverlay from "./LoadingOverlay";
 import ValidationModal from "./ValidationModal";
 import { UploadButtonMulti } from "./UploadButton";
@@ -327,12 +332,16 @@ const SettingsDropdown: React.FC = () => {
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
 
   const {
+    miamiType,
     miamiYType,
+    setMiamiType,
     setMiamiYType,
     overflows,
     setOverflows,
     palette,
+    qqPlotVisible,
     setPalette,
+    setQqPlotVisible,
   } = useContext(VisualizationDataContext);
   const [upperPThresh, setUpperPThresh] = useState(overflows.upper.pThresh);
   const [lowerPThresh, setLowerPThresh] = useState(overflows.lower.pThresh);
@@ -404,6 +413,18 @@ const SettingsDropdown: React.FC = () => {
             />
           </RadioGroup>
         </MenuItem>
+        <ListSubheader>QQ PLOT</ListSubheader>
+        <MenuItem>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={qqPlotVisible}
+                onChange={() => setQqPlotVisible(!qqPlotVisible)}
+              />
+            }
+            label="Show QQ Plot"
+          />
+        </MenuItem>
         <ListSubheader>MIAMI Y-AXIS Type</ListSubheader>
         <MenuItem>
           <RadioGroup
@@ -422,6 +443,27 @@ const SettingsDropdown: React.FC = () => {
               value="static"
               control={<Radio size="small" />}
               label="Static"
+            />
+          </RadioGroup>
+        </MenuItem>
+        <ListSubheader>MIAMI Plot Type</ListSubheader>
+        <MenuItem>
+          <RadioGroup
+            onChange={(e) => {
+              setMiamiType(e.currentTarget.value as MiamiType);
+            }}
+          >
+            <FormControlLabel
+              checked={miamiType === "scatter"}
+              value={"scatter"}
+              control={<Radio size="small" />}
+              label="Scatter"
+            />
+            <FormControlLabel
+              checked={miamiType === "area"}
+              value="area"
+              control={<Radio size="small" />}
+              label="Area"
             />
           </RadioGroup>
         </MenuItem>
