@@ -16,16 +16,20 @@ export function useResize(
   const [height, setHeight] = useState<number>(0);
 
   const observer = useMemo(() => {
-    return new ResizeObserver((entries) => {
-      // Using the scrollWidth and scrollHeight of the target ensures this works with CSS transitions
-      // because it accounts for the height of the content before it's visually fully expanded, which elements[0].contentRect does not
-      setWidth(entries[0].target.scrollWidth);
-      setHeight(entries[0].target.scrollHeight);
-    });
+    if (typeof window !== "undefined") {
+      return new ResizeObserver((entries) => {
+        // Using the scrollWidth and scrollHeight of the target ensures this works with CSS transitions
+        // because it accounts for the height of the content before it's visually fully expanded, which elements[0].contentRect does not
+        setWidth(entries[0].target.scrollWidth);
+        setHeight(entries[0].target.scrollHeight);
+      });
+    } else {
+      return null;
+    }
   }, []);
 
   useEffect(() => {
-    if (ref.current) {
+    if (ref.current && !!observer) {
       observer.observe(ref.current);
     }
   }, [deps, observer, ref]);
