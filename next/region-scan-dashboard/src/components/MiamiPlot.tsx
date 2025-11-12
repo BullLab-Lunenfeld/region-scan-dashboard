@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useContext, useEffect, useMemo, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import "d3-transition"; // must be imported before selection
 import { symbolDiamond, symbol, line, area } from "d3-shape";
 import {
