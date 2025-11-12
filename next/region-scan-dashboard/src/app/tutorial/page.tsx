@@ -14,15 +14,15 @@ import {
 } from "@mui/material";
 import { StaticImport } from "next/dist/shared/lib/get-img-props";
 import Image from "next/image";
-import uploadButton from "../../../public/upload-button.png";
-import uploadVariantsButton from "../../../public/upload-variants-button.png";
-import variantDropdown from "../../../public/variant-dropdown.png";
-import miamiDynamic from "../../../public/miami-dynamic-y.png";
-import miamiOverflow1 from "../../../public/miami-overflow-1.png";
-import miamiOverflow2 from "../../../public/miami-overflow-2.png";
-import qqPlot from "../../../public/qq-plot.png";
-import regionAnnotation from "../../../public/region-plot-annotation.png";
-import plinkPlot from "../../../public/plink-plot.png";
+import uploadButton from "/public/upload-button.png";
+import uploadVariantsButton from "/public/upload-variants-button.png";
+import variantDropdown from "/public/variant-dropdown.png";
+import miamiDynamic from "/public/miami-dynamic-y.png";
+import miamiOverflow1 from "/public/miami-overflow-1.png";
+import miamiOverflow2 from "/public/miami-overflow-2.png";
+import qqPlot from "/public/qq-plot.png";
+import regionAnnotation from "/public/region-plot-annotation.png";
+import plinkPlot from "/public/plink-plot.png";
 
 export default function page() {
   return (
