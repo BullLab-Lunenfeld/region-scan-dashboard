@@ -54,7 +54,7 @@ import {
   formatComma,
   getEntries,
   makePvalAxisLabel,
-  parseTsv,
+  parseTabular,
   showToolTip,
 } from "@/lib/ts/util";
 import { fetchGenes } from "@/util/fetchGenes";
@@ -129,7 +129,7 @@ const processPlinkVariants = async (
   chr: number,
   posRange: [number, number],
 ): Promise<PlinkVariant[]> => {
-  const parsed = await parseTsv<PlinkVariant>(file);
+  const parsed = await parseTabular<PlinkVariant>(file);
   return parsed
     .map((v) =>
       Object.fromEntries(

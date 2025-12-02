@@ -12,11 +12,11 @@ import {
   transformPLog10Log10,
 } from "@/components/AppContainer";
 
-export const parseTsv = <T extends Record<string, any>>(
-  tsv: File,
+export const parseTabular = <T extends Record<string, any>>(
+  file: File,
 ): Promise<T[]> => {
   return new Promise((resolve) =>
-    Papa.parse<T>(tsv, {
+    Papa.parse<T>(file, {
       header: true,
       skipEmptyLines: true,
       complete: (v) => resolve(v.data),
@@ -190,7 +190,7 @@ export const processRegionVariants = async (
   posRange: [number, number] | null = null,
   selectedRegions: number[] | null = null,
 ) => {
-  const parsed = await parseTsv<VariantResult>(file);
+  const parsed = await parseTabular<VariantResult>(file);
   return transformRegionVariants(parsed, chrs, posRange, selectedRegions);
 };
 

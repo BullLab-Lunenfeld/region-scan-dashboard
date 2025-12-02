@@ -22,7 +22,7 @@ import {
   RegionPlot,
   ShortTextField,
 } from "@/components";
-import { parseTsv, transformRegionVariants, unique } from "@/lib/ts/util";
+import { parseTabular, transformRegionVariants, unique } from "@/lib/ts/util";
 import {
   AssembyInfo,
   isKeyOfRegionResult,
@@ -300,7 +300,7 @@ export default function Visualization() {
     fetch(`${process.env.NEXT_PUBLIC_APP_URL}/example`).then((r) =>
       r.json().then(async (r) => {
         const regionData = transformRegionUpload(
-          await parseTsv<RegionResultRaw>(r.region),
+          await parseTabular<RegionResultRaw>(r.region),
           1,
         );
 
@@ -316,7 +316,7 @@ export default function Visualization() {
                 number,
               ]);
 
-        const variantData = await parseTsv<VariantResult>(r.variant);
+        const variantData = await parseTabular<VariantResult>(r.variant);
 
         setRegionVariantData(transformRegionVariants(variantData, chrs, range));
       }),

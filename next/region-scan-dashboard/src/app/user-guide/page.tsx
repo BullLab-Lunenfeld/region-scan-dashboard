@@ -30,7 +30,7 @@ export default function page() {
       <Grid container direction="column" spacing={3} size={{ xs: 12, md: 8 }}>
         <Grid>
           <Typography textAlign="center" variant="h2">
-            Tutorial
+            User Guide
           </Typography>
         </Grid>
         <Grid container direction="column" spacing={1}>
@@ -94,7 +94,7 @@ export default function page() {
             <Grid>
               <Typography>
                 The current list of supported field names for{" "}
-                <Strong>variable</Strong> files is:{" "}
+                <Strong>variant</Strong> files is:{" "}
               </Typography>
               <Grid container justifyContent="center">
                 <FieldNameGrid
@@ -103,8 +103,8 @@ export default function page() {
                     "region",
                     "start.bp",
                     "end.bp",
-                    "variant",
                     "pos",
+                    "variant",
                     "multiallelicSNP",
                     "major.allele",
                     "minor.allele",
@@ -294,7 +294,7 @@ export default function page() {
             </Typography>
           </Grid>
           <Grid container justifyContent="center">
-            <FieldNameGrid names={["chrom", "test", "pos", "ref", "alt"]} />
+            <FieldNameGrid names={["chrom", "pos", "ref", "alt", "test"]} />
           </Grid>
           <Grid>
             <Typography>
@@ -393,9 +393,10 @@ const ListItemBlock = ({ children, ...props }: BoxProps) => (
 
 interface FieldNameGridProps {
   names: string[];
+  sort?: boolean;
 }
 
-const FieldNameGrid: React.FC<FieldNameGridProps> = ({ names }) => (
+const FieldNameGrid: React.FC<FieldNameGridProps> = ({ names, sort }) => (
   <Grid
     container
     direction="row"
@@ -411,7 +412,9 @@ const FieldNameGrid: React.FC<FieldNameGridProps> = ({ names }) => (
     })}
   >
     {names
-      .sort((a, b) => (a.toLowerCase() < b.toLowerCase() ? -1 : 1))
+      .sort((a, b) =>
+        !!sort ? (a.toLowerCase() < b.toLowerCase() ? -1 : 1) : 0,
+      )
       .map((d) => (
         <Grid key={d}>
           <Box component="pre" margin={0.5}>

@@ -39,7 +39,7 @@ import {
 } from "@/lib/ts/types";
 import {
   getEntries,
-  parseTsv,
+  parseTabular,
   processRegionVariants,
   unique,
 } from "@/lib/ts/util";
@@ -89,7 +89,7 @@ const _handleRegionUpload = async (files: File[]) => {
   let results: RegionResult[] = [];
   let i = 1;
   for (const file of files) {
-    const parsed = await parseTsv<RegionResultRaw>(file);
+    const parsed = await parseTabular<RegionResultRaw>(file);
     results = [...results, ...transformRegionUpload(parsed, i)];
     i++;
   }
@@ -253,7 +253,7 @@ const Header: React.FC = () => {
             <NavLink href="/visualization">Visualizations</NavLink>
           </Grid>
           <Grid>
-            <NavLink href="/tutorial">Tutorial</NavLink>
+            <NavLink href="/user-guide">User Guide</NavLink>
           </Grid>
         </Grid>
       </Toolbar>
