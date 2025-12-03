@@ -51,8 +51,9 @@ export default function page() {
                   RegionScan
                 </MuiLink>{" "}
                 analyses and field names and value ranges are expected to match
-                those of RegionScan outputs. The current list of supported field
-                names for <Strong>region</Strong> files is:{" "}
+                those of RegionScan outputs. Data may be in .csv or .tsv format.
+                The current list of supported field names for{" "}
+                <Strong>region</Strong> files is:{" "}
               </Typography>
             </Grid>
             <Grid container justifyContent="center">
