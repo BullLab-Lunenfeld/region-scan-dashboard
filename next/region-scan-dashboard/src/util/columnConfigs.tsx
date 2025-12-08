@@ -114,7 +114,7 @@ const isBetweenOperators: GridFilterOperator<RegionResult>[] = [
   },
 ];
 
-export const RegionResultCols: PaginatedTableColumn<RegionResult>[] = [
+export const regionResultCols: PaginatedTableColumn<RegionResult>[] = [
   { field: "chr", headerName: "chr", sortable: true },
   {
     field: "region",

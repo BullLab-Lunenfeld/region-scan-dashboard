@@ -10,6 +10,7 @@ import {
   MenuItem,
   Typography,
 } from "@mui/material";
+import { getGridNumericOperators } from "@mui/x-data-grid";
 import { scaleOrdinal } from "d3-scale";
 import { extent, groups } from "d3-array";
 import { DeselectSharp, UndoSharp } from "@mui/icons-material";
@@ -33,7 +34,7 @@ import {
   SelectedRegionDetailData,
   VariantResult,
 } from "@/lib/ts/types";
-import { RegionResultCols } from "@/util/columnConfigs";
+import { formatPval, regionResultCols } from "@/util/columnConfigs";
 import { BrushFilter } from "@/components/MiamiPlot";
 import { chromLengths37, chromLengths38 } from "@/util/chromLengths";
 import { transformRegionUpload } from "@/components/Header";
@@ -131,6 +132,28 @@ export default function Visualization() {
 
     return mapping;
   }, [regionData, regionDataSet]);
+
+  const regionTableCols = useMemo(() => {
+    if (!!regionData.length) {
+      return regionResultCols.concat(
+        Object.keys(regionData[0])
+          .filter(
+            (k) =>
+              !regionResultCols.map((r) => r.field).includes(k) &&
+              k.toString().endsWith("_p"),
+          )
+          .map((k) => ({
+            field: k,
+            headerName: k,
+            sortable: true,
+            valueFormatter: formatPval,
+            filterOperators: getGridNumericOperators(),
+          })),
+      );
+    } else {
+      return [];
+    }
+  }, [regionData]);
 
   const tableData = useMemo(() => {
     let data: RegionResult[] = [];
@@ -602,7 +625,7 @@ export default function Visualization() {
       {!!tableData.length && (
         <Grid size={{ xs: 12 }} container flexWrap="nowrap">
           <Grid sx={{ width: "100%" }}>
-            <PaginatedTable cols={RegionResultCols} data={tableData} />
+            <PaginatedTable cols={regionTableCols} data={tableData} />
           </Grid>
         </Grid>
       )}
