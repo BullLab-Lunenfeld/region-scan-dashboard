@@ -93,7 +93,7 @@ function PaginatedTable<T extends GridValidRowModel>({
             isNumber(value) &&
             value < activeThreshold
           ) {
-            cn = "region-scane-theme--PvalBold";
+            cn = "region-scan-theme--PvalBold";
           }
         }
         return cn;
@@ -107,7 +107,7 @@ function PaginatedTable<T extends GridValidRowModel>({
               k.endsWith("_p") &&
               v < activeThreshold
             ) {
-              cn = "region-scane-theme--PvalHighlight";
+              cn = "region-scan-theme--PvalHighlight";
             }
           });
         }
@@ -140,10 +140,10 @@ function PaginatedTable<T extends GridValidRowModel>({
         } as PropsFromSlot<GridSlots["toolbar"]>,
       }}
       sx={(theme) => ({
-        "& .region-scane-theme--PvalHighlight": {
+        "& .region-scan-theme--PvalHighlight": {
           backgroundColor: lighten(theme.palette.primary.light, 0.7),
         },
-        "& .region-scane-theme--PvalBold": {
+        "& .region-scan-theme--PvalBold": {
           fontWeight: theme.typography.fontWeightBold,
         },
       })}

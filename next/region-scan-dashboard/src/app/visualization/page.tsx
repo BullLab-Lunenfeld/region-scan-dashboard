@@ -585,7 +585,9 @@ export default function Visualization() {
         <RegionPlot
           assemblyInfo={assemblyInfo}
           pvalScale={pvalScale}
-          pvars={pVars.filter((p) => isKeyOfRegionResult(p))}
+          pvars={pVars.filter(
+            (p) => isKeyOfRegionResult(p) || p.endsWith("_p"),
+          )}
           selector="region-plot"
           selectedRegionDetailData={selectedRegionDetailData}
           regionVars={

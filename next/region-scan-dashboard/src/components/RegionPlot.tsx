@@ -80,7 +80,7 @@ interface RegionPlotRenderData {
   setCenterRegion: (region: number) => void;
   transformPValue: (pval: number) => number;
   uncoveredRegions: number[];
-  visiblePvars: (keyof RegionResult)[];
+  visiblePvars: string[];
   wheelCb: (delta: number, pos: number) => void;
 }
 
@@ -830,7 +830,7 @@ interface RegionPlotProps {
   assemblyInfo: AssembyInfo;
   mainWidth: number;
   pvalScale: ScaleOrdinal<string, string, never>;
-  pvars: (keyof RegionResult)[];
+  pvars: string[];
   regionVars: (keyof RegionResult)[];
   selectedRegionDetailData: SelectedRegionDetailData;
   selector: string;
@@ -875,7 +875,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   const [visibleData, setVisibleData] = useState<RegionResult[]>([]);
 
-  const [visiblePvars, setVisiblePvars] = useState<(keyof RegionResult)[]>([]);
+  const [visiblePvars, setVisiblePvars] = useState<string[]>([]);
 
   const [warningMessage, setWarningMessage] = useState("");
 
