@@ -60,9 +60,12 @@ const getVariantOrRegionLocation = (datum: VariantResult | RegionResult) => {
   }
 };
 
-type TransformedData = {
-  [Property in keyof RegionResult | keyof VariantResult]: number;
-};
+type TransformedData = Omit<
+  {
+    [Property in keyof RegionResult | keyof VariantResult]: number;
+  },
+  "gene"
+>;
 
 /**
  * Bin data by range that corresponds to `pixelBinWidth`
@@ -135,7 +138,9 @@ const showMiamiTooltip = (
   e: React.MouseEvent,
   pval: number | null,
 ) => {
-  const sharedText = [`Region: ${d.region}`, `Chr: ${d.chr}`];
+  const sharedText = [`Region: ${d.region}`, `Chr: ${d.chr}`].concat(
+    d.gene ? `gene: ${d.gene}` : [],
+  );
 
   const regionText = [
     `Start: ${formatComma(d.start_bp)}`,
@@ -268,15 +273,13 @@ const buildChart = (
         Object.fromEntries(
           getEntries(d)
             .filter(([, v]) => !!v)
-            .map(
-              ([k, v]: [keyof RegionResult | keyof VariantResult, number]) => {
-                if ([topCol, bottomCol].includes(k)) {
-                  return [k, transformPval(v)];
-                } else {
-                  return [k, v];
-                }
-              },
-            ),
+            .map(([k, v]) => {
+              if ([topCol, bottomCol].includes(k)) {
+                return [k, transformPval(v as number)];
+              } else {
+                return [k, v];
+              }
+            }),
         ) as TransformedData,
     );
 

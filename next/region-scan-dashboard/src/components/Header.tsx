@@ -58,10 +58,10 @@ export const transformRegionUpload = (parsed: RegionResultRaw[], i: number) =>
     val.id = +`${i + 1}${j + 1}` * Math.random();
     return Object.fromEntries(
       getEntries(val)
-        .map<[keyof RegionResultRaw, number | null]>(([k, v]) => {
+        .map<[keyof RegionResultRaw, number | string | null]>(([k, v]) => {
           let k_ = colMap[k as keyof RegionResultRawOld] || k;
           k_ = k_.replaceAll(".", "_") as keyof RegionResultRaw;
-          return [k_, v ? +v : null];
+          return [k_, v ? (["gene"].includes(k_) ? v : +v) : null];
         })
         .filter(([k, v]) => {
           if (oldColsToDrop.includes(k)) {
@@ -218,8 +218,11 @@ const Header: React.FC = () => {
           spacing={2}
           container
           flexGrow={1}
-          size={{ xs: 4, lg: 2 }}
+          size={{ xs: 4, lg: 3 }}
         >
+          <Grid>
+            <NavLink href="/user-guide">User Guide</NavLink>
+          </Grid>
           {pathname === "/visualization" && (
             <>
               <Grid>
@@ -235,7 +238,7 @@ const Header: React.FC = () => {
             </>
           )}
         </Grid>
-        <Grid flexGrow={1} size={{ xs: 4, lg: 8 }}>
+        <Grid flexGrow={1} size={{ xs: 4, lg: 6 }}>
           <NavLink noDecoration href="/">
             <Typography textAlign="center" variant="h3">
               RegionScan Visualization
@@ -244,16 +247,13 @@ const Header: React.FC = () => {
         </Grid>
         <Grid
           flexGrow={1}
-          size={{ xs: 4, lg: 2 }}
+          size={{ xs: 4, lg: 3 }}
           justifyContent="flex-end"
           container
           spacing={3}
         >
           <Grid>
             <NavLink href="/visualization">Visualizations</NavLink>
-          </Grid>
-          <Grid>
-            <NavLink href="/user-guide">User Guide</NavLink>
           </Grid>
         </Grid>
       </Toolbar>

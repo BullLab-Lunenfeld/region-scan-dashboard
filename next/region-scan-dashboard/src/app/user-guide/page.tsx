@@ -1,6 +1,7 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef } from "react";
+import { Link, Element } from "react-scroll";
 import {
   Grid2 as Grid,
   Typography,
@@ -11,6 +12,7 @@ import {
   List,
   ListItem,
   BoxProps,
+  Divider,
 } from "@mui/material";
 import { StaticImport } from "next/dist/shared/lib/get-img-props";
 import Image from "next/image";
@@ -24,16 +26,70 @@ import qqPlot from "/public/qq-plot.png";
 import regionAnnotation from "/public/region-plot-annotation.png";
 import plinkPlot from "/public/plink-plot.png";
 
-export default function page() {
+const Page: React.FC = () => {
+  const tocRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const shiftSticky = () => {
+      if (tocRef.current) {
+        const scrollTop = window.scrollY;
+        if (scrollTop > 50) {
+          tocRef.current.style.top = "20px";
+        } else {
+          tocRef.current.style.top = "auto";
+        }
+      }
+    };
+
+    window.addEventListener("scroll", shiftSticky);
+    return () => {
+      window.removeEventListener("scroll", shiftSticky);
+    };
+  }, []);
+
   return (
-    <Grid container justifyContent="center">
-      <Grid container direction="column" spacing={3} size={{ xs: 12, md: 8 }}>
+    <Grid container direction="row" spacing={4} justifyContent="center">
+      <Grid container justifyContent="center" direction="row" size={{ xs: 12 }}>
         <Grid>
           <Typography textAlign="center" variant="h2">
             User Guide
           </Typography>
         </Grid>
-        <Grid container direction="column" spacing={1}>
+      </Grid>
+      <Grid
+        container
+        direction="row"
+        size={{ xs: 2.5 }}
+        sx={(theme) => ({
+          [theme.breakpoints.down("md")]: { display: "none" },
+        })}
+      >
+        <Box position="relative">
+          <Box position="fixed" ref={tocRef}>
+            <List
+              sx={(theme) => ({
+                "a.active-link": {
+                  color: theme.palette.primary.light,
+                },
+              })}
+            >
+              <TocItem target="uploading-data">Uploading Data</TocItem>
+              <TocItem target="miami-plot">The Miami Plot</TocItem>
+              <TocItem target="qq-plot">The QQ Plot</TocItem>
+              <TocItem target="region-plot">The Region Plot</TocItem>
+              <TocItem target="performance">Performance</TocItem>
+            </List>
+          </Box>
+        </Box>
+      </Grid>
+      <Grid container direction="column" spacing={3} size={{ xs: 12, md: 9.5 }}>
+        <Grid
+          component={Element}
+          name="uploading-data"
+          container
+          direction="column"
+          spacing={1}
+        >
           <Grid>
             <Typography variant="h4">1. Uploading Data</Typography>
           </Grid>
@@ -182,8 +238,14 @@ export default function page() {
               src={variantDropdown}
             />
           </Grid>
+          <SectionDivider />
         </Grid>
-        <Grid container direction="column">
+        <Grid
+          container
+          component={Element}
+          name="miami-plot"
+          direction="column"
+        >
           <Grid>
             <Typography variant="h4">2. The Miami Plot</Typography>
           </Grid>
@@ -225,8 +287,9 @@ export default function page() {
             alt="Miami plot y overflow 2"
             widthPct="50%"
           />
+          <SectionDivider />
         </Grid>
-        <Grid container direction="column">
+        <Grid container direction="column" component={Element} name="qq-plot">
           <Grid>
             <Typography variant="h4">3. The QQ Plot</Typography>
           </Grid>
@@ -245,8 +308,14 @@ export default function page() {
             src={qqPlot}
             alt="qq-plot"
           />
+          <SectionDivider />
         </Grid>
-        <Grid container direction="column">
+        <Grid
+          container
+          direction="column"
+          component={Element}
+          name="region-plot"
+        >
           <Grid>
             <Typography variant="h4">4. The Region Plot</Typography>
           </Grid>
@@ -310,8 +379,14 @@ export default function page() {
             alt="Region plink plot"
             src={plinkPlot}
           />
+          <SectionDivider />
         </Grid>
-        <Grid container direction="column">
+        <Grid
+          container
+          direction="column"
+          component={Element}
+          name="performance"
+        >
           <Grid>
             <Typography variant="h4">5. Performance</Typography>
           </Grid>
@@ -384,7 +459,7 @@ export default function page() {
       </Grid>
     </Grid>
   );
-}
+};
 
 const ListItemBlock = ({ children, ...props }: BoxProps) => (
   <Box component={ListItem} {...props} display="block">
@@ -484,3 +559,24 @@ const GridImage: React.FC<GridImageProps> = ({
     </Grid>
   </Grid>
 );
+
+const SectionDivider: React.FC = () => (
+  <Grid padding={3}>
+    <Divider />
+  </Grid>
+);
+
+const TocItem: React.FC<{ children: React.ReactNode; target: string }> = ({
+  children,
+  target,
+}) => (
+  <ListItem>
+    <Link spy activeClass="active-link" to={target}>
+      <Typography sx={{ cursor: "pointer" }} variant="h6">
+        {children}
+      </Typography>
+    </Link>
+  </ListItem>
+);
+
+export default Page;

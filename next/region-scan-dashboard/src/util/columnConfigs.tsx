@@ -123,6 +123,7 @@ export const regionResultCols: PaginatedTableColumn<RegionResult>[] = [
     getSortComparator: regionSort,
     filterOperators: isBetweenOperators.concat(getGridNumericOperators()),
   },
+
   {
     field: "start_bp",
     headerName: "start_bp",

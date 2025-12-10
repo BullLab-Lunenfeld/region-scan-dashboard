@@ -24,6 +24,12 @@ const plots = [
     width: 1066,
   },
   {
+    height: 535,
+    plot: qqPlot,
+    title: "QQ Plot",
+    width: 1155,
+  },
+  {
     height: 526,
     plot: regionBasic,
     title: "Region Plot (Basic)",
@@ -35,30 +41,31 @@ const plots = [
     title: "Region Plot (Detail)",
     width: 1194,
   },
-  {
-    cssWidth: "auto",
-    cssHeight: "auto",
-    height: 476,
-    plot: qqPlot,
-    title: "QQ Plot",
-    width: 488,
-  },
 ];
 
 const LandingPage: React.FC = () => {
   const router = useRouter();
 
   return (
-    <Grid container direction="row" spacing={3} wrap="nowrap" marginTop={4}>
+    <Grid
+      container
+      alignItems="center"
+      justifyContent="center"
+      direction="column"
+      maxWidth="1500px"
+      spacing={3}
+      marginTop={4}
+    >
       <Grid
         container
+        justifyContent="center"
         direction="column"
         alignContent="center"
         spacing={4}
-        size={{ xs: 12, md: 6 }}
+        size={{ xs: 12, md: 8 }}
       >
         <Grid>
-          <Typography variant="h6">
+          <Typography variant="h6" textAlign="center">
             RegionScan Visualization allows users to interact with the results
             of RegionScan analyses. You can learn more about RegionScan by
             reading the{" "}
@@ -85,7 +92,7 @@ const LandingPage: React.FC = () => {
             .
           </Typography>
         </Grid>
-        <Grid textAlign="center">
+        <Grid textAlign="center" marginBottom={2}>
           <Button
             onClick={() => router.push("/visualization")}
             variant="contained"
@@ -103,16 +110,14 @@ const LandingPage: React.FC = () => {
       </Grid>
       <Grid
         container
-        direction="column"
-        size={{ xs: 12, md: 6 }}
-        alignItems="center"
+        direction="row"
+        size={{ xs: 12, md: 12 }}
+        alignItems="flex-start"
       >
-        {plots.map(({ cssHeight, cssWidth, height, plot, title, width }) => (
+        {plots.map(({ height, plot, title, width }) => (
           <LandingPageImage
             key={title}
             alt={title}
-            cssHeight={cssHeight}
-            cssWidth={cssWidth}
             height={height}
             src={plot}
             title={title}
@@ -126,8 +131,6 @@ const LandingPage: React.FC = () => {
 
 interface LandingPageImageProps {
   alt: string;
-  cssHeight?: string | number;
-  cssWidth?: string | number;
   height: number;
   src: StaticImageData;
   title: string;
@@ -136,8 +139,6 @@ interface LandingPageImageProps {
 
 const LandingPageImage: React.FC<LandingPageImageProps> = ({
   alt,
-  cssHeight,
-  cssWidth,
   height,
   src,
   title,
@@ -147,11 +148,11 @@ const LandingPageImage: React.FC<LandingPageImageProps> = ({
     container
     direction="column"
     spacing={2}
-    maxWidth="500px"
+    size={{ xs: 6 }}
     sx={{
       border: "solid lightgrey 1px",
       borderRadius: "4px",
-      img: { width: cssWidth ?? "100%", height: cssHeight ?? "auto" },
+      img: { width: "100%", height: "auto" },
     }}
   >
     <Grid

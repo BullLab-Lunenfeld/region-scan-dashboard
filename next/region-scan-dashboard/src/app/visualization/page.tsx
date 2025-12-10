@@ -135,7 +135,7 @@ export default function Visualization() {
 
   const regionTableCols = useMemo(() => {
     if (!!regionData.length) {
-      return regionResultCols.concat(
+      let cols = regionResultCols.concat(
         Object.keys(regionData[0])
           .filter(
             (k) =>
@@ -150,6 +150,18 @@ export default function Visualization() {
             filterOperators: getGridNumericOperators(),
           })),
       );
+
+      if (Object.keys(regionData[0]).includes("gene")) {
+        cols = cols
+          .slice(0, 2)
+          .concat({
+            field: "gene",
+            headerName: "gene",
+            sortable: true,
+          })
+          .concat(cols.slice(2));
+      }
+      return cols;
     } else {
       return [];
     }
@@ -157,11 +169,14 @@ export default function Visualization() {
 
   const tableData = useMemo(() => {
     let data: RegionResult[] = [];
+    // if a region is selected, filter table data to that region
     if (selectedRegionDetailData?.data.length) {
       data = selectedRegionDetailData.data;
     } else if (miamiData?.data.length) {
+      // if MiamiPlot is visible, filter table data to that data
       data = miamiData?.data.filter((d) => isRegionResult(d));
     } else if (regionDataSet) {
+      // otherwise show all the region data
       data = regionData;
     }
     return data;
@@ -184,7 +199,7 @@ export default function Visualization() {
         }
       }
 
-      // we have to have <= 5 mb for gene fetch API, so trim there too
+      // we have to have <= 5 mb for gene fetch API, so trim here too
       if (selectedRegion.start_bp - minBp > 2500000) {
         minBp = selectedRegion.start_bp - 2500000;
       }
@@ -287,7 +302,7 @@ export default function Visualization() {
     },
     // We set selectedRegionDetailData here so we'll get circular if we include it as a dep.
     // Also we do all the miami updates here and save data in a single object to save on renders.
-    // we leave out regionDetailData b/c of circular dep
+    // we leave out selectedRegionDetailData b/c of circular dep
     //eslint-disable-next-line react-hooks/exhaustive-deps
     [
       brushFilterHistory,

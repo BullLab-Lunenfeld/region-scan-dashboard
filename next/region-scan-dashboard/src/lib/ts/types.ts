@@ -29,6 +29,7 @@ export interface LocalRecombData {
 //fields common to both
 export interface RegionResultRawBase {
   chr: number;
+  gene?: string;
   end_bp: number;
   "GATES.p": number;
   LCB: number;
@@ -85,6 +86,7 @@ export interface RegionResult {
   chr: number;
   end_bp: number;
   GATES_p: number;
+  gene?: string;
   LCB: number;
   LCB_df: number;
   LCB_p: number;
@@ -117,6 +119,7 @@ export interface RegionResult {
 
 interface VariantResultRawBase {
   chr: number;
+  gene?: string;
   region: number;
   "start.bp": number;
   "end.bp": number;
@@ -172,6 +175,7 @@ export type VariantResultRaw = VariantResultRawNew | VariantResultRawOld;
 
 export interface VariantResult {
   chr: number;
+  gene?: string;
   region: number;
   start_bp: number;
   end_bp: number;

@@ -160,7 +160,7 @@ export const transformRegionVariants = (
                 k_,
                 v
                   ? v
-                    ? ["ref", "alt", "variant"].includes(k)
+                    ? ["ref", "alt", "variant", "gene"].includes(k)
                       ? v
                       : +v
                     : v

@@ -6,7 +6,7 @@ import React, {
   SetStateAction,
   useState,
 } from "react";
-import { Box, Container } from "@mui/material";
+import { Container, Grid2 as Grid } from "@mui/material";
 import { schemeTableau10 } from "d3-scale-chromatic";
 import Header from "./Header";
 import { RegionResult, VariantResult } from "@/lib/ts/types";
@@ -148,9 +148,9 @@ const AppContainer: React.FC<AppContainerProps> = ({ children }) => {
     >
       <Container maxWidth={false} sx={{ minHeight: "92vh" }}>
         <Header />
-        <Box flexGrow={1} overflow="auto" padding={2}>
+        <Grid container flexGrow={1} padding={2} justifyContent="center">
           {children}
-        </Box>
+        </Grid>
       </Container>
     </VisualizationDataContext.Provider>
   );
