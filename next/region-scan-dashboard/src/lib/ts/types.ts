@@ -185,6 +185,7 @@ export interface VariantResult {
   major_allele?: number;
   minor_allele?: number;
   bp: number;
+  maxVIF: number;
   multiallelic: number;
   MLC_codechange: number;
   mglm_vif: number;
