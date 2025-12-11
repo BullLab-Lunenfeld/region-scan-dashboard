@@ -74,11 +74,11 @@ const Page: React.FC = () => {
                 },
               })}
             >
-              <TocItem target="uploading-data">Uploading Data</TocItem>
-              <TocItem target="miami-plot">The Miami Plot</TocItem>
-              <TocItem target="qq-plot">The QQ Plot</TocItem>
-              <TocItem target="region-plot">The Region Plot</TocItem>
-              <TocItem target="performance">Performance</TocItem>
+              <TocItem target="uploading-data">1. Uploading Data</TocItem>
+              <TocItem target="miami-plot">2. The Miami Plot</TocItem>
+              <TocItem target="qq-plot">3. The QQ Plot</TocItem>
+              <TocItem target="region-plot">4. The Region Plot</TocItem>
+              <TocItem target="performance">5. Performance</TocItem>
             </List>
           </Box>
         </Box>
@@ -436,6 +436,7 @@ const Page: React.FC = () => {
           direction="column"
           component={Element}
           name="performance"
+          marginBottom={25}
         >
           <Grid>
             <Typography variant="h4">5. Performance</Typography>
@@ -496,16 +497,21 @@ const Page: React.FC = () => {
                   and select a region to view in the region plot.
                 </Typography>
               </ListItemBlock>
+              <ListItemBlock>
+                <Typography>
+                  <Strong>Plot Colors</Strong>
+                </Typography>
+                <Typography>
+                  The plots use an ordinal scale that has ten colors by default.
+                  If more than ten region-level tests are provided in the data,
+                  additional colors will be added by interpolation. For optimal
+                  contrast between colors, reduce your columns to ten or fewer
+                  in your dataset.
+                </Typography>
+              </ListItemBlock>
             </List>
           </Grid>
         </Grid>
-
-        {/*<Grid>
-          <Typography variant="h5">Exporting</Typography>
-        </Grid>
-        <Grid>
-          <Typography variant="h4">Tips and tricks</Typography>
-        </Grid> */}
       </Grid>
     </Grid>
   );
@@ -527,6 +533,7 @@ const FieldNameGrid: React.FC<FieldNameGridProps> = ({ names, sort }) => (
     container
     direction="row"
     justifyContent="center"
+    alignItems="center"
     spacing={1}
     sx={(theme) => ({
       backgroundColor: alpha(theme.palette.info.light, 0.3),
@@ -543,9 +550,7 @@ const FieldNameGrid: React.FC<FieldNameGridProps> = ({ names, sort }) => (
       )
       .map((d) => (
         <Grid key={d}>
-          <Box component="pre" margin={0.5}>
-            {d}
-          </Box>
+          <Box component={Code}>{d}</Box>
         </Grid>
       ))}
   </Grid>
@@ -566,7 +571,7 @@ const Italic: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 const Code: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <Box
     component="span"
-    color={(theme) => darken(theme.palette.secondary.dark, 0.2)}
+    color={(theme) => darken(theme.palette.secondary.dark, 0.8)}
     margin="inherit"
     display="inline"
     fontFamily="monospace"
@@ -629,7 +634,15 @@ const TocItem: React.FC<{ children: React.ReactNode; target: string }> = ({
 }) => (
   <ListItem>
     <Link spy activeClass="active-link" to={target}>
-      <Typography sx={{ cursor: "pointer" }} variant="h6">
+      <Typography
+        sx={(theme) => ({
+          cursor: "pointer",
+          "&:hover": {
+            color: theme.palette.secondary.light,
+          },
+        })}
+        variant="h6"
+      >
         {children}
       </Typography>
     </Link>

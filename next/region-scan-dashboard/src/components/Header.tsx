@@ -26,10 +26,13 @@ import {
   MiamiYType,
   VisualizationDataContext,
 } from "./AppContainer";
-import LoadingOverlay from "./LoadingOverlay";
-import ValidationModal from "./ValidationModal";
-import { UploadButtonMulti } from "./UploadButton";
-import NumberInput from "./NumberInput";
+import {
+  LoadingOverlay,
+  Modal,
+  NumberInput,
+  UploadButtonMulti,
+  ValidationModal,
+} from "@/components";
 import {
   RegionResult,
   RegionResultRaw,
@@ -171,6 +174,7 @@ const COLOR_BLIND_PALETTE: readonly string[] = [
 const Header: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [uploadErrors, setUploadErrors] = useState("");
+  const [contactModalOpen, setContactModalOpen] = useState(false);
 
   const pathname = usePathname();
 
@@ -223,7 +227,7 @@ const Header: React.FC = () => {
           <Grid>
             <NavLink href="/user-guide">User Guide</NavLink>
           </Grid>
-          {pathname === "/visualization" && (
+          {pathname === "/visualization" ? (
             <>
               <Grid>
                 <UploadDataDropdown
@@ -236,6 +240,18 @@ const Header: React.FC = () => {
                 <SettingsDropdown />
               </Grid>
             </>
+          ) : (
+            <Grid>
+              <Typography
+                sx={({ palette }) => ({
+                  color: palette.primary.contrastText,
+                  cursor: "pointer",
+                })}
+                onClick={() => setContactModalOpen(true)}
+              >
+                Contact
+              </Typography>
+            </Grid>
           )}
         </Grid>
         <Grid flexGrow={1} size={{ xs: 4, lg: 6 }}>
@@ -262,6 +278,10 @@ const Header: React.FC = () => {
         open={!!uploadErrors}
         errorMsg={uploadErrors}
         onClose={() => setUploadErrors("")}
+      />
+      <ContactModal
+        open={contactModalOpen}
+        onClose={() => setContactModalOpen(false)}
       />
     </AppBar>
   );
@@ -393,20 +413,23 @@ const SettingsDropdown: React.FC = () => {
           <RadioGroup
             onChange={(e) => {
               if (e.currentTarget.value === "default") {
-                setPalette(schemeTableau10);
+                setPalette({ name: "default", colors: schemeTableau10 });
               } else {
-                setPalette(COLOR_BLIND_PALETTE);
+                setPalette({
+                  name: "color-blind",
+                  colors: COLOR_BLIND_PALETTE,
+                });
               }
             }}
           >
             <FormControlLabel
-              checked={palette === schemeTableau10}
+              checked={palette.name === "default"}
               value={"default"}
               control={<Radio size="small" />}
               label="Default"
             />
             <FormControlLabel
-              checked={palette === COLOR_BLIND_PALETTE}
+              checked={palette.name === "color-blind"}
               value="color-blind"
               control={<Radio size="small" />}
               label="Colour Blind"
@@ -582,5 +605,25 @@ const OverflowMenuItem: React.FC<OverflowMenuItemProps> = ({
     </MenuItem>
   );
 };
+
+interface ContactModalProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+const ContactModal: React.FC<ContactModalProps> = ({ open, onClose }) => (
+  <Modal open={open} handleClose={onClose}>
+    <Grid alignItems="center" spacing={2} direction="column" container>
+      <Grid>
+        <Typography textAlign="center">
+          Please send questions and feedback to brossard@lunenfeld.ca.
+        </Typography>
+      </Grid>
+      <Grid>
+        <Button onClick={onClose}>Close</Button>
+      </Grid>
+    </Grid>
+  </Modal>
+);
 
 export default Header;

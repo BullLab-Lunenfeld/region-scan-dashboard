@@ -11,6 +11,11 @@ import { schemeTableau10 } from "d3-scale-chromatic";
 import Header from "./Header";
 import { RegionResult, VariantResult } from "@/lib/ts/types";
 
+export interface PaletteSettings {
+  name: string;
+  colors: readonly string[];
+}
+
 export interface PlotThresholds {
   miamiBottom: number;
   miamiTop: number;
@@ -39,14 +44,14 @@ interface VisualizationDataContext {
   miamiType: MiamiType;
   miamiYType: MiamiYType;
   overflows: OverflowScaleSettings;
-  palette: readonly string[];
+  palette: PaletteSettings;
   qqPlotVisible: boolean;
   regionData: RegionResult[];
   regionVariantData: VariantResult[];
   setMiamiType: (type: MiamiType) => void;
   setMiamiYType: (type: MiamiYType) => void;
   setOverflows: (data: OverflowScaleSettings) => void;
-  setPalette: (palette: readonly string[]) => void;
+  setPalette: (palette: PaletteSettings) => void;
   setQqPlotVisible: (visible: boolean) => void;
   setRegionData: (data: RegionResult[]) => void;
   setRegionVariantData: (data: VariantResult[]) => void;
@@ -83,7 +88,7 @@ export const VisualizationDataContext = createContext<VisualizationDataContext>(
     miamiType: "scatter",
     miamiYType: "dynamic",
     overflows: DEFAULT_OVERFLOWS,
-    palette: schemeTableau10,
+    palette: { name: "default", colors: schemeTableau10 },
     qqPlotVisible: true,
     regionData: [],
     regionVariantData: [],
@@ -106,7 +111,10 @@ const AppContainer: React.FC<AppContainerProps> = ({ children }) => {
   const [miamiYType, setMiamiYType] = useState<MiamiYType>("dynamic");
 
   const [qqPlotVisible, setQqPlotVisible] = useState(true);
-  const [palette, setPalette] = useState<readonly string[]>(schemeTableau10);
+  const [palette, setPalette] = useState<PaletteSettings>({
+    name: "default",
+    colors: schemeTableau10,
+  });
   const [transformPValue, setTransformPValue] = useState<
     (pval: number) => number
   >(() => transformPLog10);

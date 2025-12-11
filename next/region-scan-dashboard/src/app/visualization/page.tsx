@@ -5,13 +5,16 @@ import {
   alpha,
   Box,
   Button,
+  darken,
   Grid2 as Grid,
   IconButton,
+  lighten,
   MenuItem,
   Typography,
 } from "@mui/material";
 import { getGridNumericOperators } from "@mui/x-data-grid";
 import { scaleOrdinal } from "d3-scale";
+import { interpolate } from "d3-interpolate";
 import { extent, groups } from "d3-array";
 import { DeselectSharp, UndoSharp } from "@mui/icons-material";
 import {
@@ -78,6 +81,7 @@ export default function Visualization() {
     qqPlotVisible,
     regionData,
     regionVariantData,
+    setPalette,
     setRegionData,
     setRegionVariantData,
     setThreshold,
@@ -103,8 +107,8 @@ export default function Visualization() {
 
   const pvalScale = useMemo(() => {
     if (regionDataSet) {
-      return scaleOrdinal<string, string>()
-        .range(palette)
+      const scale = scaleOrdinal<string, string>()
+        .range(palette.colors)
         .domain(
           Object.keys(regionData[0])
             .concat(regionVariantData.length ? "sglm_pvalue" : [])
@@ -112,6 +116,10 @@ export default function Visualization() {
             .map((k) => k)
             .filter((k, i, a) => a.findIndex((d) => d === k) === i) as string[],
         );
+
+      console.log(scale.range());
+      console.log(scale.domain());
+      return scale;
     }
   }, [regionData, regionDataSet, regionVariantData, palette]);
 
@@ -333,6 +341,29 @@ export default function Visualization() {
       )[],
     [regionData, regionVariantData],
   );
+
+  useEffect(() => {
+    // expand the palette on the fly by interpolating variants of adjacent colors
+    if (pVars.length > palette.colors.length) {
+      let newPalette = [...palette.colors];
+      //this will be called recursively if it's still longer afterward....
+      const gap = pVars.length - palette.colors.length;
+      let i = 0;
+      for (let j = 0; j < Math.min(pVars.length, gap); j++) {
+        newPalette = newPalette
+          .slice(0, i + 1)
+          .concat(
+            interpolate(
+              lighten(palette.colors[j], 0.75),
+              darken(palette.colors[j + 1], 0.25),
+            )(0.5),
+          )
+          .concat(newPalette.slice(i + 1));
+        i += 2;
+      }
+      setPalette({ name: palette.name, colors: newPalette });
+    }
+  }, [pVars, palette, setPalette]);
 
   const getSampleData = () =>
     fetch(`${process.env.NEXT_PUBLIC_APP_URL}/example`).then((r) =>
