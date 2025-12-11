@@ -41,6 +41,7 @@ import {
   VariantResult,
 } from "@/lib/ts/types";
 import {
+  AutocompleteSearch,
   ErrorModal,
   LoadingOverlay,
   NumberInput,
@@ -858,6 +859,8 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
 
   const [genes, setGenes] = useState<EnsemblGeneResult[]>([]);
 
+  const [geneSearchInput, setGeneSearchInput] = useState("");
+
   const [geneLabelsVisible, setGeneLabelsVisible] = useState(false);
 
   const [loading, setLoading] = useState(false);
@@ -871,6 +874,10 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
   const [recombVisible, setRecombVisible] = useState(false);
 
   const [regionLabelsVisible, setRegionLabelsVisible] = useState(false);
+
+  const [selectedGene, setSelectedGene] = useState<EnsemblGeneResult | null>(
+    null,
+  );
 
   const [uploadKey, setUploadKey] = useState<string>(
     Math.random().toString(36).slice(2),
@@ -1088,10 +1095,6 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
   );
 
   //zoom callback
-  //todo: move copy visibleData into a ref so we can remove the dependency
-  //update with same useEffect call as visibleRegion ref
-  //don't think we can do this b/c we need it for inputs but we can just copy in an effect? But does that really help?
-  //yeah it might save a render, nope
   const updateRange = useCallback(
     (delta: number, pos: number) => {
       const [visibleStart, visibleEnd] = getRegionResultRange(visibleData);
@@ -1162,6 +1165,46 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
     [data, visibleData],
   );
 
+  // zoom to selected gene, +/- 10 regions
+  useEffect(() => {
+    if (selectedGene) {
+      const { start, end } = selectedGene;
+
+      const [lowerBound, upperBound] = extent(data, (d) => d.region) as [
+        number,
+        number,
+      ];
+
+      // the gene might be in a gap, so we'll just take the closest region as the starting point
+      let dist = Infinity;
+      let closest = data[1].region;
+      const midpoint = (start + end) / 2;
+      for (let i = 1; i < data.length - 1; i++) {
+        const d = (data[i].start_bp + data[i].end_bp) / 2;
+        if (Math.abs(d - midpoint) < dist) {
+          dist = Math.abs(d - midpoint);
+          closest = data[i].region;
+        }
+      }
+
+      const visibleRegions = [closest];
+
+      for (let i = 1; i < 6; i++) {
+        if (isWithinRegions(lowerBound, upperBound, closest - i)) {
+          visibleRegions.unshift(closest - i);
+        }
+
+        if (isWithinRegions(lowerBound, upperBound, closest + i)) {
+          visibleRegions.push(closest + i);
+        }
+      }
+
+      setVisibleData(data.filter((d) => visibleRegions.includes(d.region)));
+    } else {
+      setInitialDataRange(selectedRegionDetailData);
+    }
+  }, [selectedGene]);
+
   // List of visible p-values for the checkboxes and legend
   useEffect(() => {
     setVisiblePvars((pvars) => [
@@ -1179,6 +1222,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
   useEffect(() => {
     if (chart) {
       setGenes([]);
+      setSelectedGene(null);
       setVariantsVisible(true);
       setInitialDataRange(selectedRegionDetailData);
       chart.selectedGeneRange = null;
@@ -1242,7 +1286,7 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
       {/* Region controls */}
       <Grid
         container
-        size={{ xs: 2, xl: 1.5 }}
+        size={{ xs: 2 }}
         spacing={1}
         alignItems="flex-start"
         direction="column"
@@ -1386,15 +1430,28 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
             Fetch genes
           </Button>
         </Grid>
+        {!!visibleGenes.length && (
+          <Grid width="100%">
+            <AutocompleteSearch
+              getOptionLabel={(o) => `${o?.external_name}-${o?.gene_id}` || ""}
+              label="Search Genes"
+              onSearchChange={(s) => setGeneSearchInput(s)}
+              onSelect={(s) => setSelectedGene(s)}
+              options={visibleGenes.filter((g) => !!g.external_name)}
+              searchText={geneSearchInput}
+              value={selectedGene}
+            />
+          </Grid>
+        )}
       </Grid>
       {/* Region plot */}
-      <Grid container size={{ xs: 9, lg: 7.5, xl: 7.5 }}>
+      <Grid container size={{ xs: 9, lg: 8 }}>
         <Box className={selector} onMouseEnter={handlePopoverOpen} />
       </Grid>
       {/* Region line selector */}
       <Grid
         container
-        size={{ xs: 1, lg: 1.5, xl: 2 }}
+        size={{ xs: 1, lg: 2 }}
         direction="column"
         spacing={0}
         alignItems="flex-start"
