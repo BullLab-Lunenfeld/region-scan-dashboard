@@ -266,11 +266,14 @@ class RegionChart {
           members.flatMap((m) => [m.start_bp, m.end_bp]),
         ) as [number, number];
 
+        const gene = members[0].gene; // if we have genes, then we assume there is 1 per region
+
         return Object.entries(members[0])
           .filter(([k]) => k.toLowerCase().endsWith("_p"))
           .map(([variable, pvalue]) => {
             const transformed = transformPValue(pvalue);
             return {
+              gene,
               region,
               start,
               end,
@@ -516,10 +519,11 @@ class RegionChart {
         showToolTip(e, [
           `Variable: ${d.variable}`,
           `Region: ${d.region}`,
+          `${d.gene ? `Gene: ${d.gene}` : ""}`,
           `Start pos: ${formatComma(d.start)}`,
           `End pos: ${formatComma(d.end)}`,
           `Pval: ${format(".5")(d.pvalue)}`,
-        ]),
+        ]).filter(Boolean),
       )
       .on("mouseout", () => selectAll(".tooltip").style("visibility", "hidden"))
       .on("click", (e, d) => setCenterRegion(d.region));
@@ -567,9 +571,10 @@ class RegionChart {
         showToolTip(e, [
           `Variant: ${d.variant}`,
           `Region: ${d.region}`,
+          `${d.gene ? `Gene: ${d.gene}` : ""}`,
           `Pos: ${formatComma(d.bp)}`,
           `sglm pval: ${format(".5")(d.sglm_pvalue)}`,
-        ]),
+        ]).filter(Boolean),
       )
       .on("mouseout", () =>
         selectAll(".tooltip").style("visibility", "hidden"),

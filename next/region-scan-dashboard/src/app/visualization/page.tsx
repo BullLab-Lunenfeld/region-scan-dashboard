@@ -107,7 +107,7 @@ export default function Visualization() {
 
   const pvalScale = useMemo(() => {
     if (regionDataSet) {
-      const scale = scaleOrdinal<string, string>()
+      return scaleOrdinal<string, string>()
         .range(palette.colors)
         .domain(
           Object.keys(regionData[0])
@@ -116,10 +116,6 @@ export default function Visualization() {
             .map((k) => k)
             .filter((k, i, a) => a.findIndex((d) => d === k) === i) as string[],
         );
-
-      console.log(scale.range());
-      console.log(scale.domain());
-      return scale;
     }
   }, [regionData, regionDataSet, regionVariantData, palette]);
 
