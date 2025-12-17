@@ -1437,7 +1437,13 @@ const RegionPlot: React.FC<RegionPlotProps> = ({
               label="Search Genes"
               onSearchChange={(s) => setGeneSearchInput(s)}
               onSelect={(s) => setSelectedGene(s)}
-              options={visibleGenes.filter((g) => !!g.external_name)}
+              options={visibleGenes
+                .filter((g) => !!g.external_name)
+                .sort((a, b) =>
+                  a.external_name.toLowerCase() > b.external_name.toLowerCase()
+                    ? 1
+                    : -1,
+                )}
               searchText={geneSearchInput}
               value={selectedGene}
             />
