@@ -119,16 +119,20 @@ const Page: React.FC = () => {
                 . The dashboard can use both region-level results and the
                 corresponding variant-level results for the same regions. All
                 analyses and field names and value ranges are expected to match
-                those of RegionScan outputs. Suumary output files may be in .csv
-                or .tsv format. The current list of supported column names for
-                region-level output files is{" "}
+                those of RegionScan outputs. Summary output files may be in .csv
+                or .tsv format.
+              </Typography>
+              <Typography>
+                The following is the current list of supported column names for
+                region-level output files (required columns in{" "}
+                <Strong>bold</Strong>):{" "}
               </Typography>
             </Grid>
             <Grid container justifyContent="center">
               <FieldNameGrid
                 names={[
-                  "region",
                   "chr",
+                  "region",
                   "start.bp",
                   "end.bp",
                   "nSNPs",
@@ -158,18 +162,18 @@ const Page: React.FC = () => {
                   "simes.p",
                   "simpleM.df",
                   "simpleM.p",
-                  "SKAT.pLiu",
-                  "SKATO.pOptadj",
                   "GATES.p",
-                  "single_Walkd.p",
+                  "single_Wald.p",
                   "gene",
                 ]}
+                required={["chr", "region", "start.bp", "end.bp"]}
               />
             </Grid>
             <Grid>
               <Typography>
-                The current list of supported column names for RegionScan
-                variant-level output files is:{" "}
+                The following is the current list of supported column names for
+                variant-level output files (required columns in{" "}
+                <Strong>bold</Strong>):{" "}
               </Typography>
               <Grid container justifyContent="center">
                 <FieldNameGrid
@@ -196,6 +200,16 @@ const Page: React.FC = () => {
                     "mglm.se",
                     "mglm.pvalue",
                     "gene",
+                  ]}
+                  required={[
+                    "chr",
+                    "region",
+                    "start.bp",
+                    "end.bp",
+                    "bp",
+                    "pos",
+                    "ref",
+                    "alt",
                   ]}
                 />
               </Grid>
@@ -391,7 +405,10 @@ const Page: React.FC = () => {
             <Typography>
               Click the FETCH GENES button to fetch genes for the region from
               the{" "}
-              <MuiLink href="https://rest.ensembl.org/documentation/info/overlap_region">
+              <MuiLink
+                target="_blank"
+                href="https://rest.ensembl.org/documentation/info/overlap_region"
+              >
                 Ensembl REST API
               </MuiLink>
               . By default, only protein-coding genes are shown. To show
@@ -414,7 +431,10 @@ const Page: React.FC = () => {
             </Typography>
           </Grid>
           <Grid container justifyContent="center">
-            <FieldNameGrid names={["chrom", "pos", "ref", "alt", "test"]} />
+            <FieldNameGrid
+              required={["chrom", "pos", "ref", "alt", "test"]}
+              names={["chrom", "pos", "ref", "alt", "test"]}
+            />
           </Grid>
           <Grid>
             <Typography>
@@ -525,10 +545,15 @@ const ListItemBlock = ({ children, ...props }: BoxProps) => (
 
 interface FieldNameGridProps {
   names: string[];
+  required: string[];
   sort?: boolean;
 }
 
-const FieldNameGrid: React.FC<FieldNameGridProps> = ({ names, sort }) => (
+const FieldNameGrid: React.FC<FieldNameGridProps> = ({
+  names,
+  required,
+  sort,
+}) => (
   <Grid
     container
     direction="row"
@@ -550,7 +575,9 @@ const FieldNameGrid: React.FC<FieldNameGridProps> = ({ names, sort }) => (
       )
       .map((d) => (
         <Grid key={d}>
-          <Box component={Code}>{d}</Box>
+          <Box component={Code}>
+            <Box component={required.includes(d) ? Strong : "span"}>{d}</Box>
+          </Box>
         </Grid>
       ))}
   </Grid>
