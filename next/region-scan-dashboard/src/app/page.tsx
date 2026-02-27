@@ -7,6 +7,8 @@ import {
   lighten,
   Typography,
   Link as MuiLink,
+  Divider,
+  Link,
 } from "@mui/material";
 import { useRouter } from "next/navigation";
 import Image, { StaticImageData } from "next/image";
@@ -15,6 +17,8 @@ import qqPlot from "/public/qq-plot.png";
 import regionBasic from "/public/region-basic.png";
 import regionDetail from "/public/region-detail.png";
 import miamiPlot from "/public/miami-plot.png";
+import dsiLogo from "/public/dsi-logo.png";
+import ltLogo from "/public/105h300w_LunenfeldTanenbaumLogo.png";
 
 const plots = [
   {
@@ -124,6 +128,57 @@ const LandingPage: React.FC = () => {
             width={width}
           />
         ))}
+      </Grid>
+      <Grid
+        marginTop={5}
+        container
+        alignItems="center"
+        direction="row"
+        justifyContent="center"
+        spacing={2}
+        width="100%"
+      >
+        <Grid
+          sx={(theme) => ({
+            [theme.breakpoints.up("md")]: { textAlign: "right" },
+            [theme.breakpoints.down("md")]: { textAlign: "center" },
+          })}
+          size={{ xs: 12, md: 4 }}
+        >
+          <Link href="https://www.lunenfeld.ca/" target="_blank">
+            <Image
+              style={{ width: 300, height: "auto" }}
+              width={300}
+              height={105}
+              alt="LTRI Logo"
+              src={ltLogo}
+            />
+          </Link>
+        </Grid>
+        <Grid
+          sx={{ opacity: 0.4, display: { xs: "none", md: "block" } }}
+          textAlign="center"
+          size={{ md: 2 }}
+        >
+          |
+        </Grid>
+        <Grid
+          sx={(theme) => ({
+            [theme.breakpoints.up("md")]: { textAlign: "left" },
+            [theme.breakpoints.down("md")]: { textAlign: "center" },
+          })}
+          size={{ xs: 12, md: 4 }}
+        >
+          <Link href="https://datasciences.utoronto.ca/" target="_blank">
+            <Image
+              style={{ width: 300, height: "auto" }}
+              width={1576}
+              height={251}
+              alt="DSI Loo"
+              src={dsiLogo}
+            />
+          </Link>
+        </Grid>
       </Grid>
     </Grid>
   );

@@ -532,7 +532,9 @@ const Page: React.FC = () => {
             </List>
           </Grid>
         </Grid>
+        {/* End performance section */}
       </Grid>
+      {/* End section container */}
     </Grid>
   );
 };
