@@ -15,6 +15,8 @@ import {
   RadioGroup,
   Toolbar,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import { extent } from "d3-array";
 import { schemeTableau10 } from "d3-scale-chromatic";
@@ -182,6 +184,10 @@ const Header: React.FC = () => {
     VisualizationDataContext,
   );
 
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isSmall = useMediaQuery(theme.breakpoints.down("md"));
+
   const handleRegionUpload = useCallback(
     async (files: File[]) => {
       setLoading(true);
@@ -256,7 +262,10 @@ const Header: React.FC = () => {
         </Grid>
         <Grid flexGrow={1} size={{ xs: 4, lg: 6 }}>
           <NavLink noDecoration href="/">
-            <Typography textAlign="center" variant="h3">
+            <Typography
+              textAlign="center"
+              variant={isMobile ? "h5" : isSmall ? "h4" : "h3"}
+            >
               RegionScan Visualization
             </Typography>
           </NavLink>
